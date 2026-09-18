@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RuntimeException;
 
 /**
  * @property int $id
@@ -39,6 +40,16 @@ class EntradaReputacion extends Model
      * La tabla es un ledger inmutable: no se mantiene updated_at.
      */
     public const UPDATED_AT = null;
+
+    /**
+     * El ledger es inmutable por diseño: solo admite altas, nunca
+     * modificaciones ni borrados.
+     */
+    protected static function booted(): void
+    {
+        static::updating(fn (): never => throw new RuntimeException('El ledger de reputación es inmutable: no se pueden actualizar asientos.'));
+        static::deleting(fn (): never => throw new RuntimeException('El ledger de reputación es inmutable: no se pueden eliminar asientos.'));
+    }
 
     /**
      * Get the attributes that should be cast.

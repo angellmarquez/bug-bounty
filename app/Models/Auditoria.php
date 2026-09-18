@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use RuntimeException;
 
 /**
  * @property int $id
@@ -33,6 +34,16 @@ class Auditoria extends Model
      * La tabla es un registro inmutable: no se mantiene updated_at.
      */
     public const UPDATED_AT = null;
+
+    /**
+     * El registro de auditoría es inmutable por diseño: solo admite altas,
+     * nunca modificaciones ni borrados.
+     */
+    protected static function booted(): void
+    {
+        static::updating(fn (): never => throw new RuntimeException('El registro de auditoría es inmutable: no se pueden actualizar entradas.'));
+        static::deleting(fn (): never => throw new RuntimeException('El registro de auditoría es inmutable: no se pueden eliminar entradas.'));
+    }
 
     /**
      * Get the attributes that should be cast.

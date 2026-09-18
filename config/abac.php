@@ -235,6 +235,15 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
+        [
+            'id' => 'gestion-resolver-apelaciones',
+            'prioridad' => 30,
+            'acciones' => ['apelaciones.resolver'],
+            'sujeto' => ['roles' => ['contains' => 'gestion']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
 
         // ------------------------------------------------------------------
         // 4. Deniega explícitamente el triaje a investigadores puros (aunque
