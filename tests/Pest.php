@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Programa;
+use App\Models\Reporte;
+use App\Models\Rol;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,4 +51,68 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/*
+|--------------------------------------------------------------------------
+| Helpers ABAC
+|--------------------------------------------------------------------------
+|
+| Utilidades para construir usuarios con roles y objetos del dominio en los
+| tests de la matriz ABAC (reutilizadas por tests/Feature/ABAC/).
+|
+*/
+
+function rol(string $slug): Rol
+{
+    return Rol::firstOrCreate(
+        ['slug' => $slug],
+        [
+            'nombre' => match ($slug) {
+                'administrador' => 'Administrador',
+                'gestion' => 'Gestión',
+                'investigador' => 'Investigador',
+                default => ucfirst($slug),
+            },
+            'descripcion' => 'Rol de prueba',
+        ],
+    );
+}
+
+function conRol(User $usuario, string|array $slugs): User
+{
+    $roles = collect((array) $slugs)->map(fn (string $slug) => rol($slug));
+
+    $usuario->roles()->sync($roles->pluck('id'));
+
+    return $usuario;
+}
+
+function investigador(array $atributos = []): User
+{
+    return conRol(User::factory()->create($atributos), 'investigador');
+}
+
+function gestion(array $atributos = []): User
+{
+    return conRol(User::factory()->create($atributos), 'gestion');
+}
+
+function administrador(array $atributos = []): User
+{
+    return conRol(User::factory()->create($atributos), 'administrador');
+}
+
+function programaDe(User $usuario, array $atributos = []): Programa
+{
+    return Programa::factory()->create(['creado_por' => $usuario->id, ...$atributos]);
+}
+
+function reporteDe(User $investigador, ?Programa $programa = null, array $atributos = []): Reporte
+{
+    return Reporte::factory()->create([
+        'investigador_id' => $investigador->id,
+        'programa_id' => $programa?->id ?? Programa::factory(),
+        ...$atributos,
+    ]);
 }
