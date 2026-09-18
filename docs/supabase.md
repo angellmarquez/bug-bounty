@@ -58,13 +58,13 @@ ya está aplicado.
 ## Esquema aplicado
 
 Migraciones del kit y del dominio, todas aplicadas en Supabase y registradas en `public.migrations`
-(batch 1):
+(batch 1; la fase 2 añade `claves_pgp_plataforma` como batch 2):
 
 - Kit: `users`, `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`,
   `job_batches`, `failed_jobs`, `passkeys` y columnas 2FA en `users`.
 - Dominio: `roles`, `rol_usuario`, `programas`, `objetivos_programa`, `reportes`,
-  `eventos_reporte`, `claves_pgp`, `sanciones`, `apelaciones`, `ledger_reputacion`, `auditorias`
-  y `users.reputation_score`.
+  `eventos_reporte`, `claves_pgp`, `claves_pgp_plataforma`, `sanciones`, `apelaciones`,
+  `ledger_reputacion`, `auditorias` y `users.reputation_score`.
 
 Además se sembraron los roles base: `administrador`, `gestion`, `investigador`.
 

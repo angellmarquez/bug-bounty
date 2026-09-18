@@ -27,6 +27,7 @@ test('todas las tablas del dominio existen', function () {
         'reportes',
         'eventos_reporte',
         'claves_pgp',
+        'claves_pgp_plataforma',
         'sanciones',
         'apelaciones',
         'ledger_reputacion',
