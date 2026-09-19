@@ -121,7 +121,7 @@
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex items-center gap-4">
-        <Button variant="ghost" size="icon" href="/reportes">
+        <Button variant="ghost" size="icon" href={reportesRoute()}>
             <ArrowLeft class="h-4 w-4" />
         </Button>
         <PageHeader

@@ -12,9 +12,16 @@
 </script>
 
 <script lang="ts">
-    import { page } from '@inertiajs/svelte';
+    import { index as reportesIndex, create as reportesCreate } from '@/routes/reportes';
+    import { index as programasIndex, gestion as gestionProgramas } from '@/routes/programas';
+    import { Link, page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
+    import { Button } from '@/components/ui/button';
+    import Plus from '@lucide/svelte/icons/plus';
+    import Bug from '@lucide/svelte/icons/bug';
+    import Shield from '@lucide/svelte/icons/shield';
+    import Settings from '@lucide/svelte/icons/settings';
     import {
         Card,
         CardContent,
@@ -56,16 +63,19 @@
                 title: 'Total Reportes',
                 value: stats.reportes_total,
                 description: 'Reportes presentados',
+                href: reportesIndex(),
             },
             {
                 title: 'Reportes Abiertos',
                 value: stats.reportes_abiertos,
                 description: 'En ciclo de triaje',
+                href: `${reportesIndex()}?estado=en_revision`,
             },
             {
                 title: 'Reportes Cerrados',
                 value: stats.reportes_cerrados,
                 description: 'Resueltos',
+                href: `${reportesIndex()}?estado=cerrado`,
             },
         ];
 
@@ -74,6 +84,7 @@
                 title: 'Programas Activos',
                 value: stats.programas_activos,
                 description: 'Programas de bug bounty',
+                href: `${programasIndex()}?estado=activo`,
             });
         }
 
@@ -102,19 +113,21 @@
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {#each statCards as card (card.title)}
-            <Card>
-                <CardHeader class="pb-2">
-                    <CardDescription>{card.description}</CardDescription>
-                    <CardTitle class="text-2xl font-bold">
-                        {card.value}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p class="text-xs text-muted-foreground">
-                        {card.title}
-                    </p>
-                </CardContent>
-            </Card>
+            <Link href={card.href} class="block h-full">
+                <Card class="h-full transition-colors hover:border-primary">
+                    <CardHeader class="pb-2">
+                        <CardDescription>{card.description}</CardDescription>
+                        <CardTitle class="text-2xl font-bold">
+                            {card.value}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p class="text-xs text-muted-foreground">
+                            {card.title}
+                        </p>
+                    </CardContent>
+                </Card>
+            </Link>
         {/each}
     </div>
 
@@ -149,4 +162,36 @@
             </CardHeader>
         </Card>
     {/if}
+
+    <div class="space-y-4">
+        <h3 class="text-lg font-medium">Acciones rapidas</h3>
+        <div class="flex flex-wrap gap-4">
+            <Button asChild>
+                {#snippet children(props)}
+                    <Link href={reportesCreate()} {...props}>
+                        <Plus class="mr-2 h-4 w-4" />
+                        Crear Reporte
+                    </Link>
+                {/snippet}
+            </Button>
+            <Button asChild variant="outline">
+                {#snippet children(props)}
+                    <Link href={programasIndex()} {...props}>
+                        <Shield class="mr-2 h-4 w-4" />
+                        Ver Programas
+                    </Link>
+                {/snippet}
+            </Button>
+            {#if isGestion || isAdmin}
+                <Button asChild variant="outline">
+                    {#snippet children(props)}
+                        <Link href={gestionProgramas()} {...props}>
+                            <Settings class="mr-2 h-4 w-4" />
+                            Gestionar Programas
+                        </Link>
+                    {/snippet}
+                </Button>
+            {/if}
+        </div>
+    </div>
 </div>

@@ -1,5 +1,5 @@
 <script module lang="ts">
-    import { index as programasIndex } from '@/routes/programas';
+    import { index as programasIndex, edit as programaEdit } from '@/routes/programas';
 
     export const layout = {
         breadcrumbs: [
@@ -7,6 +7,9 @@
                 title: 'Programas',
                 href: programasIndex(),
             },
+            {
+                title: 'Detalles',
+            }
         ],
     };
 </script>
@@ -15,6 +18,7 @@
     import { Link } from '@inertiajs/svelte';
     import ExternalLink from '@lucide/svelte/icons/external-link';
     import Settings from '@lucide/svelte/icons/settings';
+    import Edit from '@lucide/svelte/icons/edit';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
@@ -211,10 +215,16 @@
             {/if}
 
             {#if puedeGestionar}
-                <Button variant="outline" href={gestionRoute()} class="w-full">
-                    <Settings class="mr-2 h-4 w-4" />
-                    Gestionar
-                </Button>
+                <div class="flex flex-col gap-2 w-full">
+                    <Button variant="outline" href={programaEdit(programa.id)} class="w-full">
+                        <Edit class="mr-2 h-4 w-4" />
+                        Editar Programa
+                    </Button>
+                    <Button variant="outline" href={gestionRoute()} class="w-full">
+                        <Settings class="mr-2 h-4 w-4" />
+                        Gestionar
+                    </Button>
+                </div>
             {/if}
         </div>
     </div>

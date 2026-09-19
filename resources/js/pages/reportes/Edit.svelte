@@ -1,11 +1,15 @@
 <script module lang="ts">
-    import { index as reportesIndex } from '@/routes/reportes';
+    import { index as reportesIndex, show as reportesShow } from '@/routes/reportes';
 
     export const layout = {
         breadcrumbs: [
             {
                 title: 'Reportes',
                 href: reportesIndex(),
+            },
+            {
+                title: 'Detalles',
+                href: '#',
             },
             {
                 title: 'Editar reporte',
@@ -101,7 +105,7 @@
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex items-center gap-4">
-        <Button variant="ghost" size="icon" href={`/reportes/${reporte.id}`}>
+        <Button variant="ghost" size="icon" href={reportesShow(reporte.id)}>
             <ArrowLeft class="h-4 w-4" />
         </Button>
         <PageHeader

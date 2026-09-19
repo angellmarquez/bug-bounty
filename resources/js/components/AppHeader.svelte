@@ -43,7 +43,11 @@
     import { getInitials } from '@/lib/initials';
     import { toUrl } from '@/lib/utils';
     import { dashboard } from '@/routes';
+    import { index as reportesIndex } from '@/routes/reportes';
+    import { index as programasIndex, gestion as gestionProgramas } from '@/routes/programas';
     import type { BreadcrumbItem, NavItem } from '@/types';
+    import Bug from '@lucide/svelte/icons/bug';
+    import Shield from '@lucide/svelte/icons/shield';
 
     let {
         breadcrumbs = [],
@@ -52,18 +56,53 @@
     } = $props();
 
     const auth = $derived(page.props.auth);
+    const userRoles = $derived(
+        (auth?.user?.roles as string[]) ?? [],
+    );
+    const isAdmin = $derived(userRoles.includes('administrador'));
+    const isGestion = $derived(userRoles.includes('gestion'));
+    const isInvestigador = $derived(userRoles.includes('investigador'));
+
     const url = currentUrlState();
 
     const activeItemStyles =
         'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
 
-    const mainNavItems: NavItem[] = [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-            icon: LayoutGrid,
-        },
-    ];
+    const mainNavItems = $derived.by(() => {
+        const items: NavItem[] = [
+            {
+                title: 'Dashboard',
+                href: dashboard(),
+                icon: LayoutGrid,
+            },
+        ];
+
+        if (isInvestigador || isGestion || isAdmin) {
+            items.push({
+                title: 'Mis Reportes',
+                href: reportesIndex(),
+                icon: Bug,
+            });
+        }
+
+        if (isInvestigador || isGestion || isAdmin) {
+            items.push({
+                title: 'Programas',
+                href: programasIndex(),
+                icon: Shield,
+            });
+        }
+
+        if (isGestion || isAdmin) {
+            items.push({
+                title: 'Gestión Programas',
+                href: gestionProgramas(),
+                icon: Shield,
+            });
+        }
+
+        return items;
+    });
 
     const rightNavItems: NavItem[] = [
         {

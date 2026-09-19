@@ -94,6 +94,21 @@ class ProgramaController extends Controller
         ]);
     }
 
+    public function create(): InertiaResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ProgramaCrear]);
+        return Inertia::render('programas/gestion/Create');
+    }
+
+    public function edit(Programa $programa): InertiaResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ProgramaGestionar, $programa]);
+        $programa->load(['objetivos']);
+        return Inertia::render('programas/gestion/Edit', [
+            'programa' => $programa,
+        ]);
+    }
+
     public function store(StoreProgramaRequest $request): RedirectResponse
     {
         $validated = $request->validated();

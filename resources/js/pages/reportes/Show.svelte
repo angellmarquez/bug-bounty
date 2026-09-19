@@ -1,5 +1,6 @@
 <script module lang="ts">
-    import { index as reportesIndex } from '@/routes/reportes';
+    import { index as reportesIndex, edit as reportesEdit, show as reportesShow } from '@/routes/reportes';
+    import { show as programasShow } from '@/routes/programas';
 
     export const layout = {
         breadcrumbs: [
@@ -7,6 +8,9 @@
                 title: 'Reportes',
                 href: reportesIndex(),
             },
+            {
+                title: 'Detalles',
+            }
         ],
     };
 </script>
@@ -21,6 +25,9 @@
     import Copy from '@lucide/svelte/icons/copy';
     import DollarSign from '@lucide/svelte/icons/dollar-sign';
     import Lock from '@lucide/svelte/icons/lock';
+    import Edit from '@lucide/svelte/icons/edit';
+    import Send from '@lucide/svelte/icons/send';
+    import { page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
@@ -54,6 +61,7 @@
     } = $props();
 
     let reporte = $state(initialReporte);
+    const auth = $derived(page.props.auth);
 
     let transitionOpen = $state(false);
     let transitionAccion = $state<'asignar' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'pagar' | 'cerrar'>('validar');
@@ -61,6 +69,11 @@
     function openTransition(accion: typeof transitionAccion) {
         transitionAccion = accion;
         transitionOpen = true;
+    }
+
+    function enviarReporte() {
+        if (!confirm('¿Estás seguro de enviar este reporte? Ya no podrás editarlo.')) return;
+        router.post(`/reportes/${reporte.id}/enviar`);
     }
 
     function formatearFecha(dateStr: string | null): string {
@@ -87,14 +100,28 @@
 <AppHead title="{reporte.numero_reporte} — {reporte.titulo}" />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-    <div class="flex items-center gap-4">
-        <Button variant="ghost" size="icon" href={reportesRoute()}>
-            <ArrowLeft class="h-4 w-4" />
-        </Button>
-        <PageHeader
-            title="{reporte.numero_reporte}"
-            description={reporte.titulo}
-        />
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
+        <div class="flex items-center gap-4">
+            <Button variant="ghost" size="icon" href={reportesRoute()}>
+                <ArrowLeft class="h-4 w-4" />
+            </Button>
+            <PageHeader
+                title="{reporte.numero_reporte}"
+                description={reporte.titulo}
+            />
+        </div>
+        {#if reporte.estado === 'borrador' && auth?.user?.id === reporte.investigador_id}
+            <div class="flex items-center gap-2">
+                <Button variant="outline" href={reportesEdit(reporte.id)}>
+                    <Edit class="mr-2 h-4 w-4" />
+                    Editar
+                </Button>
+                <Button onclick={enviarReporte}>
+                    <Send class="mr-2 h-4 w-4" />
+                    Enviar
+                </Button>
+            </div>
+        {/if}
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
@@ -201,7 +228,7 @@
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-muted-foreground">Programa</span>
                             <Link
-                                href={`/programas/${reporte.programa.slug}`}
+                                href={programasShow(reporte.programa.id)}
                                 class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                             >
                                 {reporte.programa.nombre}
@@ -269,7 +296,7 @@
                     </CardHeader>
                     <CardContent>
                         <Link
-                            href={`/reportes/${reporte.duplicadoDe.id}`}
+                            href={reportesShow(reporte.duplicadoDe.id)}
                             class="text-sm text-primary hover:underline"
                         >
                             {reporte.duplicadoDe.numero_reporte} — {reporte.duplicadoDe.titulo}

@@ -33,8 +33,9 @@
         CardTitle,
     } from '@/components/ui/card';
     import { Badge } from '@/components/ui/badge';
-    import { index as programaRoute, gestion as gestionRoute, show as programaShow } from '@/routes/programas';
+    import { index as programaRoute, gestion as gestionRoute, show as programaShow, create as programaCreate, edit as programaEdit } from '@/routes/programas';
     import type { Programa, ObjetivoPrograma } from '@/types/domain';
+    import Edit from '@lucide/svelte/icons/edit';
 
     let {
         programas: programasData,
@@ -114,9 +115,13 @@
         title="Gestion de Programas"
         description="{totalProgramas} programa{totalProgramas !== 1 ? 's' : ''}"
     >
-        <Button href={`${gestionRoute()}/crear`}>
-            <Plus class="mr-1 h-4 w-4" />
-            Crear Programa
+        <Button asChild>
+            {#snippet children(props)}
+                <Link href={programaCreate()} {...props}>
+                    <Plus class="mr-1 h-4 w-4" />
+                    Crear Programa
+                </Link>
+            {/snippet}
         </Button>
     </PageHeader>
 
@@ -159,10 +164,14 @@
             title="No se encontraron programas"
             description="Crea tu primer programa para comenzar a recibir reportes."
         >
-        <Button href={`${gestionRoute()}/crear`}>
-                <Plus class="mr-1 h-4 w-4" />
-                Crear Programa
-            </Button>
+        <Button asChild>
+            {#snippet children(props)}
+                <Link href={programaCreate()} {...props}>
+                    <Plus class="mr-1 h-4 w-4" />
+                    Crear Programa
+                </Link>
+            {/snippet}
+        </Button>
         </EmptyState>
     {:else}
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -201,11 +210,21 @@
                                 </div>
                             {/if}
 
-                            <div class="flex items-center justify-between text-xs text-muted-foreground">
+                            <div class="flex items-center justify-between text-xs text-muted-foreground mt-4">
                                 <span>
                                     {formatearFecha(programa.inicia_en)} - {formatearFecha(programa.termina_en)}
                                 </span>
                                 <span>{programa.reportes_count ?? 0} reportes</span>
+                            </div>
+                            <div class="mt-4 flex justify-end">
+                                <Button asChild variant="outline" size="sm">
+                                    {#snippet children(props)}
+                                        <Link href={programaEdit(programa.id)} {...props}>
+                                            <Edit class="mr-1 h-3 w-3" />
+                                            Editar
+                                        </Link>
+                                    {/snippet}
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>

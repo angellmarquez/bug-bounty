@@ -33,7 +33,9 @@
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
-    import { index as reportesRoute } from '@/routes/reportes';
+    import { index as reportesRoute, create as reportesCreate, show as reportesShow } from '@/routes/reportes';
+    import { Button } from '@/components/ui/button';
+    import Plus from '@lucide/svelte/icons/plus';
     import type { Reporte } from '@/types/domain';
 
     let {
@@ -113,7 +115,16 @@
     <PageHeader
         title="Reportes"
         description="{totalReportes} reporte{totalReportes !== 1 ? 's' : ''} en total"
-    />
+    >
+        <Button asChild>
+            {#snippet children(props)}
+                <Link href={reportesCreate()} {...props}>
+                    <Plus class="mr-2 h-4 w-4" />
+                    Crear Reporte
+                </Link>
+            {/snippet}
+        </Button>
+    </PageHeader>
 
     <Card>
         <CardContent class="pt-6">
@@ -200,7 +211,7 @@
     {:else}
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each reportesData.data as reporte (reporte.id)}
-                <Link href={`/reportes/${reporte.id}`}>
+                <Link href={reportesShow(reporte.id)}>
                     <Card class="h-full transition-colors hover:border-primary">
                         <CardHeader class="pb-3">
                             <div class="flex items-start justify-between gap-2">

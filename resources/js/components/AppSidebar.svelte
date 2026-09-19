@@ -23,6 +23,8 @@
     } from '@/components/ui/sidebar';
     import { toUrl } from '@/lib/utils';
     import { dashboard } from '@/routes';
+    import { index as reportesIndex } from '@/routes/reportes';
+    import { index as programasIndex, gestion as gestionProgramas } from '@/routes/programas';
     import type { NavItem } from '@/types';
 
     let {
@@ -51,7 +53,7 @@
         if (isInvestigador || isGestion || isAdmin) {
             items.push({
                 title: 'Mis Reportes',
-                href: '/reportes',
+                href: reportesIndex(),
                 icon: Bug,
             });
         }
@@ -59,11 +61,12 @@
         if (isInvestigador || isGestion || isAdmin) {
             items.push({
                 title: 'Programas',
-                href: '/programas',
+                href: programasIndex(),
                 icon: Shield,
             });
         }
 
+        /*
         if (isInvestigador || isGestion || isAdmin) {
             items.push({
                 title: 'Mis Claves PGP',
@@ -71,15 +74,17 @@
                 icon: Key,
             });
         }
+        */
 
         if (isGestion || isAdmin) {
             items.push({
-                title: 'Gestion de Reportes',
-                href: '/gestion/reportes',
-                icon: Bug,
+                title: 'Gestión Programas',
+                href: gestionProgramas(),
+                icon: Shield,
             });
         }
 
+        /*
         if (isAdmin) {
             items.push({
                 title: 'Admin',
@@ -87,6 +92,7 @@
                 icon: Settings,
             });
         }
+        */
 
         return items;
     });

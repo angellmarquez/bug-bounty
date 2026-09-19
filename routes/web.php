@@ -38,6 +38,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('programas/{programa}', [ProgramaController::class, 'destroy'])->name('programas.destroy');
     Route::post('programas/{programa}/cambiar-estado', [ProgramaController::class, 'cambiarEstado'])->name('programas.cambiar-estado');
     Route::get('gestion/programas', [ProgramaController::class, 'gestion'])->name('programas.gestion');
+    Route::get('gestion/programas/crear', [ProgramaController::class, 'create'])->name('programas.create');
+    Route::get('gestion/programas/{programa}/editar', [ProgramaController::class, 'edit'])->name('programas.edit');
 
     // Admin (Slice 5.6)
     Route::get('admin/usuarios', [AdminController::class, 'usuarios'])->name('admin.usuarios');
