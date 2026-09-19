@@ -9,9 +9,12 @@
 
 @theme inline {
     --font-sans:
-        Instrument Sans, ui-sans-serif, system-ui, sans-serif,
-        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-        'Noto Color Emoji';
+        JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'Liberation Mono', 'Courier New', monospace;
+
+    --font-mono:
+        JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'Liberation Mono', 'Courier New', monospace;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -79,16 +82,6 @@
     }
 }
 
-@layer utilities {
-    body,
-    html {
-        --font-sans:
-            'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
-            'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-            'Noto Color Emoji';
-    }
-}
-
 :root {
     --background: hsl(0 0% 100%);
     --foreground: hsl(0 0% 3.9%);
@@ -127,39 +120,39 @@
 }
 
 .dark {
-    --background: hsl(0 0% 3.9%);
-    --foreground: hsl(0 0% 98%);
-    --card: hsl(0 0% 3.9%);
-    --card-foreground: hsl(0 0% 98%);
-    --popover: hsl(0 0% 3.9%);
-    --popover-foreground: hsl(0 0% 98%);
-    --primary: hsl(0 0% 98%);
-    --primary-foreground: hsl(0 0% 9%);
-    --secondary: hsl(0 0% 14.9%);
-    --secondary-foreground: hsl(0 0% 98%);
-    --muted: hsl(0 0% 16.08%);
-    --muted-foreground: hsl(0 0% 63.9%);
-    --accent: hsl(0 0% 14.9%);
-    --accent-foreground: hsl(0 0% 98%);
-    --destructive: hsl(0 84% 60%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 14.9%);
-    --input: hsl(0 0% 14.9%);
-    --ring: hsl(0 0% 83.1%);
-    --chart-1: hsl(220 70% 50%);
-    --chart-2: hsl(160 60% 45%);
-    --chart-3: hsl(30 80% 55%);
-    --chart-4: hsl(280 65% 60%);
-    --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(0 0% 7%);
-    --sidebar-foreground: hsl(0 0% 95.9%);
-    --sidebar-primary: hsl(360, 100%, 100%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(0 0% 15.9%);
-    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-border: hsl(0 0% 15.9%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(240 5.9% 10%);
+    --background: 240 6% 5%;
+    --foreground: 160 10% 92%;
+    --card: 240 5% 8%;
+    --card-foreground: 160 10% 92%;
+    --popover: 240 5% 8%;
+    --popover-foreground: 160 10% 92%;
+    --primary: 152 68% 47%;
+    --primary-foreground: 240 6% 5%;
+    --secondary: 240 4% 13%;
+    --secondary-foreground: 160 10% 92%;
+    --muted: 240 4% 13%;
+    --muted-foreground: 160 5% 60%;
+    --accent: 152 68% 47%;
+    --accent-foreground: 240 6% 5%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 4% 15%;
+    --input: 240 4% 15%;
+    --ring: 152 68% 47%;
+    --chart-1: 152 68% 47%;
+    --chart-2: 190 95% 39%;
+    --chart-3: 0 72% 51%;
+    --chart-4: 39 100% 50%;
+    --chart-5: 262 83% 58%;
+    --sidebar-background: 240 6% 4%;
+    --sidebar-foreground: 160 5% 70%;
+    --sidebar-primary: 152 68% 47%;
+    --sidebar-primary-foreground: 240 6% 5%;
+    --sidebar-accent: 152 68% 47% / 20%;
+    --sidebar-accent-foreground: 152 68% 78%;
+    --sidebar-border: 240 4% 12%;
+    --sidebar-ring: 152 68% 47%;
+    --sidebar: 240 6% 4%;
 }
 
 @layer base {

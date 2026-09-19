@@ -4,15 +4,15 @@ Guía de la **Fase 0**: conectar la plataforma a PostgreSQL en Supabase con SSL 
 
 ## Datos del proyecto
 
-| Dato | Valor |
-|------|-------|
-| Proyecto (ref) | `ifdbqkqjaceulgrmdlwz` |
-| API URL | `https://ifdbqkqjaceulgrmdlwz.supabase.co` |
-| Host de BD (directo) | `db.ifdbqkqjaceulgrmdlwz.supabase.co` |
-| Puerto | `5432` |
-| Base de datos | `postgres` |
-| Usuario | `postgres.ifdbqkqjaceulgrmdlwz` |
-| SSL | `sslmode=require` |
+| Dato                 | Valor                                      |
+| -------------------- | ------------------------------------------ |
+| Proyecto (ref)       | `ifdbqkqjaceulgrmdlwz`                     |
+| API URL              | `https://ifdbqkqjaceulgrmdlwz.supabase.co` |
+| Host de BD (directo) | `db.ifdbqkqjaceulgrmdlwz.supabase.co`      |
+| Puerto               | `5432`                                     |
+| Base de datos        | `postgres`                                 |
+| Usuario              | `postgres.ifdbqkqjaceulgrmdlwz`            |
+| SSL                  | `sslmode=require`                          |
 
 > La contraseña de la base de datos **no se versiona**. Se define en el dashboard de Supabase
 > (`Project Settings → Database → Database password`) y va en `.env` local o en los secretos del
@@ -49,11 +49,11 @@ ya está aplicado.
 
 ## Comportamiento de cada entorno
 
-| Entorno | Driver | Notas |
-|---------|--------|-------|
-| Local (dev) | SQLite por defecto | Sin cambios si no defines el bloque `pgsql`. |
-| Tests / CI | SQLite `:memory:` | Definido en `phpunit.xml`; **no** toca Supabase. |
-| Producción / despliegue | PostgreSQL (Supabase) | Usa el bloque `pgsql`. |
+| Entorno                 | Driver                | Notas                                            |
+| ----------------------- | --------------------- | ------------------------------------------------ |
+| Local (dev)             | SQLite por defecto    | Sin cambios si no defines el bloque `pgsql`.     |
+| Tests / CI              | SQLite `:memory:`     | Definido en `phpunit.xml`; **no** toca Supabase. |
+| Producción / despliegue | PostgreSQL (Supabase) | Usa el bloque `pgsql`.                           |
 
 ## Esquema aplicado
 
@@ -98,7 +98,7 @@ proviene de una función propia de la plataforma Supabase, no del proyecto.
 Para despliegues serverless/efímeros, Supabase ofrece poolers. Con Laravel:
 
 - **Session pooler** (`...pooler.supabase.com:5432`): compatible con Laravel.
-- **Transaction pooler** (`...pooler.supabase.com:6543`): puede romper *prepared statements*
+- **Transaction pooler** (`...pooler.supabase.com:6543`): puede romper _prepared statements_
   persistentes; úsalo con precaución o desactiva el modo de sentencias preparadas.
 
 ## Solución de problemas

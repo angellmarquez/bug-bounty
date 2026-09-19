@@ -1,8 +1,12 @@
 <script lang="ts">
-    import { Link } from '@inertiajs/svelte';
+    import { Link, page } from '@inertiajs/svelte';
     import BookOpen from '@lucide/svelte/icons/book-open';
     import FolderGit2 from '@lucide/svelte/icons/folder-git-2';
     import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+    import Bug from '@lucide/svelte/icons/bug';
+    import Shield from '@lucide/svelte/icons/shield';
+    import Key from '@lucide/svelte/icons/key';
+    import Settings from '@lucide/svelte/icons/settings';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavFooter from '@/components/NavFooter.svelte';
@@ -27,22 +31,74 @@
         children?: Snippet;
     } = $props();
 
-    const mainNavItems: NavItem[] = [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-            icon: LayoutGrid,
-        },
-    ];
+    const userRoles = $derived(
+        (page.props.auth?.user?.roles as string[]) ?? [],
+    );
+
+    const isAdmin = $derived(userRoles.includes('administrador'));
+    const isGestion = $derived(userRoles.includes('gestion'));
+    const isInvestigador = $derived(userRoles.includes('investigador'));
+
+    const mainNavItems = $derived.by(() => {
+        const items: NavItem[] = [
+            {
+                title: 'Dashboard',
+                href: dashboard(),
+                icon: LayoutGrid,
+            },
+        ];
+
+        if (isInvestigador || isGestion || isAdmin) {
+            items.push({
+                title: 'Mis Reportes',
+                href: '/reportes',
+                icon: Bug,
+            });
+        }
+
+        if (isInvestigador || isGestion || isAdmin) {
+            items.push({
+                title: 'Programas',
+                href: '/programas',
+                icon: Shield,
+            });
+        }
+
+        if (isInvestigador || isGestion || isAdmin) {
+            items.push({
+                title: 'Mis Claves PGP',
+                href: '/claves-pgp',
+                icon: Key,
+            });
+        }
+
+        if (isGestion || isAdmin) {
+            items.push({
+                title: 'Gestion de Reportes',
+                href: '/gestion/reportes',
+                icon: Bug,
+            });
+        }
+
+        if (isAdmin) {
+            items.push({
+                title: 'Admin',
+                href: '/admin',
+                icon: Settings,
+            });
+        }
+
+        return items;
+    });
 
     const footerNavItems: NavItem[] = [
         {
-            title: 'Repository',
+            title: 'Repositorio',
             href: 'https://github.com/laravel/svelte-starter-kit',
             icon: FolderGit2,
         },
         {
-            title: 'Documentation',
+            title: 'Documentacion',
             href: 'https://laravel.com/docs/starter-kits#svelte',
             icon: BookOpen,
         },
