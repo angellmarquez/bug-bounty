@@ -12,14 +12,22 @@
 </script>
 
 <script lang="ts">
-    import { Link } from '@inertiajs/svelte';
+    import { Link, router } from '@inertiajs/svelte';
     import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ExternalLink from '@lucide/svelte/icons/external-link';
+    import UserPlus from '@lucide/svelte/icons/user-plus';
+    import CheckCircle from '@lucide/svelte/icons/check-circle';
+    import XCircle from '@lucide/svelte/icons/x-circle';
+    import Copy from '@lucide/svelte/icons/copy';
+    import DollarSign from '@lucide/svelte/icons/dollar-sign';
+    import Lock from '@lucide/svelte/icons/lock';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import SeverityBadge from '@/components/SeverityBadge.svelte';
     import Timeline from '@/components/Timeline.svelte';
+    import ComentarioForm from '@/components/ComentarioForm.svelte';
+    import StateTransition from '@/components/StateTransition.svelte';
     import { Button } from '@/components/ui/button';
     import {
         Card,
@@ -29,14 +37,31 @@
     } from '@/components/ui/card';
     import { index as reportesRoute } from '@/routes/reportes';
     import type { Reporte } from '@/types/domain';
+    import type { EstadoReporte } from '@/types/enums';
 
     let {
-        reporte,
+        reporte: initialReporte,
         puedeVerNotasInternas,
+        puedeTriar = false,
+        accionesDisponibles = {},
+        usuariosGestion = [],
     }: {
         reporte: Reporte;
         puedeVerNotasInternas: boolean;
+        puedeTriar?: boolean;
+        accionesDisponibles?: Record<string, boolean>;
+        usuariosGestion?: { id: number; name: string }[];
     } = $props();
+
+    let reporte = $state(initialReporte);
+
+    let transitionOpen = $state(false);
+    let transitionAccion = $state<'asignar' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'pagar' | 'cerrar'>('validar');
+
+    function openTransition(accion: typeof transitionAccion) {
+        transitionAccion = accion;
+        transitionOpen = true;
+    }
 
     function formatearFecha(dateStr: string | null): string {
         if (!dateStr) return 'N/A';
@@ -52,6 +77,10 @@
     function formatJson(obj: Record<string, unknown> | null): string {
         if (!obj) return '';
         return JSON.stringify(obj, null, 2);
+    }
+
+    function recargar() {
+        router.reload({ only: ['reporte'] });
     }
 </script>
 
@@ -97,6 +126,54 @@
                     </CardHeader>
                     <CardContent>
                         <p class="whitespace-pre-wrap text-sm text-muted-foreground">{reporte.notas_internas}</p>
+                    </CardContent>
+                </Card>
+            {/if}
+
+            {#if puedeTriar}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Acciones de triaje</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="flex flex-wrap gap-2">
+                            {#if accionesDisponibles.asignar}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('asignar')}>
+                                    <UserPlus class="mr-1 h-3 w-3" />
+                                    Asignar
+                                </Button>
+                            {/if}
+                            {#if accionesDisponibles.validar}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('validar')}>
+                                    <CheckCircle class="mr-1 h-3 w-3" />
+                                    Validar
+                                </Button>
+                            {/if}
+                            {#if accionesDisponibles.rechazar}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('rechazar')}>
+                                    <XCircle class="mr-1 h-3 w-3" />
+                                    Rechazar
+                                </Button>
+                            {/if}
+                            {#if accionesDisponibles.marcar_duplicado}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('marcar_duplicado')}>
+                                    <Copy class="mr-1 h-3 w-3" />
+                                    Duplicado
+                                </Button>
+                            {/if}
+                            {#if accionesDisponibles.pagar}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('pagar')}>
+                                    <DollarSign class="mr-1 h-3 w-3" />
+                                    Pagar
+                                </Button>
+                            {/if}
+                            {#if accionesDisponibles.cerrar}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('cerrar')}>
+                                    <Lock class="mr-1 h-3 w-3" />
+                                    Cerrar
+                                </Button>
+                            {/if}
+                        </div>
                     </CardContent>
                 </Card>
             {/if}
@@ -207,8 +284,20 @@
         <CardHeader>
             <CardTitle>Linea de tiempo</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent class="space-y-4">
+            {#if puedeTriar}
+                <ComentarioForm reporteId={reporte.id} onsuccess={recargar} />
+            {/if}
             <Timeline eventos={reporte.eventos ?? []} />
         </CardContent>
     </Card>
 </div>
+
+<StateTransition
+    bind:open={transitionOpen}
+    accion={transitionAccion}
+    reporteId={reporte.id}
+    estadoActual={reporte.estado}
+    {usuariosGestion}
+    onsuccess={recargar}
+/>

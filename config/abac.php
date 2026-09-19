@@ -184,7 +184,7 @@ return [
             ],
             'sujeto' => ['roles' => ['contains' => 'gestion']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
                 'asignado_a' => ['=' => '@sujeto.id'],
             ],
             'entorno' => [],
@@ -202,7 +202,7 @@ return [
             ],
             'sujeto' => ['roles' => ['contains' => 'gestion']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
                 'asignado_a' => ['is_null'],
             ],
             'entorno' => [],
