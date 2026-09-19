@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ClavePgpController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\ReputacionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
@@ -35,6 +38,35 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('programas/{programa}', [ProgramaController::class, 'destroy'])->name('programas.destroy');
     Route::post('programas/{programa}/cambiar-estado', [ProgramaController::class, 'cambiarEstado'])->name('programas.cambiar-estado');
     Route::get('gestion/programas', [ProgramaController::class, 'gestion'])->name('programas.gestion');
+
+    // Admin (Slice 5.6)
+    Route::get('admin/usuarios', [AdminController::class, 'usuarios'])->name('admin.usuarios');
+    Route::put('admin/usuarios/{user}', [AdminController::class, 'updateUsuario'])->name('admin.usuarios.update');
+    Route::get('admin/sanciones', [AdminController::class, 'sanciones'])->name('admin.sanciones');
+    Route::post('admin/sanciones/{sancion}/revocar', [AdminController::class, 'revocarSancion'])->name('admin.sanciones.revocar');
+    Route::get('admin/apelaciones', [AdminController::class, 'apelaciones'])->name('admin.apelaciones');
+    Route::post('admin/apelaciones/{apelacion}/resolver', [AdminController::class, 'resolverApelacion'])->name('admin.apelaciones.resolver');
+    Route::get('admin/auditoria', [AdminController::class, 'auditoria'])->name('admin.auditoria');
+
+    // Config reputacion
+    Route::get('admin/config/reputacion', [AdminController::class, 'configReputacion'])->name('admin.config.reputacion');
+    Route::put('admin/config/reputacion', [AdminController::class, 'updateConfigReputacion'])->name('admin.config.reputacion.update');
+
+    // PGP plataforma
+    Route::post('admin/pgp/setup', [AdminController::class, 'pgpSetup'])->name('admin.pgp.setup');
+    Route::get('admin/pgp', [AdminController::class, 'pgpEstado'])->name('admin.pgp');
+
+    // Reputacion (investigador)
+    Route::get('reputacion', [ReputacionController::class, 'ledger'])->name('reputacion.ledger');
+    Route::get('reputacion/sanciones', [ReputacionController::class, 'sanciones'])->name('reputacion.sanciones');
+    Route::get('reputacion/apelaciones', [ReputacionController::class, 'apelaciones'])->name('reputacion.apelaciones');
+    Route::post('reputacion/sanciones/{sancion}/apelar', [ReputacionController::class, 'apelar'])->name('reputacion.apelar');
+
+    // Claves PGP
+    Route::get('claves-pgp', [ClavePgpController::class, 'index'])->name('claves-pgp.index');
+    Route::post('claves-pgp', [ClavePgpController::class, 'registrar'])->name('claves-pgp.registrar');
+    Route::post('claves-pgp/{clave}/verificar', [ClavePgpController::class, 'verificar'])->name('claves-pgp.verificar');
+    Route::post('claves-pgp/{clave}/revocar', [ClavePgpController::class, 'revocar'])->name('claves-pgp.revocar');
 });
 
 require __DIR__.'/settings.php';
