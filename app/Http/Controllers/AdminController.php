@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
+use App\Enums\EstadoEmpresa;
 use App\Models\Apelacion;
 use App\Models\Auditoria;
 use App\Models\ClavePgpPlataforma;
+use App\Models\Empresa;
 use App\Models\Rol;
 use App\Models\Sancion;
 use App\Models\User;
@@ -19,6 +21,175 @@ use Inertia\Response as InertiaResponse;
 
 class AdminController extends Controller
 {
+    // ------------------------------------------------------------------
+    // Empresas
+    // ------------------------------------------------------------------
+
+    public function empresas(Request $request): InertiaResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::EmpresaVer]);
+
+        $query = Empresa::query()->with(['usuarios', 'aprobador']);
+
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->input('estado'));
+        }
+
+        if ($request->filled('busqueda')) {
+            $busqueda = $request->input('busqueda');
+            $query->where(function ($q) use ($busqueda) {
+                $q->where('razon_social', 'like', "%{$busqueda}%")
+                    ->orWhere('nombre_comercial', 'like', "%{$busqueda}%")
+                    ->orWhere('identificador_fiscal', 'like', "%{$busqueda}%");
+            });
+        }
+
+        return Inertia::render('admin/empresas/Index', [
+            'empresas' => $query->latest()->paginate(15)->withQueryString(),
+            'filtros' => $request->only(['estado', 'busqueda']),
+        ]);
+    }
+
+    public function aprobarEmpresa(Empresa $empresa, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::EmpresaAprobar, $empresa]);
+
+        $validated = $request->validate([
+            'motivo' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $empresa->update([
+            'estado' => EstadoEmpresa::Aprobada,
+            'motivo_estado' => $validated['motivo'] ?? null,
+            'aprobado_por' => $request->user()->id,
+            'aprobado_en' => now(),
+        ]);
+
+        $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.aprobada');
+
+        return redirect()->route('admin.empresas')->with('success', 'Empresa aprobada correctamente.');
+    }
+
+    public function rechazarEmpresa(Empresa $empresa, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::EmpresaRechazar, $empresa]);
+
+        $validated = $request->validate([
+            'motivo' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $empresa->update([
+            'estado' => EstadoEmpresa::Rechazada,
+            'motivo_estado' => $validated['motivo'],
+            'aprobado_por' => $request->user()->id,
+            'aprobado_en' => now(),
+        ]);
+
+        $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.rechazada');
+
+        return redirect()->route('admin.empresas')->with('success', 'Empresa rechazada.');
+    }
+
+    public function suspenderEmpresa(Empresa $empresa, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::EmpresaSuspender, $empresa]);
+
+        $validated = $request->validate([
+            'motivo' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $empresa->update([
+            'estado' => EstadoEmpresa::Suspendida,
+            'motivo_estado' => $validated['motivo'],
+        ]);
+
+        $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.suspendida');
+
+        return redirect()->route('admin.empresas')->with('success', 'Empresa suspendida.');
+    }
+
+    private function registrarDecisionEmpresa(Request $request, Empresa $empresa, string $accion): void
+    {
+        Auditoria::query()->create([
+            'usuario_id' => $request->user()->id,
+            'accion' => $accion,
+            'entidad_type' => 'empresa',
+            'entidad_id' => $empresa->id,
+            'detalle' => [
+                'estado' => $empresa->estado->value,
+                'motivo' => $empresa->motivo_estado,
+            ],
+        ]);
+    }
+
+    // ------------------------------------------------------------------
+    // Moderadores
+    // ------------------------------------------------------------------
+
+    public function moderadores(): InertiaResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ModeradorAsignar]);
+
+        $moderador = Rol::where('slug', 'moderador')->first();
+        $moderadores = $moderador?->usuarios()->latest('users.created_at')->paginate(15) ?? User::query()->whereKey(0)->paginate(15);
+        $usuariosDisponibles = User::query()
+            ->whereDoesntHave('roles', fn ($query) => $query->where('slug', 'administrador'))
+            ->with('roles')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
+        return Inertia::render('admin/moderadores/Index', [
+            'moderadores' => $moderadores,
+            'usuariosDisponibles' => $usuariosDisponibles,
+        ]);
+    }
+
+    public function asignarModerador(User $user, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ModeradorAsignar]);
+
+        abort_if($user->roles()->where('slug', 'administrador')->exists(), 422, 'Un administrador no puede asignarse como moderador.');
+
+        $rol = Rol::firstOrCreate(
+            ['slug' => 'moderador'],
+            [
+                'nombre' => 'Moderador',
+                'descripcion' => 'Revisa reportes y modera operaciones asignadas.',
+            ],
+        );
+        $user->roles()->syncWithoutDetaching([$rol->id]);
+
+        $this->registrarDecisionModerador($request, $user, 'admin.moderador.asignado');
+
+        return redirect()->route('admin.moderadores')->with('success', 'Moderador asignado correctamente.');
+    }
+
+    public function revocarModerador(User $user, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ModeradorRevocar]);
+
+        $rol = Rol::where('slug', 'moderador')->first();
+        if ($rol === null) {
+            return redirect()->route('admin.moderadores');
+        }
+        $user->roles()->detach($rol->id);
+
+        $this->registrarDecisionModerador($request, $user, 'admin.moderador.revocado');
+
+        return redirect()->route('admin.moderadores')->with('success', 'Rol de moderador revocado.');
+    }
+
+    private function registrarDecisionModerador(Request $request, User $user, string $accion): void
+    {
+        Auditoria::query()->create([
+            'usuario_id' => $request->user()->id,
+            'accion' => $accion,
+            'entidad_type' => 'user',
+            'entidad_id' => $user->id,
+            'detalle' => ['usuario' => $user->email],
+        ]);
+    }
+
     // ------------------------------------------------------------------
     // Usuarios
     // ------------------------------------------------------------------

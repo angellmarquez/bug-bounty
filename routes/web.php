@@ -3,12 +3,22 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ClavePgpController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmpresaAuthController;
+use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ReputacionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
+
+Route::get('empresa/login', [EmpresaAuthController::class, 'login'])->name('empresa.login');
+Route::get('empresa/registro', [EmpresaAuthController::class, 'create'])->name('empresa.register');
+Route::post('empresa/registro', [EmpresaAuthController::class, 'store'])->name('empresa.register.store');
+
+Route::middleware('auth')->group(function () {
+    Route::get('empresa', [EmpresaController::class, 'dashboard'])->name('empresa.dashboard');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -42,6 +52,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('gestion/programas/{programa}/editar', [ProgramaController::class, 'edit'])->name('programas.edit');
 
     // Admin (Slice 5.6)
+    Route::get('admin/empresas', [AdminController::class, 'empresas'])->name('admin.empresas');
+    Route::post('admin/empresas/{empresa}/aprobar', [AdminController::class, 'aprobarEmpresa'])->name('admin.empresas.aprobar');
+    Route::post('admin/empresas/{empresa}/rechazar', [AdminController::class, 'rechazarEmpresa'])->name('admin.empresas.rechazar');
+    Route::post('admin/empresas/{empresa}/suspender', [AdminController::class, 'suspenderEmpresa'])->name('admin.empresas.suspender');
+    Route::get('admin/moderadores', [AdminController::class, 'moderadores'])->name('admin.moderadores');
+    Route::post('admin/moderadores/{user}', [AdminController::class, 'asignarModerador'])->name('admin.moderadores.asignar');
+    Route::delete('admin/moderadores/{user}', [AdminController::class, 'revocarModerador'])->name('admin.moderadores.revocar');
     Route::get('admin/usuarios', [AdminController::class, 'usuarios'])->name('admin.usuarios');
     Route::put('admin/usuarios/{user}', [AdminController::class, 'updateUsuario'])->name('admin.usuarios.update');
     Route::get('admin/sanciones', [AdminController::class, 'sanciones'])->name('admin.sanciones');

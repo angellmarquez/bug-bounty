@@ -55,4 +55,16 @@ final class AccionesAbac
     public const ApelacionCrear = 'apelaciones.crear';
 
     public const ApelacionResolver = 'apelaciones.resolver';
+
+    public const EmpresaVer = 'empresas.ver';
+
+    public const EmpresaAprobar = 'empresas.aprobar';
+
+    public const EmpresaRechazar = 'empresas.rechazar';
+
+    public const EmpresaSuspender = 'empresas.suspender';
+
+    public const ModeradorAsignar = 'moderadores.asignar';
+
+    public const ModeradorRevocar = 'moderadores.revocar';
 }

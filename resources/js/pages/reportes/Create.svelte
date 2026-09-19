@@ -44,7 +44,7 @@
         SelectItem,
         SelectTrigger,
     } from '@/components/ui/select';
-    import { create as createRoute, store } from '@/routes/reportes';
+    import { index as reportesIndex, create as createRoute, store } from '@/routes/reportes';
     import type { PocSchemaField, Programa } from '@/types/domain';
     import type { Severidad } from '@/types/enums';
     import { schemaVacio, validarPoc } from '@/lib/poc-schema';
@@ -121,7 +121,7 @@
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex items-center gap-4">
-        <Button variant="ghost" size="icon" href={reportesRoute()}>
+        <Button variant="ghost" size="icon" href={reportesIndex()}>
             <ArrowLeft class="h-4 w-4" />
         </Button>
         <PageHeader

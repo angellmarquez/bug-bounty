@@ -7,6 +7,7 @@
     import Shield from '@lucide/svelte/icons/shield';
     import Key from '@lucide/svelte/icons/key';
     import Settings from '@lucide/svelte/icons/settings';
+    import Users from '@lucide/svelte/icons/users';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavFooter from '@/components/NavFooter.svelte';
@@ -40,6 +41,7 @@
     const isAdmin = $derived(userRoles.includes('administrador'));
     const isGestion = $derived(userRoles.includes('gestion'));
     const isInvestigador = $derived(userRoles.includes('investigador'));
+    const isEmpresa = $derived(userRoles.includes('empresa'));
 
     const mainNavItems = $derived.by(() => {
         const items: NavItem[] = [
@@ -81,6 +83,32 @@
                 title: 'Gestión Programas',
                 href: gestionProgramas(),
                 icon: Shield,
+            });
+        }
+
+        if (isEmpresa) {
+            items.push({
+                title: 'Panel empresa',
+                href: '/empresa',
+                icon: Shield,
+            });
+        }
+
+        if (isAdmin) {
+            items.push({
+                title: 'Empresas',
+                href: '/admin/empresas',
+                icon: Settings,
+            });
+            items.push({
+                title: 'Usuarios',
+                href: '/admin/usuarios',
+                icon: Users,
+            });
+            items.push({
+                title: 'Moderadores',
+                href: '/admin/moderadores',
+                icon: Users,
             });
         }
 

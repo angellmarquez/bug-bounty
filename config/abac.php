@@ -246,7 +246,50 @@ return [
         ],
 
         // ------------------------------------------------------------------
-        // 4. Deniega explícitamente el triaje a investigadores puros (aunque
+        // 4. Empresa: puede solicitar programas; el estado aprobado se
+        //    comprueba además en el controlador antes de persistir.
+        // ------------------------------------------------------------------
+        [
+            'id' => 'empresa-crear-programa',
+            'prioridad' => 35,
+            'acciones' => ['programas.crear'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+
+        [
+            'id' => 'moderador-ver-reportes-no-borrador',
+            'prioridad' => 35,
+            'acciones' => ['reportes.ver', 'reportes.ver_notas_internas'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => ['estado' => ['!=' => 'borrador']],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-triaje',
+            'prioridad' => 35,
+            'acciones' => [
+                'reportes.asignar',
+                'reportes.validar',
+                'reportes.rechazar',
+                'reportes.marcar_duplicado',
+                'reportes.pagar',
+                'reportes.cerrar',
+            ],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'asignado_a' => ['is_null'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+
+        // ------------------------------------------------------------------
+        // 5. Deniega explícitamente el triaje a investigadores puros (aunque
         //    otra regla coincidiera, el deny gana). La igualdad exacta evita
         //    penalizar a perfiles mixtos con rol de gestión.
         // ------------------------------------------------------------------

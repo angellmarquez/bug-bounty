@@ -32,7 +32,7 @@ class ProgramaController extends Controller
         $isAdmin = in_array('administrador', $roles);
         $isGestion = in_array('gestion', $roles);
 
-        $query = Programa::query()->with(['creador', 'objetivos']);
+        $query = Programa::query()->with(['creador', 'empresa', 'objetivos']);
 
         if ($isAdmin) {
             // Admin ve todos
@@ -120,6 +120,16 @@ class ProgramaController extends Controller
 
             $validated['creado_por'] = $user->id;
             $validated['estado'] = 'borrador';
+
+            if ($user->roles()->where('slug', 'empresa')->exists()) {
+                $empresa = $user->empresas()
+                    ->where('empresas.estado', 'aprobada')
+                    ->where('empresa_usuario.estado', 'activo')
+                    ->first();
+
+                abort_if($empresa === null, 403, 'La empresa debe estar aprobada para crear programas.');
+                $validated['empresa_id'] = $empresa->id;
+            }
 
             $programa = Programa::create($validated);
 

@@ -62,6 +62,7 @@
     const isAdmin = $derived(userRoles.includes('administrador'));
     const isGestion = $derived(userRoles.includes('gestion'));
     const isInvestigador = $derived(userRoles.includes('investigador'));
+    const isEmpresa = $derived(userRoles.includes('empresa'));
 
     const url = currentUrlState();
 
@@ -97,6 +98,22 @@
             items.push({
                 title: 'Gestión Programas',
                 href: gestionProgramas(),
+                icon: Shield,
+            });
+        }
+
+        if (isEmpresa) {
+            items.push({
+                title: 'Panel empresa',
+                href: '/empresa',
+                icon: Shield,
+            });
+        }
+
+        if (isAdmin) {
+            items.push({
+                title: 'Empresas',
+                href: '/admin/empresas',
                 icon: Shield,
             });
         }

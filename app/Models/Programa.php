@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 
 /**
  * @property int $id
+ * @property int|null $empresa_id
  * @property string $nombre
  * @property string $slug
  * @property string $descripcion
@@ -34,10 +35,11 @@ use Illuminate\Support\Str;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  * @property-read User|null $creador
+ * @property-read Empresa|null $empresa
  * @property-read Collection<int, ObjetivoPrograma> $objetivos
  * @property-read Collection<int, Reporte> $reportes
  */
-#[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'poc_schema', 'creado_por', 'inicia_en', 'termina_en'])]
+#[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
 class Programa extends Model
 {
     /** @use HasFactory<ProgramaFactory> */
@@ -71,6 +73,16 @@ class Programa extends Model
     public function creador(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creado_por');
+    }
+
+    /**
+     * Empresa propietaria del programa, cuando fue creado por una cuenta empresarial.
+     *
+     * @return BelongsTo<Empresa, $this>
+     */
+    public function empresa(): BelongsTo
+    {
+        return $this->belongsTo(Empresa::class);
     }
 
     /**
@@ -148,6 +160,15 @@ class Programa extends Model
             return $query;
         }
 
+        if (in_array('empresa', $roles)) {
+            return $query->whereHas('empresa', function (Builder $empresaQuery) use ($user) {
+                $empresaQuery->whereHas('usuarios', function (Builder $usuarioQuery) use ($user) {
+                    $usuarioQuery->whereKey($user->id)
+                        ->where('empresa_usuario.estado', 'activo');
+                });
+            });
+        }
+
         return $query->activos()->publicos();
     }
 
@@ -163,6 +184,15 @@ class Programa extends Model
 
         if (in_array('administrador', $roles)) {
             return $query;
+        }
+
+        if (in_array('empresa', $roles)) {
+            return $query->whereHas('empresa', function (Builder $empresaQuery) use ($user) {
+                $empresaQuery->whereHas('usuarios', function (Builder $usuarioQuery) use ($user) {
+                    $usuarioQuery->whereKey($user->id)
+                        ->where('empresa_usuario.estado', 'activo');
+                });
+            });
         }
 
         return $query->where('creado_por', $user->id);

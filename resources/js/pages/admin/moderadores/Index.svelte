@@ -1,0 +1,63 @@
+<script module lang="ts">
+    export const layout = {
+        breadcrumbs: [
+            { title: 'Admin', href: '/admin' },
+            { title: 'Moderadores', href: '/admin/moderadores' },
+        ],
+    };
+</script>
+
+<script lang="ts">
+    import { router } from '@inertiajs/svelte';
+    import ShieldCheck from '@lucide/svelte/icons/shield-check';
+    import AppHead from '@/components/AppHead.svelte';
+    import EmptyState from '@/components/EmptyState.svelte';
+    import PageHeader from '@/components/PageHeader.svelte';
+    import { Button } from '@/components/ui/button';
+    import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    import type { User } from '@/types/auth';
+
+    let {
+        moderadores: moderadoresData,
+        usuariosDisponibles,
+    }: {
+        moderadores: { data: User[]; total: number };
+        usuariosDisponibles: User[];
+    } = $props();
+
+    function asignar(userId: number) {
+        router.post(`/admin/moderadores/${userId}`, {}, { preserveState: true });
+    }
+
+    function revocar(userId: number) {
+        router.delete(`/admin/moderadores/${userId}`, { preserveState: true });
+    }
+</script>
+
+<AppHead title="Moderadores" />
+
+<div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4">
+    <PageHeader title="Moderadores" description={`${moderadoresData.total} moderador${moderadoresData.total === 1 ? '' : 'es'} asignado${moderadoresData.total === 1 ? '' : 's'}`} />
+
+    <Card>
+        <CardHeader><CardTitle>Asignar moderador</CardTitle></CardHeader>
+        <CardContent class="space-y-2">
+            {#each usuariosDisponibles.filter((usuario) => !usuario.roles.includes('moderador')) as usuario (usuario.id)}
+                <div class="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0">
+                    <div><p class="text-sm font-medium">{usuario.name}</p><p class="text-xs text-muted-foreground">{usuario.email}</p></div>
+                    <Button size="sm" onclick={() => asignar(usuario.id)}>Asignar</Button>
+                </div>
+            {/each}
+        </CardContent>
+    </Card>
+
+    {#if moderadoresData.data.length === 0}
+        <EmptyState icon={ShieldCheck} title="No hay moderadores" description="Aún no se han asignado moderadores." />
+    {:else}
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {#each moderadoresData.data as moderador (moderador.id)}
+                <Card><CardContent class="flex items-center justify-between gap-3 pt-6"><div><p class="text-sm font-medium">{moderador.name}</p><p class="text-xs text-muted-foreground">{moderador.email}</p></div><Button size="sm" variant="destructive" onclick={() => revocar(moderador.id)}>Revocar</Button></CardContent></Card>
+            {/each}
+        </div>
+    {/if}
+</div>

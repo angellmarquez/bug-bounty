@@ -31,6 +31,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Rol> $roles
+ * @property-read Collection<int, Empresa> $empresas
  * @property-read Collection<int, Programa> $programas
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, Reporte> $reportesAsignados
@@ -71,6 +72,18 @@ class User extends Authenticatable implements PasskeyUser
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Rol::class, 'rol_usuario', 'usuario_id', 'rol_id');
+    }
+
+    /**
+     * Empresas a las que pertenece el usuario.
+     *
+     * @return BelongsToMany<Empresa, $this>
+     */
+    public function empresas(): BelongsToMany
+    {
+        return $this->belongsToMany(Empresa::class, 'empresa_usuario', 'usuario_id', 'empresa_id')
+            ->withPivot(['rol_interno', 'estado', 'invitado_en', 'aceptado_en'])
+            ->withTimestamps();
     }
 
     /**

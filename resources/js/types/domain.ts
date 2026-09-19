@@ -20,6 +20,24 @@ export type Rol = {
     updated_at: string;
 };
 
+export type Empresa = {
+    id: number;
+    razon_social: string;
+    nombre_comercial: string | null;
+    identificador_fiscal: string;
+    slug: string;
+    email: string;
+    telefono: string | null;
+    sitio_web: string | null;
+    estado: 'pendiente' | 'aprobada' | 'rechazada' | 'suspendida';
+    motivo_estado: string | null;
+    aprobado_por: number | null;
+    aprobado_en: string | null;
+    created_at: string;
+    updated_at: string;
+    usuarios?: User[];
+};
+
 export type ObjetivoPrograma = {
     id: number;
     programa_id: number;
