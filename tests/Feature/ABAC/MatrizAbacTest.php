@@ -70,6 +70,8 @@ dataset('matriz_abac', [
     'inv ve un programa público en pausa' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::EnPausa->value, 'es_publico' => true])], true],
     'inv no ve un programa privado' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => false])], false],
     'inv no ve un programa archivado' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Archivado->value, 'es_publico' => true])], false],
+    'inv con reputacion suficiente ve programa restringido' => ['programas.ver', fn () => [investigador(['reputation_score' => 50]), programaDe(investigador(['reputation_score' => 50]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'reputacion_minima' => 50])], true],
+    'inv con reputacion insuficiente no ve programa restringido' => ['programas.ver', fn () => [investigador(['reputation_score' => 49]), programaDe(investigador(['reputation_score' => 49]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'reputacion_minima' => 50])], false],
     'inv crea un reporte en un programa activo' => ['reportes.crear', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])], true],
     'inv no crea reportes en un programa borrador' => ['reportes.crear', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Borrador->value])], false],
     'gestion crea programas' => ['programas.crear', fn () => [gestion(), null], true],

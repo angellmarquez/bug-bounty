@@ -29,6 +29,7 @@ class ProgramaFactory extends Factory
             'moneda' => 'USD',
             'requiere_poc' => fake()->boolean(),
             'es_publico' => true,
+            'reputacion_minima' => 0,
             'creado_por' => User::factory(),
             'inicia_en' => now(),
             'termina_en' => now()->addMonths(6),

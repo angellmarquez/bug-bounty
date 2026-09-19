@@ -57,7 +57,7 @@
 
     const auth = $derived(page.props.auth);
     const userRoles = $derived(
-        (auth?.user?.roles as string[]) ?? [],
+        (page.props.userRoles as string[]) ?? (auth?.user?.roles as string[]) ?? [],
     );
     const isAdmin = $derived(userRoles.includes('administrador'));
     const isGestion = $derived(userRoles.includes('gestion'));

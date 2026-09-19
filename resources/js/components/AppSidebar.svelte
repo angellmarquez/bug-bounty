@@ -35,7 +35,7 @@
     } = $props();
 
     const userRoles = $derived(
-        (page.props.auth?.user?.roles as string[]) ?? [],
+        (page.props.userRoles as string[]) ?? (page.props.auth?.user?.roles as string[]) ?? [],
     );
 
     const isAdmin = $derived(userRoles.includes('administrador'));
@@ -52,9 +52,9 @@
             },
         ];
 
-        if (isInvestigador || isGestion || isAdmin) {
+        if (isInvestigador || isGestion || isAdmin || isEmpresa) {
             items.push({
-                title: 'Mis Reportes',
+                title: isEmpresa ? 'Reportes recibidos' : 'Mis Reportes',
                 href: reportesIndex(),
                 icon: Bug,
             });

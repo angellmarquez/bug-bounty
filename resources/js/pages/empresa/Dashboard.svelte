@@ -10,6 +10,11 @@
     import { router } from '@inertiajs/svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
+    import { Link } from '@inertiajs/svelte';
+    import StateBadge from '@/components/StateBadge.svelte';
+    import SeverityBadge from '@/components/SeverityBadge.svelte';
+    import Plus from '@lucide/svelte/icons/plus';
+    import Settings from '@lucide/svelte/icons/settings';
     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
     let { empresa }: {
@@ -25,6 +30,18 @@
             puedeOperar: boolean;
             usuarios: { id: number; name: string; email: string }[];
             invitaciones: { id: number; email: string; expira_en: string }[];
+            programas: { id: number; nombre: string; estado: string }[];
+            reportes: {
+                id: number;
+                numero_reporte: string;
+                titulo: string;
+                estado: string;
+                severidad: string | null;
+                programa_id: number;
+                programa_nombre: string;
+                investigador: { id: number; name: string } | null;
+                poc: Record<string, unknown> | null;
+            }[];
         };
     } = $props();
 
@@ -61,7 +78,14 @@
     <PageHeader
         title={empresa.nombre_comercial ?? empresa.razon_social}
         description="Estado de la solicitud empresarial"
-    />
+    >
+        {#if empresa.puedeOperar}
+            <Button href="/gestion/programas/crear">
+                <Plus class="mr-2 h-4 w-4" />
+                Crear programa
+            </Button>
+        {/if}
+    </PageHeader>
 
     <Card>
         <CardHeader>
@@ -108,6 +132,63 @@
                         </div>
                     {/each}
                 </div>
+            </CardContent>
+        </Card>
+    {/if}
+
+    {#if empresa.puedeOperar}
+        <Card>
+            <CardHeader>
+                <CardTitle>Programas publicados</CardTitle>
+                <CardDescription>Programas que los investigadores pueden consultar.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-2">
+                {#if empresa.programas.length > 0}
+                    <Button variant="outline" href="/gestion/programas" class="mb-2">
+                        <Settings class="mr-2 h-4 w-4" />
+                        Gestionar programas
+                    </Button>
+                {/if}
+                {#if empresa.programas.length === 0}
+                    <p class="text-sm text-muted-foreground">Todavia no hay programas.</p>
+                {:else}
+                    {#each empresa.programas as programa (programa.id)}
+                        <Link href={`/programas/${programa.id}`} class="flex items-center justify-between rounded-md border p-3 hover:bg-muted">
+                            <span class="font-medium">{programa.nombre}</span>
+                            <span class="text-xs text-muted-foreground">{programa.estado}</span>
+                        </Link>
+                    {/each}
+                {/if}
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Reportes recibidos</CardTitle>
+                <CardDescription>Reportes enviados por investigadores a tus programas. Los borradores no aparecen.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-3">
+                {#if empresa.reportes.length === 0}
+                    <p class="text-sm text-muted-foreground">Todavia no hay reportes recibidos.</p>
+                {:else}
+                    {#each empresa.reportes as reporte (reporte.id)}
+                        <Link href={`/reportes/${reporte.id}`} class="block rounded-md border p-3 hover:bg-muted">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="font-medium">{reporte.numero_reporte} - {reporte.titulo}</span>
+                                <div class="flex gap-2">
+                                    <StateBadge estado={reporte.estado} />
+                                    {#if reporte.severidad}<SeverityBadge severidad={reporte.severidad} />{/if}
+                                </div>
+                            </div>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                {reporte.programa_nombre} · Investigador: {reporte.investigador?.name ?? 'N/D'}
+                            </p>
+                            {#if reporte.poc}
+                                <p class="mt-2 text-xs text-muted-foreground">Incluye prueba de concepto</p>
+                            {/if}
+                        </Link>
+                    {/each}
+                {/if}
             </CardContent>
         </Card>
     {/if}

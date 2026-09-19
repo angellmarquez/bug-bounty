@@ -69,7 +69,9 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.aprobada');
-        Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
+        if (config('mail.enabled')) {
+            Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
+        }
 
         return redirect()->route('admin.empresas')->with('success', 'Empresa aprobada correctamente.');
     }
@@ -90,7 +92,9 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.rechazada');
-        Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'rechazada'));
+        if (config('mail.enabled')) {
+            Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'rechazada'));
+        }
 
         return redirect()->route('admin.empresas')->with('success', 'Empresa rechazada.');
     }
@@ -109,7 +113,9 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.suspendida');
-        Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'suspendida'));
+        if (config('mail.enabled')) {
+            Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'suspendida'));
+        }
 
         return redirect()->route('admin.empresas')->with('success', 'Empresa suspendida.');
     }
@@ -126,7 +132,9 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.reactivada');
-        Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
+        if (config('mail.enabled')) {
+            Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
+        }
 
         return redirect()->route('admin.empresas')->with('success', 'Empresa reactivada.');
     }
@@ -156,10 +164,18 @@ class AdminController extends Controller
         $moderador = Rol::where('slug', 'moderador')->first();
         $moderadores = $moderador?->usuarios()->latest('users.created_at')->paginate(15) ?? User::query()->whereKey(0)->paginate(15);
         $usuariosDisponibles = User::query()
-            ->whereDoesntHave('roles', fn ($query) => $query->where('slug', 'administrador'))
+            ->whereHas('roles', fn ($query) => $query->where('slug', 'investigador'))
+            ->whereDoesntHave('roles', fn ($query) => $query->whereIn('slug', ['administrador', 'moderador']))
             ->with('roles')
             ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'roles' => $user->roles->pluck('slug')->values()->all(),
+            ])
+            ->values();
 
         return Inertia::render('admin/moderadores/Index', [
             'moderadores' => $moderadores,

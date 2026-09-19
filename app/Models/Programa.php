@@ -28,6 +28,7 @@ use Illuminate\Support\Str;
  * @property int|float $recompensa_max
  * @property bool $requiere_poc
  * @property bool $es_publico
+ * @property int $reputacion_minima
  * @property array<string, mixed>|null $poc_schema
  * @property int|null $creado_por
  * @property Carbon|null $inicia_en
@@ -41,7 +42,7 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, User> $moderadores
  */
-#[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
+#[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'reputacion_minima', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
 class Programa extends Model
 {
     /** @use HasFactory<ProgramaFactory> */
@@ -60,6 +61,7 @@ class Programa extends Model
             'recompensa_max' => 'decimal:2',
             'requiere_poc' => 'boolean',
             'es_publico' => 'boolean',
+            'reputacion_minima' => 'integer',
             'poc_schema' => 'array',
             'inicia_en' => 'datetime',
             'termina_en' => 'datetime',
@@ -183,7 +185,10 @@ class Programa extends Model
             });
         }
 
-        return $query->activos()->publicos();
+        return $query
+            ->activos()
+            ->publicos()
+            ->where('reputacion_minima', '<=', (int) ($user->reputation_score ?? 0));
     }
 
     /**

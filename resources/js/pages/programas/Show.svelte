@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-    import { Link } from '@inertiajs/svelte';
+    import { Link, router } from '@inertiajs/svelte';
     import ExternalLink from '@lucide/svelte/icons/external-link';
     import Settings from '@lucide/svelte/icons/settings';
     import Edit from '@lucide/svelte/icons/edit';
@@ -32,13 +32,14 @@
     } from '@/components/ui/card';
     import { Separator } from '@/components/ui/separator';
     import { show as programaShow, gestion as gestionRoute } from '@/routes/programas';
-    import { create as reporteCreate } from '@/routes/reportes';
     import type { Programa, ObjetivoPrograma, PocSchemaField } from '@/types/domain';
 
     let {
         programa,
         puedeReportar,
         puedeGestionar,
+        puedeCambiarEstado = false,
+        transicionesPermitidas = [],
     }: {
         programa: Programa & {
             creador?: { id: number; name: string } | null;
@@ -47,7 +48,13 @@
         };
         puedeReportar: boolean;
         puedeGestionar: boolean;
+        puedeCambiarEstado?: boolean;
+        transicionesPermitidas?: string[];
     } = $props();
+
+    function cambiarEstado(estado: string) {
+        router.post(`/programas/${programa.id}/cambiar-estado`, { estado });
+    }
 
     function formatearFecha(dateStr: string | null): string {
         if (!dateStr) return 'N/A';
@@ -208,7 +215,7 @@
             </Card>
 
             {#if puedeReportar}
-                <Button href={`${reporteCreate()}?programa=${programa.id}`} class="w-full">
+                <Button href={`/reportes/crear?programa=${programa.id}`} class="w-full">
                     <ExternalLink class="mr-2 h-4 w-4" />
                     Reportar
                 </Button>
@@ -224,6 +231,20 @@
                         <Settings class="mr-2 h-4 w-4" />
                         Gestionar
                     </Button>
+                </div>
+            {/if}
+
+            {#if puedeCambiarEstado && transicionesPermitidas.length > 0}
+                <div class="flex flex-col gap-2 w-full">
+                    {#each transicionesPermitidas as estado}
+                        <Button
+                            variant={estado === 'activo' ? 'default' : 'outline'}
+                            class="w-full"
+                            onclick={() => cambiarEstado(estado)}
+                        >
+                            {estado === 'activo' ? 'Publicar programa' : `Cambiar a ${estado}`}
+                        </Button>
+                    {/each}
                 </div>
             {/if}
         </div>

@@ -40,6 +40,26 @@ class EmpresaController extends Controller
                 'rol_interno' => data_get($empresa->pivot, 'rol_interno'),
                 'puedeOperar' => $empresa->estado === EstadoEmpresa::Aprobada,
                 'programas' => $empresa->programas()->latest()->get(['id', 'nombre', 'estado']),
+                'reportes' => $empresa->programas()
+                    ->with(['reportes' => function ($query) {
+                        $query->where('estado', '!=', 'borrador')
+                            ->with('investigador:id,name')
+                            ->latest();
+                    }])
+                    ->get(['id', 'nombre'])
+                    ->flatMap(fn ($programa) => $programa->reportes->map(fn ($reporte) => [
+                        'id' => $reporte->id,
+                        'numero_reporte' => $reporte->numero_reporte,
+                        'titulo' => $reporte->titulo,
+                        'estado' => $reporte->estado->value,
+                        'severidad' => $reporte->severidad?->value,
+                        'programa_id' => $programa->id,
+                        'programa_nombre' => $programa->nombre,
+                        'investigador' => $reporte->investigador?->only(['id', 'name']),
+                        'poc' => $reporte->poc,
+                        'created_at' => $reporte->created_at?->toISOString(),
+                    ]))
+                    ->values(),
                 'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email']),
                 'invitaciones' => $empresa->invitaciones()->where('estado', 'pendiente')->latest()->get(['id', 'email', 'expira_en']),
             ],
@@ -74,10 +94,12 @@ class EmpresaController extends Controller
             ]);
         }
 
-        Mail::to($invitacion->email)->send(new EmpresaInvitacionMail(
-            $invitacion->load('empresa'),
-            route('empresa.invitacion', $invitacion->token),
-        ));
+        if (config('mail.enabled')) {
+            Mail::to($invitacion->email)->send(new EmpresaInvitacionMail(
+                $invitacion->load('empresa'),
+                route('empresa.invitacion', $invitacion->token),
+            ));
+        }
 
         $this->auditarMiembro($usuarioActual, $usuarioActual, $empresa, 'empresa.invitacion.creada');
 

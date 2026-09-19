@@ -54,7 +54,11 @@ return [
             'prioridad' => 20,
             'acciones' => ['reportes.crear'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
-            'objeto' => ['estado' => ['=' => 'activo']],
+            'objeto' => [
+                'estado' => ['=' => 'activo'],
+                'es_publico' => ['=' => true],
+                'reputacion_minima' => ['<=' => '@sujeto.reputation_score'],
+            ],
             'entorno' => [],
             'decision' => 'permitir',
         ],
@@ -111,6 +115,7 @@ return [
             'objeto' => [
                 'es_publico' => ['=' => true],
                 'estado' => ['in' => ['activo', 'en_pausa']],
+                'reputacion_minima' => ['<=' => '@sujeto.reputation_score'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -284,6 +289,18 @@ return [
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => ['estado' => ['!=' => 'borrador']],
             'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'empresa-ver-reportes-de-sus-programas',
+            'prioridad' => 35,
+            'acciones' => ['reportes.ver'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => [
+                'estado' => ['!=' => 'borrador'],
+                'programa.empresa_id' => ['=' => '@entorno.empresa_id'],
+            ],
+            'entorno' => ['empresa_id' => ['is_not_null']],
             'decision' => 'permitir',
         ],
         [

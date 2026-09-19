@@ -79,6 +79,7 @@ export type Programa = {
     recompensa_max: number;
     requiere_poc: boolean;
     es_publico: boolean;
+    reputacion_minima: number;
     poc_schema: PocSchemaField[] | null;
     creado_por: number | null;
     inicia_en: string | null;

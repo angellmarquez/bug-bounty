@@ -22,6 +22,8 @@
     import Bug from '@lucide/svelte/icons/bug';
     import Shield from '@lucide/svelte/icons/shield';
     import Settings from '@lucide/svelte/icons/settings';
+    import Building2 from '@lucide/svelte/icons/building-2';
+    import UserCog from '@lucide/svelte/icons/user-cog';
     import {
         Card,
         CardContent,
@@ -44,7 +46,7 @@
     );
 
     const userRoles = $derived(
-        (user?.roles as string[]) ?? [],
+        (page.props.userRoles as string[]) ?? (user?.roles as string[]) ?? [],
     );
     const roleStats = $derived((page.props.roleStats as DashboardRoleStats) ?? {});
 
@@ -70,13 +72,13 @@
                 title: 'Reportes Abiertos',
                 value: stats.reportes_abiertos,
                 description: 'En ciclo de triaje',
-                href: `${reportesIndex()}?estado=en_revision`,
+                href: '/reportes?estado=en_revision',
             },
             {
                 title: 'Reportes Cerrados',
                 value: stats.reportes_cerrados,
                 description: 'Resueltos',
-                href: `${reportesIndex()}?estado=cerrado`,
+                href: '/reportes?estado=cerrado',
             },
         ];
 
@@ -85,7 +87,7 @@
                 title: 'Programas Activos',
                 value: stats.programas_activos,
                 description: 'Programas de bug bounty',
-                href: `${programasIndex()}?estado=activo`,
+                href: '/programas?estado=activo',
             });
         }
 
@@ -141,6 +143,24 @@
                     usuarios, programas, reportes y configuracion del sistema.
                 </CardDescription>
             </CardHeader>
+            <CardContent class="flex flex-wrap gap-3">
+                <Button asChild>
+                    {#snippet children(props)}
+                        <Link href="/admin/empresas" {...props}>
+                            <Building2 class="mr-2 h-4 w-4" />
+                            Aprobar empresas
+                        </Link>
+                    {/snippet}
+                </Button>
+                <Button variant="outline" asChild>
+                    {#snippet children(props)}
+                        <Link href="/admin/moderadores" {...props}>
+                            <UserCog class="mr-2 h-4 w-4" />
+                            Gestionar moderadores
+                        </Link>
+                    {/snippet}
+                </Button>
+            </CardContent>
         </Card>
     {:else if isGestion}
         <Card>

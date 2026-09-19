@@ -164,6 +164,23 @@
                             <span>Publico</span>
                         </Label>
                     </div>
+
+                    <div class="max-w-sm space-y-2">
+                        <Label for="reputacion_minima">Reputacion minima</Label>
+                        <Input
+                            id="reputacion_minima"
+                            name="reputacion_minima"
+                            type="number"
+                            min="0"
+                            value={programa.reputacion_minima ?? 0}
+                            required
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            Solo investigadores con esta puntuacion o superior
+                            veran el programa y podran enviar reportes.
+                        </p>
+                        <InputError message={errors.reputacion_minima} />
+                    </div>
                 </CardContent>
             </Card>
 

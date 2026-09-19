@@ -56,12 +56,19 @@
     <Card>
         <CardHeader><CardTitle>Asignar moderador</CardTitle></CardHeader>
         <CardContent class="space-y-2">
-            {#each usuariosDisponibles.filter((usuario) => !usuario.roles.includes('moderador')) as usuario (usuario.id)}
-                <div class="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0">
-                    <div><p class="text-sm font-medium">{usuario.name}</p><p class="text-xs text-muted-foreground">{usuario.email}</p></div>
-                    <Button size="sm" onclick={() => asignar(usuario.id)}>Asignar</Button>
-                </div>
-            {/each}
+            {#if usuariosDisponibles.length === 0}
+                <p class="text-sm text-muted-foreground">
+                    No hay investigadores disponibles. Registra un investigador desde
+                    <a href="/register" class="underline">/register</a> o ejecuta los seeders de desarrollo.
+                </p>
+            {:else}
+                {#each usuariosDisponibles as usuario (usuario.id)}
+                    <div class="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0">
+                        <div><p class="text-sm font-medium">{usuario.name}</p><p class="text-xs text-muted-foreground">{usuario.email}</p></div>
+                        <Button size="sm" onclick={() => asignar(usuario.id)}>Asignar</Button>
+                    </div>
+                {/each}
+            {/if}
         </CardContent>
     </Card>
 

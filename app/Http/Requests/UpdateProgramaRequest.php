@@ -41,6 +41,7 @@ class UpdateProgramaRequest extends FormRequest
             'moneda' => ['sometimes', 'required', 'string', 'size:3'],
             'requiere_poc' => ['boolean'],
             'es_publico' => ['boolean'],
+            'reputacion_minima' => ['sometimes', 'required', 'integer', 'min:0'],
             'poc_schema' => ['nullable', 'array'],
             'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
             'poc_schema.*.label' => ['required_with:poc_schema', 'string', 'max:255'],

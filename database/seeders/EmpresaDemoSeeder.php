@@ -24,6 +24,12 @@ class EmpresaDemoSeeder extends Seeder
         );
         $moderador->roles()->syncWithoutDetaching([Rol::where('slug', 'moderador')->firstOrFail()->id]);
 
+        $investigador = User::updateOrCreate(
+            ['email' => 'investigador@bugbounty.local'],
+            ['name' => 'Investigador Demo', 'password' => 'investigador', 'email_verified_at' => now()],
+        );
+        $investigador->roles()->syncWithoutDetaching([Rol::where('slug', 'investigador')->firstOrFail()->id]);
+
         $propietario = User::updateOrCreate(
             ['email' => 'empresa@bugbounty.local'],
             ['name' => 'Propietario Demo', 'password' => 'empresa', 'email_verified_at' => now()],
@@ -57,6 +63,7 @@ class EmpresaDemoSeeder extends Seeder
                 'moneda' => 'USD',
                 'requiere_poc' => true,
                 'es_publico' => true,
+                'reputacion_minima' => 0,
                 'empresa_id' => $empresa->id,
                 'creado_por' => $propietario->id,
             ],

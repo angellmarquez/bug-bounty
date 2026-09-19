@@ -33,6 +33,7 @@ class ReporteController extends Controller
         $isAdmin = in_array('administrador', $roles);
         $isGestion = in_array('gestion', $roles);
         $isModerador = in_array('moderador', $roles);
+        $isEmpresa = in_array('empresa', $roles);
 
         $query = Reporte::query()
             ->with(['programa', 'investigador', 'asignadoA']);
@@ -43,6 +44,13 @@ class ReporteController extends Controller
             $query->where('estado', '!=', 'borrador');
         } elseif ($isModerador) {
             $query->where('estado', '!=', 'borrador');
+        } elseif ($isEmpresa) {
+            $empresa = $user->empresas()
+                ->where('empresa_usuario.estado', 'activo')
+                ->first();
+            abort_if($empresa === null, 403, 'No perteneces a una empresa activa.');
+            $query->where('estado', '!=', 'borrador')
+                ->whereHas('programa', fn ($programa) => $programa->where('empresa_id', $empresa->id));
         } else {
             $query->where('investigador_id', $user->id);
         }
@@ -70,8 +78,12 @@ class ReporteController extends Controller
         $reportes = $query->latest()->paginate(15)->withQueryString();
 
         $programas = Programa::select('id', 'nombre')
-            ->when(! $isAdmin && ! $isGestion && ! $isModerador, function ($q) {
+            ->when(! $isAdmin && ! $isGestion && ! $isModerador && ! $isEmpresa, function ($q) {
                 $q->where('estado', 'activo')->where('es_publico', true);
+            })
+            ->when($isEmpresa, function ($q) use ($user) {
+                $empresa = $user->empresas()->where('empresa_usuario.estado', 'activo')->first();
+                $q->where('empresa_id', $empresa?->id);
             })
             ->orderBy('nombre')
             ->get();
@@ -86,7 +98,11 @@ class ReporteController extends Controller
     public function show(Reporte $reporte): InertiaResponse
     {
         $this->asegurarAlcanceModerador($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte]);
+        Gate::authorize('abac', [
+            AccionesAbac::ReporteVer,
+            $reporte,
+            $this->empresaContexto(),
+        ]);
 
         $user = request()->user();
         $puedeVerNotasInternas = Gate::allows('abac', [AccionesAbac::ReporteVerNotasInternas, $reporte]);
@@ -162,12 +178,13 @@ class ReporteController extends Controller
 
         $programas = Programa::where('estado', 'activo')
             ->where('es_publico', true)
+            ->where('reputacion_minima', '<=', (int) ($user->reputation_score ?? 0))
             ->orderBy('nombre')
             ->get();
 
         $programaInicial = null;
         if ($request->filled('programa')) {
-            $programaInicial = Programa::find($request->input('programa'));
+            $programaInicial = $programas->firstWhere('id', (int) $request->input('programa'));
         }
 
         $clavesPgp = ClavePgp::where('usuario_id', $user->id)
@@ -392,7 +409,9 @@ class ReporteController extends Controller
                 $reporte,
                 metadata: ['origen' => 'triaje', 'actor_id' => $request->user()->id],
             );
-            Mail::to($reporte->investigador->email)->send(new SancionAplicadaMail($sancion));
+            if (config('mail.enabled')) {
+                Mail::to($reporte->investigador->email)->send(new SancionAplicadaMail($sancion));
+            }
         }
 
         $reporte->eventos()->create([
@@ -514,6 +533,17 @@ class ReporteController extends Controller
             return;
         }
 
+    }
+
+    /** @return array{empresa_id?: int} */
+    private function empresaContexto(): array
+    {
+        $user = request()->user();
+        $empresa = $user?->empresas()
+            ->where('empresa_usuario.estado', 'activo')
+            ->first();
+
+        return $empresa === null ? [] : ['empresa_id' => $empresa->id];
     }
 
     private function generarNumeroReporte(): string

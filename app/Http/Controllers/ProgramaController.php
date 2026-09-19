@@ -115,6 +115,7 @@ class ProgramaController extends Controller
     {
         $validated = $request->validated();
         $user = $request->user();
+        $validated['reputacion_minima'] ??= 0;
 
         $programa = DB::transaction(function () use ($validated, $user) {
             $objetivos = $validated['objetivos'] ?? [];

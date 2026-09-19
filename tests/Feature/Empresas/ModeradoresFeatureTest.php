@@ -21,3 +21,19 @@ test('gestion cannot assign moderators', function () {
 
     $this->post(route('admin.moderadores.asignar', $usuario))->assertForbidden();
 });
+
+test('moderator management lists only eligible investigators', function () {
+    $admin = administrador();
+    $this->actingAs($admin);
+
+    $response = $this->get(route('admin.moderadores'));
+
+    $response->assertSuccessful()
+        ->assertInertia(fn ($page) => $page
+            ->where('usuariosDisponibles', fn ($usuarios) => collect($usuarios)->every(
+                fn ($usuario) => in_array('investigador', $usuario['roles'], true)
+                    && ! in_array('moderador', $usuario['roles'], true)
+                    && ! in_array('administrador', $usuario['roles'], true)
+            ))
+        );
+});
