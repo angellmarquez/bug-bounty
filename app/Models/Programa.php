@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property int|float $recompensa_max
  * @property bool $requiere_poc
  * @property bool $es_publico
+ * @property array<string, mixed>|null $poc_schema
  * @property int|null $creado_por
  * @property Carbon|null $inicia_en
  * @property Carbon|null $termina_en
@@ -34,7 +35,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, ObjetivoPrograma> $objetivos
  * @property-read Collection<int, Reporte> $reportes
  */
-#[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'creado_por', 'inicia_en', 'termina_en'])]
+#[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'poc_schema', 'creado_por', 'inicia_en', 'termina_en'])]
 class Programa extends Model
 {
     /** @use HasFactory<ProgramaFactory> */
@@ -53,6 +54,7 @@ class Programa extends Model
             'recompensa_max' => 'decimal:2',
             'requiere_poc' => 'boolean',
             'es_publico' => 'boolean',
+            'poc_schema' => 'array',
             'inicia_en' => 'datetime',
             'termina_en' => 'datetime',
             'deleted_at' => 'datetime',

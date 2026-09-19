@@ -30,6 +30,26 @@ export type ObjetivoPrograma = {
     updated_at: string;
 };
 
+export type PocSchemaFieldType =
+    | 'text'
+    | 'textarea'
+    | 'select'
+    | 'number'
+    | 'url'
+    | 'code';
+
+export type PocSchemaField = {
+    name: string;
+    label: string;
+    type: PocSchemaFieldType;
+    required?: boolean;
+    placeholder?: string;
+    help?: string;
+    options?: { value: string; label: string }[];
+    repeatable?: boolean;
+    defaultValue?: string;
+};
+
 export type Programa = {
     id: number;
     nombre: string;
@@ -41,6 +61,7 @@ export type Programa = {
     recompensa_max: number;
     requiere_poc: boolean;
     es_publico: boolean;
+    poc_schema: PocSchemaField[] | null;
     creado_por: number | null;
     inicia_en: string | null;
     termina_en: string | null;
@@ -87,10 +108,18 @@ export type EventoReporte = {
     reporte_id: number;
     tipo: TipoEventoReporte;
     actor_id: number | null;
-    descripcion: string;
+    descripcion: string | null;
     metadata: Record<string, unknown> | null;
     created_at: string;
     actor?: User | null;
+};
+
+export type ClavePgpResumen = {
+    id: number;
+    huella: string;
+    algoritmo: string | null;
+    bits: number | null;
+    es_principal: boolean;
 };
 
 export type ClavePgp = {
