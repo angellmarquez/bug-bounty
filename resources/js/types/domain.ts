@@ -231,3 +231,28 @@ export type DashboardStats = {
     programas_activos: number;
     reputacion: number;
 };
+
+export type DashboardRoleStats =
+    | {
+          tipo: 'empresa';
+          estado: string | undefined;
+          programas_total: number;
+          programas_activos: number;
+          miembros: number;
+          reportes_recibidos: number;
+      }
+    | {
+          tipo: 'moderador';
+          pendientes_revision: number;
+          validados: number;
+          rechazados: number;
+          sanciones_aplicadas: number;
+      }
+    | {
+          tipo: 'administrador';
+          empresas_pendientes: number;
+          empresas_aprobadas: number;
+          moderadores: number;
+          sanciones_activas: number;
+      }
+    | Record<string, never>;

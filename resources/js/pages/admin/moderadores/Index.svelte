@@ -20,10 +20,14 @@
     let {
         moderadores: moderadoresData,
         usuariosDisponibles,
+        programas,
     }: {
         moderadores: { data: User[]; total: number };
         usuariosDisponibles: User[];
+        programas: { id: number; nombre: string; moderadores: { id: number }[] }[];
     } = $props();
+
+    let programaSeleccionado = $state<Record<number, string>>({});
 
     function asignar(userId: number) {
         router.post(`/admin/moderadores/${userId}`, {}, { preserveState: true });
@@ -31,6 +35,16 @@
 
     function revocar(userId: number) {
         router.delete(`/admin/moderadores/${userId}`, { preserveState: true });
+    }
+
+    function asignarAPrograma(userId: number) {
+        const programaId = programaSeleccionado[userId];
+        if (!programaId) return;
+        router.post(`/admin/programas/${programaId}/moderadores/${userId}`, {}, { preserveState: true });
+    }
+
+    function estaAsignado(programa: { moderadores: { id: number }[] }, userId: number): boolean {
+        return programa.moderadores.some((moderador) => moderador.id === userId);
     }
 </script>
 
@@ -56,7 +70,23 @@
     {:else}
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {#each moderadoresData.data as moderador (moderador.id)}
-                <Card><CardContent class="flex items-center justify-between gap-3 pt-6"><div><p class="text-sm font-medium">{moderador.name}</p><p class="text-xs text-muted-foreground">{moderador.email}</p></div><Button size="sm" variant="destructive" onclick={() => revocar(moderador.id)}>Revocar</Button></CardContent></Card>
+                <Card>
+                    <CardContent class="space-y-4 pt-6">
+                        <div class="flex items-center justify-between gap-3">
+                            <div><p class="text-sm font-medium">{moderador.name}</p><p class="text-xs text-muted-foreground">{moderador.email}</p></div>
+                            <Button size="sm" variant="destructive" onclick={() => revocar(moderador.id)}>Revocar</Button>
+                        </div>
+                        <div class="flex gap-2">
+                            <select class="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm" bind:value={programaSeleccionado[moderador.id]}>
+                                <option value="">Seleccionar programa</option>
+                                {#each programas.filter((programa) => !estaAsignado(programa, moderador.id)) as programa (programa.id)}
+                                    <option value={String(programa.id)}>{programa.nombre}</option>
+                                {/each}
+                            </select>
+                            <Button size="sm" onclick={() => asignarAPrograma(moderador.id)} disabled={!programaSeleccionado[moderador.id]}>Asignar alcance</Button>
+                        </div>
+                    </CardContent>
+                </Card>
             {/each}
         </div>
     {/if}

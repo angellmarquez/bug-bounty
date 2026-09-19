@@ -15,12 +15,17 @@ Route::inertia('/', 'Welcome')->name('home');
 Route::get('empresa/login', [EmpresaAuthController::class, 'login'])->name('empresa.login');
 Route::get('empresa/registro', [EmpresaAuthController::class, 'create'])->name('empresa.register');
 Route::post('empresa/registro', [EmpresaAuthController::class, 'store'])->name('empresa.register.store');
+Route::middleware('auth')->get('empresa/invitacion/{token}', [EmpresaController::class, 'verInvitacion'])->name('empresa.invitacion');
+Route::middleware('auth')->post('empresa/invitacion/{token}/aceptar', [EmpresaController::class, 'aceptarInvitacion'])->name('empresa.invitacion.aceptar');
 
 Route::middleware('auth')->group(function () {
     Route::get('empresa', [EmpresaController::class, 'dashboard'])->name('empresa.dashboard');
+    Route::post('empresa/miembros', [EmpresaController::class, 'agregarMiembro'])->name('empresa.miembros.agregar');
+    Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarMiembro'])->name('empresa.invitaciones.crear');
+    Route::delete('empresa/miembros/{user}', [EmpresaController::class, 'eliminarMiembro'])->name('empresa.miembros.eliminar');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
     Route::get('reportes/crear', [ReporteController::class, 'create'])->name('reportes.create');
@@ -56,9 +61,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/empresas/{empresa}/aprobar', [AdminController::class, 'aprobarEmpresa'])->name('admin.empresas.aprobar');
     Route::post('admin/empresas/{empresa}/rechazar', [AdminController::class, 'rechazarEmpresa'])->name('admin.empresas.rechazar');
     Route::post('admin/empresas/{empresa}/suspender', [AdminController::class, 'suspenderEmpresa'])->name('admin.empresas.suspender');
+    Route::post('admin/empresas/{empresa}/reactivar', [AdminController::class, 'reactivarEmpresa'])->name('admin.empresas.reactivar');
     Route::get('admin/moderadores', [AdminController::class, 'moderadores'])->name('admin.moderadores');
     Route::post('admin/moderadores/{user}', [AdminController::class, 'asignarModerador'])->name('admin.moderadores.asignar');
     Route::delete('admin/moderadores/{user}', [AdminController::class, 'revocarModerador'])->name('admin.moderadores.revocar');
+    Route::post('admin/programas/{programa}/moderadores/{user}', [AdminController::class, 'asignarModeradorPrograma'])->name('admin.programas.moderadores.asignar');
+    Route::delete('admin/programas/{programa}/moderadores/{user}', [AdminController::class, 'revocarModeradorPrograma'])->name('admin.programas.moderadores.revocar');
     Route::get('admin/usuarios', [AdminController::class, 'usuarios'])->name('admin.usuarios');
     Route::put('admin/usuarios/{user}', [AdminController::class, 'updateUsuario'])->name('admin.usuarios.update');
     Route::get('admin/sanciones', [AdminController::class, 'sanciones'])->name('admin.sanciones');

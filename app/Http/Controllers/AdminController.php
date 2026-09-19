@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
 use App\Enums\EstadoEmpresa;
+use App\Mail\EmpresaEstadoMail;
 use App\Models\Apelacion;
 use App\Models\Auditoria;
 use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
+use App\Models\Programa;
 use App\Models\Rol;
 use App\Models\Sancion;
 use App\Models\User;
@@ -16,6 +18,7 @@ use App\Services\Reputacion\ReputationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -66,6 +69,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.aprobada');
+        Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
 
         return redirect()->route('admin.empresas')->with('success', 'Empresa aprobada correctamente.');
     }
@@ -86,6 +90,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.rechazada');
+        Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'rechazada'));
 
         return redirect()->route('admin.empresas')->with('success', 'Empresa rechazada.');
     }
@@ -104,8 +109,26 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.suspendida');
+        Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'suspendida'));
 
         return redirect()->route('admin.empresas')->with('success', 'Empresa suspendida.');
+    }
+
+    public function reactivarEmpresa(Empresa $empresa, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::EmpresaReactivar, $empresa]);
+
+        $empresa->update([
+            'estado' => EstadoEmpresa::Aprobada,
+            'motivo_estado' => null,
+            'aprobado_por' => $request->user()->id,
+            'aprobado_en' => now(),
+        ]);
+
+        $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.reactivada');
+        Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
+
+        return redirect()->route('admin.empresas')->with('success', 'Empresa reactivada.');
     }
 
     private function registrarDecisionEmpresa(Request $request, Empresa $empresa, string $accion): void
@@ -141,6 +164,10 @@ class AdminController extends Controller
         return Inertia::render('admin/moderadores/Index', [
             'moderadores' => $moderadores,
             'usuariosDisponibles' => $usuariosDisponibles,
+            'programas' => Programa::query()
+                ->with('moderadores:id')
+                ->orderBy('nombre')
+                ->get(['id', 'nombre']),
         ]);
     }
 
@@ -177,6 +204,30 @@ class AdminController extends Controller
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.revocado');
 
         return redirect()->route('admin.moderadores')->with('success', 'Rol de moderador revocado.');
+    }
+
+    public function asignarModeradorPrograma(Programa $programa, User $user, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ModeradorAsignar]);
+        abort_unless($user->roles()->where('slug', 'moderador')->exists(), 422, 'El usuario no tiene rol de moderador.');
+
+        $programa->moderadores()->syncWithoutDetaching([
+            $user->id => ['asignado_por' => $request->user()->id],
+        ]);
+
+        $this->registrarDecisionModerador($request, $user, 'admin.moderador.programa.asignado');
+
+        return redirect()->route('admin.moderadores')->with('success', 'Moderador asignado al programa.');
+    }
+
+    public function revocarModeradorPrograma(Programa $programa, User $user, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ModeradorRevocar]);
+        $programa->moderadores()->detach($user->id);
+
+        $this->registrarDecisionModerador($request, $user, 'admin.moderador.programa.revocado');
+
+        return redirect()->route('admin.moderadores')->with('success', 'Moderador retirado del programa.');
     }
 
     private function registrarDecisionModerador(Request $request, User $user, string $accion): void

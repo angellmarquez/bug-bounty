@@ -3,10 +3,11 @@
 use App\Enums\EstadoEmpresa;
 use App\Models\Empresa;
 use App\Models\Programa;
+use App\Models\User;
 
-function usuarioEmpresa(Empresa $empresa, string $email): \App\Models\User
+function usuarioEmpresa(Empresa $empresa, string $email): User
 {
-    $usuario = conRol(\App\Models\User::factory()->create(['email' => $email]), 'empresa');
+    $usuario = conRol(User::factory()->create(['email' => $email]), 'empresa');
     $empresa->usuarios()->attach($usuario, [
         'rol_interno' => 'propietario',
         'estado' => 'activo',

@@ -46,6 +46,8 @@
     let asignadoA = $state<string>('');
     let reporteDuplicadoId = $state('');
     let recompensa = $state('');
+    let sancionar = $state(false);
+    let gravedadSancion = $state('leve');
     let processing = $state(false);
 
     const rutaMap: Record<TransicionAccion, string> = {
@@ -101,6 +103,10 @@
         if (accion === 'asignar' && asignadoA) data.asignado_a = asignadoA;
         if (accion === 'marcar_duplicado' && reporteDuplicadoId) data.reporte_duplicado_id = reporteDuplicadoId;
         if (accion === 'pagar' && recompensa) data.recompensa = recompensa;
+        if (accion === 'rechazar' && sancionar) {
+            data.sancionar = '1';
+            data.gravedad_sancion = gravedadSancion;
+        }
 
         router.post(`/reportes/${reporteId}/${rutaMap[accion]}`, data, {
             preserveScroll: true,
@@ -118,6 +124,8 @@
         asignadoA = '';
         reporteDuplicadoId = '';
         recompensa = '';
+        sancionar = false;
+        gravedadSancion = 'leve';
     }
 </script>
 
@@ -173,6 +181,23 @@
                         placeholder="Ej: 500.00"
                     />
                 </div>
+            {/if}
+
+            {#if accion === 'rechazar'}
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" bind:checked={sancionar} />
+                    Marcar como reporte falso y aplicar sanción
+                </label>
+                {#if sancionar}
+                    <div class="space-y-2">
+                        <Label for="gravedad_sancion">Gravedad de la sanción</Label>
+                        <select id="gravedad_sancion" bind:value={gravedadSancion} class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                            <option value="leve">Leve</option>
+                            <option value="media">Media</option>
+                            <option value="grave">Grave</option>
+                        </select>
+                    </div>
+                {/if}
             {/if}
 
             {#if accion !== 'validar' && accion !== 'cerrar'}

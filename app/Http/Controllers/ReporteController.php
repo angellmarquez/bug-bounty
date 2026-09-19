@@ -3,18 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
+use App\Enums\GravedadSancion;
 use App\Http\Requests\StoreReporteRequest;
 use App\Http\Requests\TransitionReporteRequest;
 use App\Http\Requests\UpdateReporteRequest;
+use App\Mail\SancionAplicadaMail;
 use App\Models\ClavePgp;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Pgp\PgpService;
+use App\Services\Reputacion\ReputationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -28,6 +32,7 @@ class ReporteController extends Controller
         $roles = $user->roles->pluck('slug')->toArray();
         $isAdmin = in_array('administrador', $roles);
         $isGestion = in_array('gestion', $roles);
+        $isModerador = in_array('moderador', $roles);
 
         $query = Reporte::query()
             ->with(['programa', 'investigador', 'asignadoA']);
@@ -35,6 +40,8 @@ class ReporteController extends Controller
         if ($isAdmin) {
             // Admin ve todos
         } elseif ($isGestion) {
+            $query->where('estado', '!=', 'borrador');
+        } elseif ($isModerador) {
             $query->where('estado', '!=', 'borrador');
         } else {
             $query->where('investigador_id', $user->id);
@@ -63,7 +70,7 @@ class ReporteController extends Controller
         $reportes = $query->latest()->paginate(15)->withQueryString();
 
         $programas = Programa::select('id', 'nombre')
-            ->when(! $isAdmin && ! $isGestion, function ($q) {
+            ->when(! $isAdmin && ! $isGestion && ! $isModerador, function ($q) {
                 $q->where('estado', 'activo')->where('es_publico', true);
             })
             ->orderBy('nombre')
@@ -78,6 +85,7 @@ class ReporteController extends Controller
 
     public function show(Reporte $reporte): InertiaResponse
     {
+        $this->asegurarAlcanceModerador($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte]);
 
         $user = request()->user();
@@ -318,6 +326,7 @@ class ReporteController extends Controller
 
     public function asignar(Reporte $reporte, Request $request): RedirectResponse
     {
+        $this->asegurarAlcanceModerador($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteAsignar, $reporte]);
 
         $request->validate([
@@ -345,6 +354,7 @@ class ReporteController extends Controller
 
     public function validar(Reporte $reporte): RedirectResponse
     {
+        $this->asegurarAlcanceModerador($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
 
         $this->validarTransicion($reporte, 'validado');
@@ -362,8 +372,9 @@ class ReporteController extends Controller
             ->with('success', 'Reporte validado exitosamente.');
     }
 
-    public function rechazar(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
+    public function rechazar(TransitionReporteRequest $request, Reporte $reporte, ReputationService $reputacion): RedirectResponse
     {
+        $this->asegurarAlcanceModerador($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteRechazar, $reporte]);
 
         $validated = $request->validated();
@@ -371,6 +382,18 @@ class ReporteController extends Controller
         $estadoAnterior = $reporte->estado->value;
 
         $reporte->update(['estado' => 'rechazado']);
+
+        if ($validated['sancionar'] ?? false) {
+            $gravedad = GravedadSancion::from($validated['gravedad_sancion'] ?? GravedadSancion::Leve->value);
+            $sancion = $reputacion->aplicarSancion(
+                $reporte->investigador,
+                $validated['nota'] ?? 'Reporte falso o fabricado durante el triaje.',
+                $gravedad,
+                $reporte,
+                metadata: ['origen' => 'triaje', 'actor_id' => $request->user()->id],
+            );
+            Mail::to($reporte->investigador->email)->send(new SancionAplicadaMail($sancion));
+        }
 
         $reporte->eventos()->create([
             'actor_id' => $request->user()->id,
@@ -385,6 +408,7 @@ class ReporteController extends Controller
 
     public function marcarDuplicado(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
     {
+        $this->asegurarAlcanceModerador($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]);
 
         $validated = $request->validated();
@@ -417,6 +441,7 @@ class ReporteController extends Controller
 
     public function pagar(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
     {
+        $this->asegurarAlcanceModerador($reporte);
         Gate::authorize('abac', [AccionesAbac::ReportePagar, $reporte]);
 
         $validated = $request->validated();
@@ -442,6 +467,7 @@ class ReporteController extends Controller
 
     public function cerrar(Reporte $reporte): RedirectResponse
     {
+        $this->asegurarAlcanceModerador($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte]);
 
         $this->validarTransicion($reporte, 'cerrado');
@@ -464,6 +490,7 @@ class ReporteController extends Controller
 
     public function comentar(Reporte $reporte, Request $request): RedirectResponse
     {
+        $this->asegurarAlcanceModerador($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte]);
 
         $request->validate([
@@ -478,6 +505,15 @@ class ReporteController extends Controller
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Comentario agregado.');
+    }
+
+    private function asegurarAlcanceModerador(Reporte $reporte): void
+    {
+        $user = request()->user();
+        if (! $user?->roles()->where('slug', 'moderador')->exists()) {
+            return;
+        }
+
     }
 
     private function generarNumeroReporte(): string

@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
 use App\Models\Programa;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -15,11 +16,20 @@ class UpdateProgramaRequest extends FormRequest
         /** @var Programa $programa */
         $programa = $this->route('programa');
 
-        return Gate::allows('abac', [AccionesAbac::ProgramaGestionar, $programa]);
+        $empresa = $this->user()?->empresas()
+            ->where('empresas.estado', 'aprobada')
+            ->where('empresa_usuario.estado', 'activo')
+            ->first();
+
+        return Gate::allows('abac', [
+            AccionesAbac::ProgramaGestionar,
+            $programa,
+            $empresa === null ? [] : ['empresa_id' => $empresa->id],
+        ]);
     }
 
     /**
-     * @return array<string, array<int, string|\Illuminate\Contracts\Validation\ValidationRule>>
+     * @return array<string, array<int, string|ValidationRule>>
      */
     public function rules(): array
     {

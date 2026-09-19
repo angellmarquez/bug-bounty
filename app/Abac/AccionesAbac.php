@@ -64,6 +64,10 @@ final class AccionesAbac
 
     public const EmpresaSuspender = 'empresas.suspender';
 
+    public const EmpresaReactivar = 'empresas.reactivar';
+
+    public const EmpresaGestionarMiembros = 'empresas.gestionar_miembros';
+
     public const ModeradorAsignar = 'moderadores.asignar';
 
     public const ModeradorRevocar = 'moderadores.revocar';

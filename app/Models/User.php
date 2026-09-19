@@ -97,6 +97,18 @@ class User extends Authenticatable implements PasskeyUser
     }
 
     /**
+     * Programas que el usuario puede moderar.
+     *
+     * @return BelongsToMany<Programa, $this>
+     */
+    public function programasModerados(): BelongsToMany
+    {
+        return $this->belongsToMany(Programa::class, 'programa_moderador', 'usuario_id', 'programa_id')
+            ->withPivot(['asignado_por'])
+            ->withTimestamps();
+    }
+
+    /**
      * Los reportes presentados por el usuario como investigador.
      *
      * @return HasMany<Reporte, $this>

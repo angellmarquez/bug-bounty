@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -38,6 +39,7 @@ use Illuminate\Support\Str;
  * @property-read Empresa|null $empresa
  * @property-read Collection<int, ObjetivoPrograma> $objetivos
  * @property-read Collection<int, Reporte> $reportes
+ * @property-read Collection<int, User> $moderadores
  */
 #[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
 class Programa extends Model
@@ -103,6 +105,18 @@ class Programa extends Model
     public function reportes(): HasMany
     {
         return $this->hasMany(Reporte::class);
+    }
+
+    /**
+     * Moderadores asignados específicamente a este programa.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function moderadores(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'programa_moderador', 'programa_id', 'usuario_id')
+            ->withPivot(['asignado_por'])
+            ->withTimestamps();
     }
 
     protected static function boot(): void

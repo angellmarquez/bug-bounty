@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Programa;
+use App\Models\Rol;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -15,7 +16,7 @@ class ProgramaSeeder extends Seeder
         if (! $gestion) {
             $gestion = User::factory()->create(['name' => 'Gestor Demo']);
             $gestion->roles()->attach(
-                \App\Models\Rol::where('slug', 'gestion')->first()
+                Rol::where('slug', 'gestion')->first()
             );
         }
 

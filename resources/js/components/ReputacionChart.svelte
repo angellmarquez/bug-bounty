@@ -28,7 +28,7 @@
         historial: EntradaReputacion[];
     } = $props();
 
-    let canvas: HTMLCanvasElement;
+    let canvas: HTMLCanvasElement | null = null;
     let chart: Chart | null = null;
 
     onMount(() => {
@@ -44,6 +44,8 @@
             acumulado += e.puntos;
             saldos.push(acumulado);
         }
+
+        if (!canvas) return;
 
         chart = new Chart(canvas, {
             type: 'line',

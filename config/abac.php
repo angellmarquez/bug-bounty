@@ -258,6 +258,24 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
+        [
+            'id' => 'empresa-gestionar-programa-propio',
+            'prioridad' => 35,
+            'acciones' => ['programas.gestionar', 'programas.cambiar_estado', 'programas.eliminar'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'empresa-gestionar-miembros-propia',
+            'prioridad' => 35,
+            'acciones' => ['empresas.gestionar_miembros'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => ['id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
 
         [
             'id' => 'moderador-ver-reportes-no-borrador',
@@ -283,6 +301,18 @@ return [
             'objeto' => [
                 'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
                 'asignado_a' => ['is_null'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-triaje-asignado',
+            'prioridad' => 35,
+            'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado', 'reportes.pagar', 'reportes.cerrar'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'asignado_a' => ['=' => '@sujeto.id'],
             ],
             'entorno' => [],
             'decision' => 'permitir',

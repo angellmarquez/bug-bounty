@@ -8,23 +8,24 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('empresa_usuario', function (Blueprint $table) {
+        Schema::create('empresa_invitaciones', function (Blueprint $table) {
             $table->id();
             $table->foreignId('empresa_id')->constrained('empresas')->cascadeOnDelete();
-            $table->foreignId('usuario_id')->constrained('users')->cascadeOnDelete();
+            $table->string('email');
+            $table->string('token', 64)->unique();
             $table->string('rol_interno')->default('miembro');
-            $table->string('estado')->default('activo');
-            $table->timestamp('invitado_en')->nullable();
+            $table->string('estado')->default('pendiente')->index();
+            $table->foreignId('invitado_por')->constrained('users')->cascadeOnDelete();
+            $table->timestamp('expira_en');
             $table->timestamp('aceptado_en')->nullable();
             $table->timestamps();
 
-            $table->unique(['empresa_id', 'usuario_id']);
-            $table->index(['usuario_id', 'estado']);
+            $table->index(['empresa_id', 'email', 'estado']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('empresa_usuario');
+        Schema::dropIfExists('empresa_invitaciones');
     }
 };

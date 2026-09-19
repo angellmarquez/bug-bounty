@@ -76,7 +76,7 @@ class ProgramaController extends Controller
         $puedeEliminar = Gate::allows('abac', [AccionesAbac::ProgramaEliminar, $programa]);
 
         $transicionesPermitidas = $puedeCambiarEstado
-            ? (self::TRANSICIONES_VALIDAS[$programa->estado->value] ?? [])
+            ? self::TRANSICIONES_VALIDAS[$programa->estado->value]
             : [];
 
         return Inertia::render('programas/Show', [
@@ -97,13 +97,15 @@ class ProgramaController extends Controller
     public function create(): InertiaResponse
     {
         Gate::authorize('abac', [AccionesAbac::ProgramaCrear]);
+
         return Inertia::render('programas/gestion/Create');
     }
 
     public function edit(Programa $programa): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ProgramaGestionar, $programa]);
+        $this->authorizeProgramAction(AccionesAbac::ProgramaGestionar, $programa);
         $programa->load(['objetivos']);
+
         return Inertia::render('programas/gestion/Edit', [
             'programa' => $programa,
         ]);
@@ -167,7 +169,7 @@ class ProgramaController extends Controller
 
     public function destroy(Programa $programa): RedirectResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ProgramaEliminar, $programa]);
+        $this->authorizeProgramAction(AccionesAbac::ProgramaEliminar, $programa);
 
         $programa->delete();
 
@@ -177,7 +179,7 @@ class ProgramaController extends Controller
 
     public function cambiarEstado(Request $request, Programa $programa): RedirectResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ProgramaCambiarEstado, $programa]);
+        $this->authorizeProgramAction(AccionesAbac::ProgramaCambiarEstado, $programa);
 
         $request->validate([
             'estado' => ['required', 'string', 'in:activo,en_pausa,archivado'],
@@ -185,7 +187,7 @@ class ProgramaController extends Controller
 
         $estadoDestino = $request->input('estado');
         $estadoActual = $programa->estado->value;
-        $permitidos = self::TRANSICIONES_VALIDAS[$estadoActual] ?? [];
+        $permitidos = self::TRANSICIONES_VALIDAS[$estadoActual];
 
         abort_if(
             ! in_array($estadoDestino, $permitidos),
@@ -197,6 +199,21 @@ class ProgramaController extends Controller
 
         return redirect()->route('programas.show', $programa)
             ->with('success', "Programa cambiado a \"{$estadoDestino}\" exitosamente.");
+    }
+
+    private function authorizeProgramAction(string $accion, Programa $programa): void
+    {
+        $user = request()->user();
+        $empresa = $user?->empresas()
+            ->where('empresas.estado', 'aprobada')
+            ->where('empresa_usuario.estado', 'activo')
+            ->first();
+
+        Gate::authorize('abac', [
+            $accion,
+            $programa,
+            $empresa === null ? [] : ['empresa_id' => $empresa->id],
+        ]);
     }
 
     public function gestion(Request $request): InertiaResponse
