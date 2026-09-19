@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\ReporteController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +26,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('reportes/{reporte}/comentar', [ReporteController::class, 'comentar'])->name('reportes.comentar');
 
     Route::get('reportes/{reporte}', [ReporteController::class, 'show'])->name('reportes.show');
+
+    // Programas (Slice 5.5)
+    Route::get('programas', [ProgramaController::class, 'index'])->name('programas.index');
+    Route::get('programas/{programa}', [ProgramaController::class, 'show'])->name('programas.show');
+    Route::post('programas', [ProgramaController::class, 'store'])->name('programas.store');
+    Route::put('programas/{programa}', [ProgramaController::class, 'update'])->name('programas.update');
+    Route::delete('programas/{programa}', [ProgramaController::class, 'destroy'])->name('programas.destroy');
+    Route::post('programas/{programa}/cambiar-estado', [ProgramaController::class, 'cambiarEstado'])->name('programas.cambiar-estado');
+    Route::get('gestion/programas', [ProgramaController::class, 'gestion'])->name('programas.gestion');
 });
 
 require __DIR__.'/settings.php';

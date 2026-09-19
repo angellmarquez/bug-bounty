@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\EstadoPrograma;
 use Database\Factories\ProgramaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
@@ -89,5 +91,80 @@ class Programa extends Model
     public function reportes(): HasMany
     {
         return $this->hasMany(Reporte::class);
+    }
+
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (Programa $programa) {
+            if (empty($programa->slug)) {
+                $programa->slug = Str::slug($programa->nombre);
+            }
+        });
+
+        static::updating(function (Programa $programa) {
+            if ($programa->isDirty('nombre') && ! $programa->isDirty('slug')) {
+                $programa->slug = Str::slug($programa->nombre);
+            }
+        });
+    }
+
+    /**
+     * Programas en estado activo.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeActivos(Builder $query): Builder
+    {
+        return $query->where('estado', EstadoPrograma::Activo);
+    }
+
+    /**
+     * Programas marcados como publicos.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopePublicos(Builder $query): Builder
+    {
+        return $query->where('es_publico', true);
+    }
+
+    /**
+     * Programas visibles segun el rol del usuario.
+     * - Investigador: solo activos y publicos.
+     * - Gestion/Admin: todos (sin filtro de visibilidad).
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeVisiblesPara(Builder $query, User $user): Builder
+    {
+        $roles = $user->roles->pluck('slug')->toArray();
+
+        if (in_array('administrador', $roles) || in_array('gestion', $roles)) {
+            return $query;
+        }
+
+        return $query->activos()->publicos();
+    }
+
+    /**
+     * Programas gestionables por el usuario (creados por el, o admin).
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeGestionablesPor(Builder $query, User $user): Builder
+    {
+        $roles = $user->roles->pluck('slug')->toArray();
+
+        if (in_array('administrador', $roles)) {
+            return $query;
+        }
+
+        return $query->where('creado_por', $user->id);
     }
 }
