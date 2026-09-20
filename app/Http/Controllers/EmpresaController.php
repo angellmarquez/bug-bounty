@@ -35,6 +35,8 @@ class EmpresaController extends Controller
         // Los borradores del investigador no cuentan: la empresa solo ve informes enviados.
         $programas = $empresa->programas()
             ->withCount([
+                'objetivos',
+                'reportes as reportes_todos',
                 'reportes as reportes_total' => fn ($query) => $query->where('estado', '!=', 'borrador'),
                 'reportes as reportes_pendientes' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_PENDIENTES),
                 'reportes as reportes_aprobados' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_APROBADOS),

@@ -68,6 +68,7 @@
 
     <Form method="put" action={programaUpdate(programa.id)} class="space-y-6">
         {#snippet children({ errors, processing })}
+            {@const errorObjetivos = Object.entries(errors).find(([clave]) => clave === 'objetivos' || clave.startsWith('objetivos.'))?.[1]}
             <Card>
                 <CardContent class="pt-6 space-y-4">
                     <div class="space-y-2">
@@ -205,8 +206,8 @@
                 <CardContent class="pt-6 space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-semibold">Objetivos</h3>
-                            <p class="text-xs text-muted-foreground">Define los objetivos del programa</p>
+                            <h3 class="text-sm font-semibold">Objetivos *</h3>
+                            <p class="text-xs text-muted-foreground">Obligatorio: indica al menos un sistema que los investigadores puedan investigar (un dominio, una API, una app).</p>
                         </div>
                         <Button type="button" variant="outline" size="sm" onclick={agregarObjetivo}>
                             <Plus class="mr-1 h-4 w-4" />
@@ -215,7 +216,7 @@
                     </div>
 
                     {#if objetivos.length === 0}
-                        <p class="text-xs text-muted-foreground">No hay objetivos definidos. Haz clic en "Agregar" para crear uno.</p>
+                        <p class="text-xs text-muted-foreground">Aún no hay objetivos. Sin al menos uno no se puede crear ni publicar el programa: haz clic en "Agregar".</p>
                     {:else}
                         {#each objetivos as _, i (i)}
                             <div class="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[140px_1fr_1fr_auto]">
@@ -262,8 +263,8 @@
                         {/each}
                     {/if}
 
-                    {#if errors.objetivos}
-                        <InputError message={errors.objetivos} />
+                    {#if errorObjetivos}
+                        <InputError message={errorObjetivos} />
                     {/if}
                 </CardContent>
             </Card>

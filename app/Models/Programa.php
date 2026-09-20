@@ -173,7 +173,7 @@ class Programa extends Model
     {
         $roles = $user->roles->pluck('slug')->toArray();
 
-        if (in_array('administrador', $roles) || in_array('gestion', $roles)) {
+        if (in_array('administrador', $roles) || in_array('gestion', $roles) || in_array('moderador', $roles)) {
             return $query;
         }
 

@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -95,7 +96,7 @@ class ProgramaController extends Controller
             'puedeReportar' => $puedeReportar,
             'puedeGestionar' => $puedeGestionar,
             'puedeCambiarEstado' => $puedeCambiarEstado,
-            'puedeEliminar' => $puedeEliminar,
+            'puedeEliminar' => $puedeEliminar && ! $programa->reportes()->exists(),
             'transicionesPermitidas' => $transicionesPermitidas,
         ]);
     }
@@ -178,9 +179,19 @@ class ProgramaController extends Controller
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaEliminar, $programa);
 
+        // Los informes dependen del programa (listados, cola de moderación, timeline):
+        // uno que ya recibió informes se archiva, no se elimina.
+        if ($programa->reportes()->exists()) {
+            throw ValidationException::withMessages([
+                'programa' => 'Este programa ya recibió informes y no se puede eliminar. Archívalo para que deje de aceptar nuevos reportes.',
+            ]);
+        }
+
         $programa->delete();
 
-        return redirect()->route('programas.index')
+        $esEmpresa = request()->user()?->roles()->where('slug', 'empresa')->exists() ?? false;
+
+        return redirect()->route($esEmpresa ? 'empresa.dashboard' : 'programas.index')
             ->with('success', 'Programa eliminado exitosamente.');
     }
 
@@ -201,6 +212,13 @@ class ProgramaController extends Controller
             422,
             "No se puede transitar de \"{$estadoActual}\" a \"{$estadoDestino}\"."
         );
+
+        // Sin objetivos no hay alcance definido: los investigadores no sabrían qué investigar.
+        if ($estadoDestino === 'activo' && ! $programa->objetivos()->exists()) {
+            throw ValidationException::withMessages([
+                'estado' => 'Define al menos un objetivo (qué sistemas se pueden investigar) antes de publicar el programa.',
+            ]);
+        }
 
         $programa->update(['estado' => $estadoDestino]);
 

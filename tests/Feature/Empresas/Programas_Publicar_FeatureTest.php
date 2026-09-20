@@ -7,11 +7,11 @@ use App\Models\Programa;
 
 function programaBorradorDe(Empresa $empresa): Programa
 {
-    return Programa::factory()->create([
+    return conObjetivo(Programa::factory()->create([
         'empresa_id' => $empresa->id,
         'estado' => EstadoPrograma::Borrador,
         'es_publico' => true,
-    ]);
+    ]));
 }
 
 test('empresa member is redirected to its new borrador programa without 403', function () {
@@ -20,6 +20,7 @@ test('empresa member is redirected to its new borrador programa without 403', fu
 
     $response = $this->post(route('programas.store'), [
         'nombre' => 'Programa Acme',
+        'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
         'descripcion' => 'Programa de seguridad de Acme.',
         'recompensa_min' => 100,
         'recompensa_max' => 1000,
@@ -143,4 +144,92 @@ test('only members of an approved empresa can open the empresa reportes page', f
     $this->actingAs(miembroDeEmpresa(Empresa::factory()->create(['estado' => EstadoEmpresa::Pendiente])))
         ->get(route('empresa.reportes'))
         ->assertForbidden();
+});
+
+test('la empresa no puede crear un programa sin objetivos', function () {
+    $this->actingAs(miembroDeEmpresa(Empresa::factory()->aprobada()->create()));
+
+    $datos = [
+        'nombre' => 'Programa sin alcance',
+        'descripcion' => 'Descripcion',
+        'recompensa_min' => 100,
+        'recompensa_max' => 500,
+        'moneda' => 'USD',
+    ];
+
+    $this->post(route('programas.store'), $datos)->assertSessionHasErrors('objetivos');
+    $this->post(route('programas.store'), [...$datos, 'objetivos' => [['tipo' => 'web', 'valor' => '']]])
+        ->assertSessionHasErrors('objetivos.0.valor');
+
+    expect(Programa::where('nombre', 'Programa sin alcance')->exists())->toBeFalse();
+});
+
+test('un programa sin objetivos no se puede publicar', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id, 'estado' => EstadoPrograma::Borrador]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+
+    $this->post(route('programas.cambiar-estado', $programa), ['estado' => 'activo'])->assertSessionHasErrors('estado');
+    expect($programa->fresh()->estado)->toBe(EstadoPrograma::Borrador);
+
+    conObjetivo($programa);
+    $this->post(route('programas.cambiar-estado', $programa), ['estado' => 'activo'])->assertSessionHasNoErrors();
+    expect($programa->fresh()->estado)->toBe(EstadoPrograma::Activo);
+});
+
+test('la empresa puede eliminar un programa sin informes', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = programaBorradorDe($empresa);
+    $this->actingAs(miembroDeEmpresa($empresa));
+
+    $this->get(route('programas.show', $programa))
+        ->assertInertia(fn ($page) => $page->where('puedeEliminar', true));
+
+    $this->delete(route('programas.destroy', $programa))->assertRedirect(route('empresa.dashboard'));
+
+    expect(Programa::find($programa->id))->toBeNull();
+});
+
+test('un programa con informes no se puede eliminar, solo archivar', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = programaBorradorDe($empresa);
+    reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+    $this->actingAs(miembroDeEmpresa($empresa));
+
+    $this->get(route('programas.show', $programa))
+        ->assertInertia(fn ($page) => $page->where('puedeEliminar', false));
+
+    $this->delete(route('programas.destroy', $programa))->assertSessionHasErrors('programa');
+    expect(Programa::find($programa->id))->not->toBeNull();
+
+    $this->post(route('programas.cambiar-estado', $programa), ['estado' => 'archivado'])->assertSessionHasNoErrors();
+    expect($programa->fresh()->estado)->toBe(EstadoPrograma::Archivado);
+});
+
+test('una empresa ajena no puede eliminar el programa', function () {
+    $programa = programaBorradorDe(Empresa::factory()->aprobada()->create());
+    $this->actingAs(miembroDeEmpresa(Empresa::factory()->aprobada()->create()));
+
+    $this->delete(route('programas.destroy', $programa))->assertForbidden();
+    expect(Programa::find($programa->id))->not->toBeNull();
+});
+
+test('el moderador puede ver los programas que reciben informes', function () {
+    $programa = programaBorradorDe(Empresa::factory()->aprobada()->create());
+    $this->actingAs(moderador());
+
+    $this->get(route('programas.show', $programa))->assertOk();
+    $this->get(route('programas.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('programas.data.0.id', $programa->id));
+});
+
+test('los roles del usuario se comparten en todas las paginas para el menu lateral', function () {
+    $this->actingAs(moderador())
+        ->get(route('moderacion.index'))
+        ->assertInertia(fn ($page) => $page->where('userRoles', ['moderador']));
+
+    $this->actingAs(administrador())
+        ->get(route('reportes.index'))
+        ->assertInertia(fn ($page) => $page->where('userRoles', ['administrador']));
 });

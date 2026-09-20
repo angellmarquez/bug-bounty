@@ -6,7 +6,7 @@ test('gestion can change estado from borrador to activo', function () {
     $user = gestion();
     $this->actingAs($user);
 
-    $programa = programaDe($user, ['estado' => 'borrador']);
+    $programa = conObjetivo(programaDe($user, ['estado' => 'borrador']));
 
     $response = $this->post(route('programas.cambiar-estado', $programa), [
         'estado' => 'activo',
@@ -20,7 +20,7 @@ test('gestion can change activo to en_pausa', function () {
     $user = gestion();
     $this->actingAs($user);
 
-    $programa = programaDe($user, ['estado' => 'activo']);
+    $programa = conObjetivo(programaDe($user, ['estado' => 'activo']));
 
     $response = $this->post(route('programas.cambiar-estado', $programa), [
         'estado' => 'en_pausa',
@@ -34,7 +34,7 @@ test('gestion can change en_pausa back to activo', function () {
     $user = gestion();
     $this->actingAs($user);
 
-    $programa = programaDe($user, ['estado' => 'en_pausa']);
+    $programa = conObjetivo(programaDe($user, ['estado' => 'en_pausa']));
 
     $response = $this->post(route('programas.cambiar-estado', $programa), [
         'estado' => 'activo',
@@ -48,7 +48,7 @@ test('cannot change archivado to any state', function () {
     $user = gestion();
     $this->actingAs($user);
 
-    $programa = programaDe($user, ['estado' => 'archivado']);
+    $programa = conObjetivo(programaDe($user, ['estado' => 'archivado']));
 
     $response = $this->post(route('programas.cambiar-estado', $programa), [
         'estado' => 'activo',
@@ -62,7 +62,7 @@ test('cannot skip states from borrador to en_pausa', function () {
     $user = gestion();
     $this->actingAs($user);
 
-    $programa = programaDe($user, ['estado' => 'borrador']);
+    $programa = conObjetivo(programaDe($user, ['estado' => 'borrador']));
 
     $response = $this->post(route('programas.cambiar-estado', $programa), [
         'estado' => 'en_pausa',
@@ -76,7 +76,7 @@ test('investigador cannot change estado', function () {
     $user = investigador();
     $this->actingAs($user);
 
-    $programa = Programa::factory()->create(['estado' => 'activo']);
+    $programa = conObjetivo(Programa::factory()->create(['estado' => 'activo']));
 
     $response = $this->post(route('programas.cambiar-estado', $programa), [
         'estado' => 'en_pausa',
@@ -89,7 +89,7 @@ test('admin can change estado of any program', function () {
     $user = administrador();
     $this->actingAs($user);
 
-    $programa = programaDe(gestion(), ['estado' => 'borrador']);
+    $programa = conObjetivo(programaDe(gestion(), ['estado' => 'borrador']));
 
     $response = $this->post(route('programas.cambiar-estado', $programa), [
         'estado' => 'activo',
@@ -103,7 +103,7 @@ test('estado change is recorded in program', function () {
     $user = gestion();
     $this->actingAs($user);
 
-    $programa = programaDe($user, ['estado' => 'borrador']);
+    $programa = conObjetivo(programaDe($user, ['estado' => 'borrador']));
 
     $this->post(route('programas.cambiar-estado', $programa), [
         'estado' => 'activo',

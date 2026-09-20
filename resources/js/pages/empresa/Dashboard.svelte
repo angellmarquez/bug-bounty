@@ -7,7 +7,7 @@
 <script lang="ts">
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
-    import { router } from '@inertiajs/svelte';
+    import { page, router } from '@inertiajs/svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Link } from '@inertiajs/svelte';
@@ -39,6 +39,8 @@
                 nombre: string;
                 estado: EstadoPrograma;
                 es_publico: boolean;
+                objetivos_count: number;
+                reportes_todos: number;
                 reportes_total: number;
                 reportes_pendientes: number;
                 reportes_aprobados: number;
@@ -57,8 +59,17 @@
 
     function cambiarEstadoPrograma(programaId: number, estado: 'activo' | 'en_pausa' | 'archivado') {
         if (estado === 'activo' && !confirm('¿Publicar este programa? Los investigadores podrán verlo y enviar reportes.')) return;
+        if (estado === 'archivado' && !confirm('¿Archivar este programa? Dejará de aceptar nuevos reportes.')) return;
         router.post(`/programas/${programaId}/cambiar-estado`, { estado }, { preserveScroll: true });
     }
+
+    function eliminarPrograma(programaId: number, nombre: string) {
+        if (!confirm(`¿Eliminar el programa "${nombre}"? Esta acción no se puede deshacer.`)) return;
+        router.delete(`/programas/${programaId}`, { preserveScroll: true });
+    }
+
+    // Errores del servidor al publicar o eliminar un programa.
+    const errorPrograma = $derived(page.props.errors?.estado ?? page.props.errors?.programa);
 
     let emailMiembro = $state('');
     let emailInvitacion = $state('');
@@ -175,6 +186,12 @@
             </Card>
         </div>
 
+        {#if errorPrograma}
+            <div role="alert" class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                {errorPrograma}
+            </div>
+        {/if}
+
         <Card>
             <CardHeader>
                 <CardTitle>Panel de programas</CardTitle>
@@ -193,6 +210,9 @@
                                 <div class="flex flex-wrap items-center gap-2">
                                     <Link href={`/programas/${programa.id}`} class="font-medium hover:underline">{programa.nombre}</Link>
                                     <ProgramaStateBadge estado={programa.estado} />
+                                    {#if programa.estado === 'borrador' && programa.objetivos_count === 0}
+                                        <span class="text-xs text-chart-4">Falta al menos un objetivo para publicarlo</span>
+                                    {/if}
                                     {#if !programa.es_publico}
                                         <span class="text-xs text-muted-foreground">Privado: los investigadores no lo ven</span>
                                     {/if}
@@ -206,16 +226,29 @@
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 {#if programa.estado === 'borrador'}
-                                    <Button size="sm" onclick={() => cambiarEstadoPrograma(programa.id, 'activo')}>Publicar</Button>
+                                    <Button
+                                        size="sm"
+                                        disabled={programa.objetivos_count === 0}
+                                        title={programa.objetivos_count === 0 ? 'Agrega al menos un objetivo para poder publicarlo' : undefined}
+                                        onclick={() => cambiarEstadoPrograma(programa.id, 'activo')}
+                                    >Publicar</Button>
                                 {:else if programa.estado === 'activo'}
                                     <Button size="sm" variant="outline" onclick={() => cambiarEstadoPrograma(programa.id, 'en_pausa')}>Pausar</Button>
                                 {:else if programa.estado === 'en_pausa'}
                                     <Button size="sm" onclick={() => cambiarEstadoPrograma(programa.id, 'activo')}>Reactivar</Button>
                                 {/if}
+                                {#if programa.estado === 'activo' || programa.estado === 'en_pausa'}
+                                    <Button size="sm" variant="outline" onclick={() => cambiarEstadoPrograma(programa.id, 'archivado')}>Archivar</Button>
+                                {/if}
                                 <Button size="sm" variant="outline" href={`/gestion/programas/${programa.id}/editar`}>
                                     <Settings class="mr-1 h-3 w-3" />
                                     Editar
                                 </Button>
+                                {#if programa.reportes_todos === 0}
+                                    <Button size="sm" variant="destructive" onclick={() => eliminarPrograma(programa.id, programa.nombre)}>
+                                        Eliminar
+                                    </Button>
+                                {/if}
                             </div>
                         </div>
                     {/each}

@@ -41,6 +41,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Slugs de los roles del usuario: el menú lateral los usa en todas las páginas.
+            'userRoles' => fn () => $request->user()?->roles()->pluck('slug')->all() ?? [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

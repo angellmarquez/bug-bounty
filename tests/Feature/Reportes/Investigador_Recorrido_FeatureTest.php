@@ -79,6 +79,7 @@ test('la empresa puede indicar que bugs busca al crear el programa', function ()
 
     $this->post(route('programas.store'), [
         'nombre' => 'Programa con bugs',
+        'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
         'descripcion' => 'Descripcion',
         'bugs_buscados' => 'XSS almacenado',
         'recompensa_min' => 100,

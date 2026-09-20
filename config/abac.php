@@ -286,6 +286,15 @@ return [
             'decision' => 'permitir',
         ],
         [
+            'id' => 'moderador-ver-programas',
+            'prioridad' => 35,
+            'acciones' => ['programas.ver'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
             'id' => 'moderador-ver-cola-de-moderacion',
             'prioridad' => 35,
             'acciones' => ['moderacion.ver'],

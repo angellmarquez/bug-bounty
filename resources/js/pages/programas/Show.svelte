@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-    import { router } from '@inertiajs/svelte';
+    import { page, router } from '@inertiajs/svelte';
     import Bug from '@lucide/svelte/icons/bug';
     import Building2 from '@lucide/svelte/icons/building-2';
     import Settings from '@lucide/svelte/icons/settings';
@@ -41,6 +41,7 @@
         puedeReportar,
         puedeGestionar,
         puedeCambiarEstado = false,
+        puedeEliminar = false,
         transicionesPermitidas = [],
     }: {
         programa: Programa & {
@@ -52,12 +53,22 @@
         puedeReportar: boolean;
         puedeGestionar: boolean;
         puedeCambiarEstado?: boolean;
+        puedeEliminar?: boolean;
         transicionesPermitidas?: string[];
     } = $props();
 
     function cambiarEstado(estado: string) {
+        if (estado === 'archivado' && !confirm('¿Archivar este programa? Dejará de aceptar nuevos reportes.')) return;
         router.post(`/programas/${programa.id}/cambiar-estado`, { estado });
     }
+
+    function eliminarPrograma() {
+        if (!confirm(`¿Eliminar el programa "${programa.nombre}"? Esta acción no se puede deshacer.`)) return;
+        router.delete(`/programas/${programa.id}`);
+    }
+
+    const sinObjetivos = $derived((programa.objetivos?.length ?? 0) === 0);
+    const errorPrograma = $derived(page.props.errors?.estado ?? page.props.errors?.programa);
 
     function formatearFecha(dateStr: string | null): string {
         if (!dateStr) return 'N/A';
@@ -97,6 +108,12 @@
 <AppHead title={programa.nombre} />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
+    {#if errorPrograma}
+        <div role="alert" class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {errorPrograma}
+        </div>
+    {/if}
+
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex flex-wrap items-center gap-3">
             <PageHeader
@@ -318,12 +335,24 @@
                         <Button
                             variant={estado === 'activo' ? 'default' : 'outline'}
                             class="w-full"
+                            disabled={estado === 'activo' && sinObjetivos}
                             onclick={() => cambiarEstado(estado)}
                         >
                             {estado === 'activo' ? 'Publicar programa' : `Cambiar a ${estado}`}
                         </Button>
                     {/each}
+                    {#if sinObjetivos && transicionesPermitidas.includes('activo')}
+                        <p class="text-xs text-chart-4">
+                            Para publicarlo, primero define al menos un objetivo en "Editar Programa".
+                        </p>
+                    {/if}
                 </div>
+            {/if}
+
+            {#if puedeEliminar}
+                <Button variant="destructive" class="w-full" onclick={eliminarPrograma}>
+                    Eliminar programa
+                </Button>
             {/if}
         </div>
     </div>
