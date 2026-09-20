@@ -1,0 +1,298 @@
+<script module lang="ts">
+    export const layout = {
+        breadcrumbs: [
+            {
+                title: 'Admin',
+                href: '/admin',
+            },
+            {
+                title: 'Config Reputacion',
+                href: '/admin/config/reputacion',
+            },
+        ],
+    };
+</script>
+
+<script lang="ts">
+    import { router } from '@inertiajs/svelte';
+    import Settings from '@lucide/svelte/icons/settings';
+    import AppHead from '@/components/AppHead.svelte';
+    import PageHeader from '@/components/PageHeader.svelte';
+    import { Input } from '@/components/ui/input';
+    import { Label } from '@/components/ui/label';
+    import { Button } from '@/components/ui/button';
+    import {
+        Card,
+        CardContent,
+        CardDescription,
+        CardHeader,
+        CardTitle,
+    } from '@/components/ui/card';
+
+    let {
+        config,
+    }: {
+        config: {
+            puntos_iniciales: number;
+            puntos_positivos: {
+                reporte_validado: number;
+                reporte_pagado: number;
+                calidad_documentacion: number;
+                participacion: number;
+            };
+            penalizacion_base: {
+                leve: number;
+                media: number;
+                grave: number;
+            };
+            suspension: {
+                leve: { dias: number };
+                media: { dias: number };
+                grave: { dias: number };
+            };
+            plazo_apelacion_dias: number;
+        };
+    } = $props();
+
+    let form = $state({
+        puntos_iniciales: config.puntos_iniciales,
+        reporte_validado: config.puntos_positivos.reporte_validado,
+        reporte_pagado: config.puntos_positivos.reporte_pagado,
+        calidad_documentacion: config.puntos_positivos.calidad_documentacion,
+        participacion: config.puntos_positivos.participacion,
+        penalizacion_leve: config.penalizacion_base.leve,
+        penalizacion_media: config.penalizacion_base.media,
+        penalizacion_grave: config.penalizacion_base.grave,
+        suspension_leve_dias: config.suspension.leve.dias,
+        suspension_media_dias: config.suspension.media.dias,
+        suspension_grave_dias: config.suspension.grave.dias,
+        plazo_apelacion_dias: config.plazo_apelacion_dias,
+    });
+
+    function guardar(e: SubmitEvent) {
+        e.preventDefault();
+        router.put('/admin/config/reputacion', {
+            puntos_iniciales: form.puntos_iniciales,
+            puntos_positivos: {
+                reporte_validado: form.reporte_validado,
+                reporte_pagado: form.reporte_pagado,
+                calidad_documentacion: form.calidad_documentacion,
+                participacion: form.participacion,
+            },
+            penalizacion_base: {
+                leve: form.penalizacion_leve,
+                media: form.penalizacion_media,
+                grave: form.penalizacion_grave,
+            },
+            suspension: {
+                leve: { dias: form.suspension_leve_dias },
+                media: { dias: form.suspension_media_dias },
+                grave: { dias: form.suspension_grave_dias },
+            },
+            plazo_apelacion_dias: form.plazo_apelacion_dias,
+        }, {
+            preserveState: true,
+        });
+    }
+</script>
+
+<AppHead title="Configuracion de Reputacion" />
+
+<div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
+    <PageHeader
+        title="Configuracion de Reputacion"
+        description="Ajusta los parametros del sistema de reputacion y penalizacion"
+    />
+
+    <form onsubmit={guardar} class="space-y-6">
+        <Card>
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2 text-lg">
+                    <Settings class="h-5 w-5 text-primary" />
+                    Puntos Iniciales
+                </CardTitle>
+                <CardDescription>
+                    Puntos con los que inicia cada investigador nuevo
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div class="max-w-xs">
+                    <Label for="puntos_iniciales">Puntos iniciales</Label>
+                    <Input
+                        id="puntos_iniciales"
+                        type="number"
+                        bind:value={form.puntos_iniciales}
+                        min="0"
+                        class="mt-1"
+                    />
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle class="text-lg">Puntos Positivos</CardTitle>
+                <CardDescription>
+                    Recompensa en puntos por acciones validas
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                        <Label for="reporte_validado">Reporte validado</Label>
+                        <Input
+                            id="reporte_validado"
+                            type="number"
+                            bind:value={form.reporte_validado}
+                            min="0"
+                            class="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label for="reporte_pagado">Reporte pagado</Label>
+                        <Input
+                            id="reporte_pagado"
+                            type="number"
+                            bind:value={form.reporte_pagado}
+                            min="0"
+                            class="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label for="calidad_documentacion">Calidad documentacion</Label>
+                        <Input
+                            id="calidad_documentacion"
+                            type="number"
+                            bind:value={form.calidad_documentacion}
+                            min="0"
+                            class="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label for="participacion">Participacion</Label>
+                        <Input
+                            id="participacion"
+                            type="number"
+                            bind:value={form.participacion}
+                            min="0"
+                            class="mt-1"
+                        />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle class="text-lg">Penalizacion Base</CardTitle>
+                <CardDescription>
+                    Puntos negativos aplicados por cada sancion
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <div>
+                        <Label for="penalizacion_leve">Leve</Label>
+                        <Input
+                            id="penalizacion_leve"
+                            type="number"
+                            bind:value={form.penalizacion_leve}
+                            max="0"
+                            class="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label for="penalizacion_media">Media</Label>
+                        <Input
+                            id="penalizacion_media"
+                            type="number"
+                            bind:value={form.penalizacion_media}
+                            max="0"
+                            class="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label for="penalizacion_grave">Grave</Label>
+                        <Input
+                            id="penalizacion_grave"
+                            type="number"
+                            bind:value={form.penalizacion_grave}
+                            max="0"
+                            class="mt-1"
+                        />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle class="text-lg">Suspension</CardTitle>
+                <CardDescription>
+                    Dias de suspension por gravedad de sancion
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <div>
+                        <Label for="suspension_leve_dias">Leve (dias)</Label>
+                        <Input
+                            id="suspension_leve_dias"
+                            type="number"
+                            bind:value={form.suspension_leve_dias}
+                            min="0"
+                            class="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label for="suspension_media_dias">Media (dias)</Label>
+                        <Input
+                            id="suspension_media_dias"
+                            type="number"
+                            bind:value={form.suspension_media_dias}
+                            min="0"
+                            class="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label for="suspension_grave_dias">Grave (dias)</Label>
+                        <Input
+                            id="suspension_grave_dias"
+                            type="number"
+                            bind:value={form.suspension_grave_dias}
+                            min="0"
+                            class="mt-1"
+                        />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle class="text-lg">Apelaciones</CardTitle>
+                <CardDescription>
+                    Tiempo limite para presentar una apelacion
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div class="max-w-xs">
+                    <Label for="plazo_apelacion_dias">Plazo apelacion (dias)</Label>
+                    <Input
+                        id="plazo_apelacion_dias"
+                        type="number"
+                        bind:value={form.plazo_apelacion_dias}
+                        min="1"
+                        class="mt-1"
+                    />
+                </div>
+            </CardContent>
+        </Card>
+
+        <div class="flex justify-end">
+            <Button type="submit" size="lg">
+                Guardar configuracion
+            </Button>
+        </div>
+    </form>
+</div>

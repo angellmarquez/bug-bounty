@@ -21,12 +21,12 @@ class AtributosAbac
     /**
      * Atributos del sujeto (usuario autenticado o invitado).
      *
-     * @return array{autenticado: bool, id: int|null, roles: array<int, string>, reputation_score: int|null}
+     * @return array{autenticado: bool, id: int|null, roles: array<int, string>, reputation_score: int}
      */
     public function sujeto(?User $usuario): array
     {
         if ($usuario === null) {
-            return ['autenticado' => false, 'id' => null, 'roles' => [], 'reputation_score' => null];
+            return ['autenticado' => false, 'id' => null, 'roles' => [], 'reputation_score' => 0];
         }
 
         $roles = [];
@@ -39,7 +39,7 @@ class AtributosAbac
             'autenticado' => true,
             'id' => $usuario->id,
             'roles' => $roles,
-            'reputation_score' => $usuario->reputation_score,
+            'reputation_score' => (int) ($usuario->reputation_score ?? 0),
         ];
     }
 

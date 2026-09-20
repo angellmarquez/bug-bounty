@@ -4,7 +4,6 @@ use App\Abac\AbacEngine;
 use App\Enums\EstadoPrograma;
 use App\Enums\EstadoReporte;
 use App\Models\Apelacion;
-use App\Models\ClavePgp;
 use App\Models\Sancion;
 use App\Models\User;
 
@@ -70,6 +69,8 @@ dataset('matriz_abac', [
     'inv ve un programa público en pausa' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::EnPausa->value, 'es_publico' => true])], true],
     'inv no ve un programa privado' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => false])], false],
     'inv no ve un programa archivado' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Archivado->value, 'es_publico' => true])], false],
+    'inv con reputacion suficiente ve programa restringido' => ['programas.ver', fn () => [investigador(['reputation_score' => 50]), programaDe(investigador(['reputation_score' => 50]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'reputacion_minima' => 50])], true],
+    'inv con reputacion insuficiente no ve programa restringido' => ['programas.ver', fn () => [investigador(['reputation_score' => 49]), programaDe(investigador(['reputation_score' => 49]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'reputacion_minima' => 50])], false],
     'inv crea un reporte en un programa activo' => ['reportes.crear', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])], true],
     'inv no crea reportes en un programa borrador' => ['reportes.crear', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Borrador->value])], false],
     'gestion crea programas' => ['programas.crear', fn () => [gestion(), null], true],
@@ -85,14 +86,6 @@ dataset('matriz_abac', [
     // ------------------------------------------------------------------
     // Claves PGP
     // ------------------------------------------------------------------
-    'inv ve su propia clave' => ['claves_pgp.ver', fn () => [($inv = investigador()), ClavePgp::factory()->create(['usuario_id' => $inv->id])], true],
-    'inv no ve la clave de otro investigador' => ['claves_pgp.ver', fn () => [investigador(), ClavePgp::factory()->create(['usuario_id' => investigador()->id])], false],
-    'inv revoca su propia clave' => ['claves_pgp.revocar', fn () => [($inv = investigador()), ClavePgp::factory()->create(['usuario_id' => $inv->id])], true],
-    'inv no revoca la clave ajena' => ['claves_pgp.revocar', fn () => [investigador(), ClavePgp::factory()->create(['usuario_id' => investigador()->id])], false],
-    'inv puede registrar una clave' => ['claves_pgp.registrar', fn () => [investigador(), null], true],
-    'inv puede verificar su clave' => ['claves_pgp.verificar', fn () => [($inv = investigador()), ClavePgp::factory()->create(['usuario_id' => $inv->id])], true],
-    'gestion audita claves de cualquier investigador' => ['claves_pgp.ver', fn () => [gestion(), ClavePgp::factory()->create(['usuario_id' => investigador()->id])], true],
-    'gestion no registra claves (solo investigador)' => ['claves_pgp.registrar', fn () => [gestion(), null], false],
 
     // ------------------------------------------------------------------
     // Apelaciones

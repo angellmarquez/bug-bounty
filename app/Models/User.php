@@ -31,10 +31,10 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Rol> $roles
+ * @property-read Collection<int, Empresa> $empresas
  * @property-read Collection<int, Programa> $programas
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, Reporte> $reportesAsignados
- * @property-read Collection<int, ClavePgp> $clavesPgp
  * @property-read Collection<int, EventoReporte> $eventos
  * @property-read Collection<int, EntradaReputacion> $entradasReputacion
  * @property-read Collection<int, Sancion> $sanciones
@@ -74,6 +74,18 @@ class User extends Authenticatable implements PasskeyUser
     }
 
     /**
+     * Empresas a las que pertenece el usuario.
+     *
+     * @return BelongsToMany<Empresa, $this>
+     */
+    public function empresas(): BelongsToMany
+    {
+        return $this->belongsToMany(Empresa::class, 'empresa_usuario', 'usuario_id', 'empresa_id')
+            ->withPivot(['rol_interno', 'estado', 'invitado_en', 'aceptado_en'])
+            ->withTimestamps();
+    }
+
+    /**
      * Los programas que el usuario gestiona.
      *
      * @return HasMany<Programa, $this>
@@ -81,6 +93,18 @@ class User extends Authenticatable implements PasskeyUser
     public function programas(): HasMany
     {
         return $this->hasMany(Programa::class, 'creado_por');
+    }
+
+    /**
+     * Programas que el usuario puede moderar.
+     *
+     * @return BelongsToMany<Programa, $this>
+     */
+    public function programasModerados(): BelongsToMany
+    {
+        return $this->belongsToMany(Programa::class, 'programa_moderador', 'usuario_id', 'programa_id')
+            ->withPivot(['asignado_por'])
+            ->withTimestamps();
     }
 
     /**
@@ -101,16 +125,6 @@ class User extends Authenticatable implements PasskeyUser
     public function reportesAsignados(): HasMany
     {
         return $this->hasMany(Reporte::class, 'asignado_a');
-    }
-
-    /**
-     * Las claves PGP del usuario.
-     *
-     * @return HasMany<ClavePgp, $this>
-     */
-    public function clavesPgp(): HasMany
-    {
-        return $this->hasMany(ClavePgp::class, 'usuario_id');
     }
 
     /**

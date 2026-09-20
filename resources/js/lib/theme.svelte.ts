@@ -51,14 +51,14 @@ const applyTheme = (value: Appearance): void => {
 
 const getStoredAppearance = (): Appearance => {
     if (typeof window === 'undefined') {
-        return 'system';
+        return 'dark';
     }
 
     const stored = localStorage.getItem('appearance');
 
     return stored === 'light' || stored === 'dark' || stored === 'system'
         ? stored
-        : 'system';
+        : 'dark';
 };
 
 const handleSystemThemeChange = (): void => {
@@ -83,8 +83,8 @@ export function initializeTheme(): () => void {
     }
 
     if (!localStorage.getItem('appearance')) {
-        localStorage.setItem('appearance', 'system');
-        setCookie('appearance', 'system');
+        localStorage.setItem('appearance', 'dark');
+        setCookie('appearance', 'dark');
     }
 
     appearance.value = getStoredAppearance();

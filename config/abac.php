@@ -54,7 +54,11 @@ return [
             'prioridad' => 20,
             'acciones' => ['reportes.crear'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
-            'objeto' => ['estado' => ['=' => 'activo']],
+            'objeto' => [
+                'estado' => ['=' => 'activo'],
+                'es_publico' => ['=' => true],
+                'reputacion_minima' => ['<=' => '@sujeto.reputation_score'],
+            ],
             'entorno' => [],
             'decision' => 'permitir',
         ],
@@ -111,32 +115,15 @@ return [
             'objeto' => [
                 'es_publico' => ['=' => true],
                 'estado' => ['in' => ['activo', 'en_pausa']],
+                'reputacion_minima' => ['<=' => '@sujeto.reputation_score'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
         ],
 
         // ------------------------------------------------------------------
-        // 2. Investigador: claves PGP propias y apelaciones propias en plazo.
+        // 2. Investigador: apelaciones propias en plazo.
         // ------------------------------------------------------------------
-        [
-            'id' => 'inv-gestionar-clave-propia',
-            'prioridad' => 20,
-            'acciones' => ['claves_pgp.ver', 'claves_pgp.revocar'],
-            'sujeto' => ['roles' => ['contains' => 'investigador']],
-            'objeto' => ['usuario_id' => ['=' => '@sujeto.id']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'inv-registrar-y-verificar-clave',
-            'prioridad' => 20,
-            'acciones' => ['claves_pgp.registrar', 'claves_pgp.verificar'],
-            'sujeto' => ['roles' => ['contains' => 'investigador']],
-            'objeto' => [],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
         [
             'id' => 'inv-apelar-sancion-propia-en-plazo',
             'prioridad' => 20,
@@ -184,7 +171,7 @@ return [
             ],
             'sujeto' => ['roles' => ['contains' => 'gestion']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
                 'asignado_a' => ['=' => '@sujeto.id'],
             ],
             'entorno' => [],
@@ -202,7 +189,7 @@ return [
             ],
             'sujeto' => ['roles' => ['contains' => 'gestion']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
                 'asignado_a' => ['is_null'],
             ],
             'entorno' => [],
@@ -227,15 +214,6 @@ return [
             'decision' => 'permitir',
         ],
         [
-            'id' => 'gestion-ver-todas-claves',
-            'prioridad' => 30,
-            'acciones' => ['claves_pgp.ver', 'claves_pgp.verificar'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
             'id' => 'gestion-resolver-apelaciones',
             'prioridad' => 30,
             'acciones' => ['apelaciones.resolver'],
@@ -246,7 +224,92 @@ return [
         ],
 
         // ------------------------------------------------------------------
-        // 4. Deniega explícitamente el triaje a investigadores puros (aunque
+        // 4. Empresa: puede solicitar programas; el estado aprobado se
+        //    comprueba además en el controlador antes de persistir.
+        // ------------------------------------------------------------------
+        [
+            'id' => 'empresa-crear-programa',
+            'prioridad' => 35,
+            'acciones' => ['programas.crear'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'empresa-gestionar-programa-propio',
+            'prioridad' => 35,
+            'acciones' => ['programas.gestionar', 'programas.cambiar_estado', 'programas.eliminar'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'empresa-gestionar-miembros-propia',
+            'prioridad' => 35,
+            'acciones' => ['empresas.gestionar_miembros'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => ['id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+
+        [
+            'id' => 'moderador-ver-reportes-no-borrador',
+            'prioridad' => 35,
+            'acciones' => ['reportes.ver', 'reportes.ver_notas_internas'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'empresa-ver-reportes-de-sus-programas',
+            'prioridad' => 35,
+            'acciones' => ['reportes.ver'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => [
+                'estado' => ['!=' => 'borrador'],
+                'programa.empresa_id' => ['=' => '@entorno.empresa_id'],
+            ],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-triaje',
+            'prioridad' => 35,
+            'acciones' => [
+                'reportes.asignar',
+                'reportes.validar',
+                'reportes.rechazar',
+                'reportes.marcar_duplicado',
+                'reportes.pagar',
+                'reportes.cerrar',
+            ],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'asignado_a' => ['is_null'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-triaje-asignado',
+            'prioridad' => 35,
+            'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado', 'reportes.pagar', 'reportes.cerrar'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'asignado_a' => ['=' => '@sujeto.id'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+
+        // ------------------------------------------------------------------
+        // 5. Deniega explícitamente el triaje a investigadores puros (aunque
         //    otra regla coincidiera, el deny gana). La igualdad exacta evita
         //    penalizar a perfiles mixtos con rol de gestión.
         // ------------------------------------------------------------------

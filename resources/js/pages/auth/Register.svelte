@@ -99,5 +99,12 @@
                 Log in
             </TextLink>
         </div>
+
+        <div class="text-center text-sm text-muted-foreground">
+            ¿Representas a una empresa?
+            <TextLink href="/empresa/registro" class="underline underline-offset-4">
+                Registrar empresa
+            </TextLink>
+        </div>
     {/snippet}
 </Form>

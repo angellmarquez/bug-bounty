@@ -16,6 +16,8 @@ class RolSeeder extends Seeder
             'administrador' => ['nombre' => 'Administrador', 'descripcion' => 'Gestiona plataforma, programas y resoluciones finales.'],
             'gestion' => ['nombre' => 'Gestión', 'descripcion' => 'Trieaje de reportes y operación de programas.'],
             'investigador' => ['nombre' => 'Investigador', 'descripcion' => 'Presenta reportes y gestiona su perfil PGP.'],
+            'empresa' => ['nombre' => 'Empresa', 'descripcion' => 'Gestiona sus programas y recibe reportes de vulnerabilidades.'],
+            'moderador' => ['nombre' => 'Moderador', 'descripcion' => 'Revisa reportes y modera operaciones asignadas.'],
         ];
 
         foreach ($roles as $slug => $datos) {

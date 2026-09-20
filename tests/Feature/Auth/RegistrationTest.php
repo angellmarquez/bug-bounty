@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Rol;
+use App\Models\User;
 use Laravel\Fortify\Features;
 
 beforeEach(function () {
@@ -22,4 +24,44 @@ test('new users can register', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('new users are assigned investigador role on registration', function () {
+    $this->post(route('register.store'), [
+        'name' => 'Investigador Test',
+        'email' => 'investigador@test.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $user = User::where('email', 'investigador@test.com')->first();
+    $this->assertNotNull($user);
+    $this->assertTrue($user->roles->contains('slug', 'investigador'));
+});
+
+test('investigador role is created if it does not exist', function () {
+    Rol::where('slug', 'investigador')->delete();
+
+    $this->post(route('register.store'), [
+        'name' => 'Nuevo Investigador',
+        'email' => 'nuevo@test.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $rol = Rol::where('slug', 'investigador')->first();
+    $this->assertNotNull($rol);
+    $this->assertEquals('Investigador', $rol->nombre);
+});
+
+test('registered user has exactly one role after registration', function () {
+    $this->post(route('register.store'), [
+        'name' => 'Solo Un Rol',
+        'email' => 'unrol@test.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $user = User::where('email', 'unrol@test.com')->first();
+    $this->assertEquals(1, $user->roles->count());
 });

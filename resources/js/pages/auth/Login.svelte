@@ -101,5 +101,12 @@
             Don't have an account?
             <TextLink href={register()}>Sign up</TextLink>
         </div>
+
+        <div class="text-center text-sm text-muted-foreground">
+            ¿Accedes como empresa?
+            <TextLink href="/empresa/login" class="underline underline-offset-4">
+                Login empresarial
+            </TextLink>
+        </div>
     {/snippet}
 </Form>

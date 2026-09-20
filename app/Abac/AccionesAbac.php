@@ -44,15 +44,23 @@ final class AccionesAbac
 
     public const ProgramaEliminar = 'programas.eliminar';
 
-    public const ClavePgpVer = 'claves_pgp.ver';
-
-    public const ClavePgpRegistrar = 'claves_pgp.registrar';
-
-    public const ClavePgpVerificar = 'claves_pgp.verificar';
-
-    public const ClavePgpRevocar = 'claves_pgp.revocar';
-
     public const ApelacionCrear = 'apelaciones.crear';
 
     public const ApelacionResolver = 'apelaciones.resolver';
+
+    public const EmpresaVer = 'empresas.ver';
+
+    public const EmpresaAprobar = 'empresas.aprobar';
+
+    public const EmpresaRechazar = 'empresas.rechazar';
+
+    public const EmpresaSuspender = 'empresas.suspender';
+
+    public const EmpresaReactivar = 'empresas.reactivar';
+
+    public const EmpresaGestionarMiembros = 'empresas.gestionar_miembros';
+
+    public const ModeradorAsignar = 'moderadores.asignar';
+
+    public const ModeradorRevocar = 'moderadores.revocar';
 }
