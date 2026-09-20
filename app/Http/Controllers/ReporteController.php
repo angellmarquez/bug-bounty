@@ -195,6 +195,10 @@ class ReporteController extends Controller
                 ...$reporteArray,
                 'programa' => [
                     ...$reporte->programa->only(['id', 'nombre', 'slug', 'poc_schema']),
+                    'estado' => $reporte->programa->estado->value,
+                    'empresa_nombre' => $reporte->programa->empresa === null
+                        ? null
+                        : ($reporte->programa->empresa->nombre_comercial ?? $reporte->programa->empresa->razon_social),
                     // El alcance solo le hace falta a quien revisa: comprueba que el hallazgo esté en él.
                     ...($puedeModerar ? [
                         'bugs_buscados' => $reporte->programa->bugs_buscados,

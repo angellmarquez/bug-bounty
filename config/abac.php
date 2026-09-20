@@ -204,6 +204,36 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
+        // Editar un programa es cosa de la empresa dueña. La única excepción es un programa
+        // heredado sin empresa, que edita quien lo creó con el rol de gestión.
+        [
+            'id' => 'gestion-editar-programa-propio-sin-empresa',
+            'prioridad' => 30,
+            'acciones' => ['programas.editar'],
+            'sujeto' => ['roles' => ['contains' => 'gestion']],
+            'objeto' => ['creado_por' => ['=' => '@sujeto.id'], 'empresa_id' => ['is_null']],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        // El deny gana sobre cualquier permiso, también sobre el bypass del administrador.
+        [
+            'id' => 'denegar-edicion-de-programas-al-administrador',
+            'prioridad' => 5,
+            'acciones' => ['programas.editar'],
+            'sujeto' => ['roles' => ['contains' => 'administrador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-edicion-de-programas-al-moderador',
+            'prioridad' => 5,
+            'acciones' => ['programas.editar'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
         [
             'id' => 'gestion-programa-propio',
             'prioridad' => 30,
@@ -248,7 +278,7 @@ return [
         [
             'id' => 'empresa-gestionar-programa-propio',
             'prioridad' => 35,
-            'acciones' => ['programas.gestionar', 'programas.cambiar_estado', 'programas.eliminar'],
+            'acciones' => ['programas.gestionar', 'programas.editar', 'programas.cambiar_estado', 'programas.eliminar'],
             'sujeto' => ['roles' => ['contains' => 'empresa']],
             'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
             'entorno' => ['empresa_id' => ['is_not_null']],

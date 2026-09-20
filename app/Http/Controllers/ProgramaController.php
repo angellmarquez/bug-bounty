@@ -77,6 +77,7 @@ class ProgramaController extends Controller
 
         $puedeReportar = Gate::allows('abac', [AccionesAbac::ReporteCrear, $programa]);
         $puedeGestionar = $this->puedeProgramAction(AccionesAbac::ProgramaGestionar, $programa);
+        $puedeEditar = $this->puedeProgramAction(AccionesAbac::ProgramaEditar, $programa);
         $puedeCambiarEstado = $this->puedeProgramAction(AccionesAbac::ProgramaCambiarEstado, $programa);
         $puedeEliminar = $this->puedeProgramAction(AccionesAbac::ProgramaEliminar, $programa);
 
@@ -89,6 +90,7 @@ class ProgramaController extends Controller
         $filtroInformes = ColaDeInformes::filtro($request->input('filtro'));
 
         return Inertia::render('programas/Show', [
+            'puedeEditar' => $puedeEditar,
             'puedeModerar' => $puedeModerar,
             'filtroInformes' => $filtroInformes,
             'conteosInformes' => $puedeModerar ? $cola->conteos($programa) : null,
@@ -123,7 +125,7 @@ class ProgramaController extends Controller
 
     public function edit(Programa $programa): InertiaResponse
     {
-        $this->authorizeProgramAction(AccionesAbac::ProgramaGestionar, $programa);
+        $this->authorizeProgramAction(AccionesAbac::ProgramaEditar, $programa);
         $programa->load(['objetivos']);
 
         return Inertia::render('programas/gestion/Edit', [
@@ -177,10 +179,25 @@ class ProgramaController extends Controller
             $programa->update($validated);
 
             if ($objetivos !== null) {
-                $programa->objetivos()->delete();
-                foreach ($objetivos as $objetivo) {
-                    $programa->objetivos()->create($objetivo);
+                // Se conservan los objetivos que siguen en el formulario (por id), se crean los
+                // nuevos y solo se borran los que el usuario quitó.
+                $conservados = [];
+                foreach ($objetivos as $datos) {
+                    $id = $datos['id'] ?? null;
+                    unset($datos['id']);
+
+                    $objetivo = $id === null ? null : $programa->objetivos()->whereKey($id)->first();
+
+                    if ($objetivo !== null) {
+                        $objetivo->update($datos);
+                    } else {
+                        $objetivo = $programa->objetivos()->create($datos);
+                    }
+
+                    $conservados[] = $objetivo->id;
                 }
+
+                $programa->objetivos()->whereNotIn('id', $conservados)->delete();
             }
         });
 
@@ -286,6 +303,12 @@ class ProgramaController extends Controller
         }
 
         $programas = $query->withCount('reportes')->orderBy('nombre')->paginate(15)->withQueryString();
+        $programas->getCollection()->each(
+            fn (Programa $programa) => $programa->setAttribute(
+                'puede_editar',
+                $this->puedeProgramAction(AccionesAbac::ProgramaEditar, $programa),
+            ),
+        );
 
         return Inertia::render('programas/gestion/Index', [
             'programas' => $programas,

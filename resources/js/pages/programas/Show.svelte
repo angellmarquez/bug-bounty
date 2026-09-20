@@ -41,6 +41,7 @@
         programa,
         puedeReportar,
         puedeGestionar,
+        puedeEditar = false,
         puedeCambiarEstado = false,
         puedeEliminar = false,
         transicionesPermitidas = [],
@@ -57,6 +58,7 @@
         };
         puedeReportar: boolean;
         puedeGestionar: boolean;
+        puedeEditar?: boolean;
         puedeCambiarEstado?: boolean;
         puedeEliminar?: boolean;
         transicionesPermitidas?: string[];
@@ -334,16 +336,20 @@
                 </CardContent>
             </Card>
 
-            {#if puedeGestionar}
+            {#if puedeEditar || puedeGestionar}
                 <div class="flex flex-col gap-2 w-full">
-                    <Button variant="outline" href={programaEdit(programa.id)} class="w-full">
-                        <Edit class="mr-2 h-4 w-4" />
-                        Editar Programa
-                    </Button>
-                    <Button variant="outline" href={gestionRoute()} class="w-full">
-                        <Settings class="mr-2 h-4 w-4" />
-                        Gestionar
-                    </Button>
+                    {#if puedeEditar}
+                        <Button variant="outline" href={programaEdit(programa.id)} class="w-full">
+                            <Edit class="mr-2 h-4 w-4" />
+                            Editar Programa
+                        </Button>
+                    {/if}
+                    {#if puedeGestionar}
+                        <Button variant="outline" href={gestionRoute()} class="w-full">
+                            <Settings class="mr-2 h-4 w-4" />
+                            Gestionar
+                        </Button>
+                    {/if}
                 </div>
             {/if}
 
@@ -361,7 +367,9 @@
                     {/each}
                     {#if sinObjetivos && transicionesPermitidas.includes('activo')}
                         <p class="text-xs text-chart-4">
-                            Para publicarlo, primero define al menos un objetivo en "Editar Programa".
+                            {puedeEditar
+                                ? 'Para publicarlo, primero define al menos un objetivo en "Editar Programa".'
+                                : 'Para publicarlo, la empresa debe definir al menos un objetivo.'}
                         </p>
                     {/if}
                 </div>

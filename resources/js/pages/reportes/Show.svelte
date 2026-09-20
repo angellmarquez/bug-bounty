@@ -38,6 +38,8 @@
     import StateTransition from '@/components/StateTransition.svelte';
     import { Button } from '@/components/ui/button';
     import ContenidoInforme from '@/components/ContenidoInforme.svelte';
+    import EstadoProgreso from '@/components/EstadoProgreso.svelte';
+    import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
     import {
         Card,
         CardContent,
@@ -46,7 +48,7 @@
         CardTitle,
     } from '@/components/ui/card';
     import { index as reportesRoute } from '@/routes/reportes';
-    import type { Reporte } from '@/types/domain';
+    import type { Programa, Reporte } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
 
     let {
@@ -87,6 +89,11 @@
         transitionAccion = accion;
         transitionOpen = true;
     }
+
+    // Datos del programa al que se envió el informe (la empresa y su estado vienen del servidor).
+    const programaInforme = $derived(
+        reporte.programa as (Programa & { empresa_nombre?: string | null }) | undefined,
+    );
 
     function iniciarRevision() {
         router.post(`/reportes/${reporte.id}/revisar`, {}, { preserveScroll: true });
@@ -144,6 +151,34 @@
             </div>
         {/if}
     </div>
+
+    {#if programaInforme}
+        <Card>
+            <CardContent class="space-y-5 pt-6">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0 space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Programa</p>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <p class="text-lg font-semibold">{programaInforme.nombre}</p>
+                            <ProgramaStateBadge estado={programaInforme.estado} />
+                        </div>
+                        {#if programaInforme.empresa_nombre}
+                            <p class="text-sm text-muted-foreground">Empresa: {programaInforme.empresa_nombre}</p>
+                        {/if}
+                    </div>
+                    <Button variant="outline" href={programasShow(programaInforme.id)}>
+                        <ExternalLink class="mr-2 h-4 w-4" />
+                        Ver programa
+                    </Button>
+                </div>
+
+                <div class="space-y-2">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado del informe</p>
+                    <EstadoProgreso estado={reporte.estado} />
+                </div>
+            </CardContent>
+        </Card>
+    {/if}
 
     {#if page.props.errors?.estado}
         <div role="alert" class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">

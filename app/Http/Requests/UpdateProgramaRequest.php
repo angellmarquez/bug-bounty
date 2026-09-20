@@ -22,7 +22,7 @@ class UpdateProgramaRequest extends FormRequest
             ->first();
 
         return Gate::allows('abac', [
-            AccionesAbac::ProgramaGestionar,
+            AccionesAbac::ProgramaEditar,
             $programa,
             $empresa === null ? [] : ['empresa_id' => $empresa->id],
         ]);
@@ -56,6 +56,7 @@ class UpdateProgramaRequest extends FormRequest
             'inicia_en' => ['nullable', 'date'],
             'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en'],
             'objetivos' => ['nullable', 'array'],
+            'objetivos.*.id' => ['nullable', 'integer'],
             'objetivos.*.tipo' => ['required_with:objetivos', Rule::in(['web', 'api', 'movil', 'otro'])],
             'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255'],
             'objetivos.*.descripcion' => ['nullable', 'string', 'max:500'],

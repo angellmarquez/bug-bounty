@@ -40,6 +40,8 @@ final class AccionesAbac
 
     public const ProgramaGestionar = 'programas.gestionar';
 
+    public const ProgramaEditar = 'programas.editar';
+
     public const ProgramaCambiarEstado = 'programas.cambiar_estado';
 
     public const ProgramaEliminar = 'programas.eliminar';

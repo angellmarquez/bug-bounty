@@ -41,8 +41,9 @@
         };
     } = $props();
 
-    let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>(
+    let objetivos = $state<{ id?: number; tipo: string; valor: string; descripcion: string }[]>(
         (programa.objetivos ?? []).map((o) => ({
+            id: o.id,
             tipo: o.tipo,
             valor: o.valor,
             descripcion: o.descripcion ?? '',
@@ -154,7 +155,7 @@
                                 id="inicia_en"
                                 name="inicia_en"
                                 type="date"
-                                value={programa.inicia_en ?? ''}
+                                value={programa.inicia_en?.slice(0, 10) ?? ''}
                             />
                             <InputError message={errors.inicia_en} />
                         </div>
@@ -165,7 +166,7 @@
                                 id="termina_en"
                                 name="termina_en"
                                 type="date"
-                                value={programa.termina_en ?? ''}
+                                value={programa.termina_en?.slice(0, 10) ?? ''}
                             />
                             <InputError message={errors.termina_en} />
                         </div>
@@ -220,6 +221,9 @@
                     {:else}
                         {#each objetivos as _, i (i)}
                             <div class="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[140px_1fr_1fr_auto]">
+                                {#if objetivos[i].id}
+                                    <input type="hidden" name={`objetivos[${i}][id]`} value={objetivos[i].id} />
+                                {/if}
                                 <input type="hidden" name={`objetivos[${i}][tipo]`} value={objetivos[i].tipo} />
                                 <input type="hidden" name={`objetivos[${i}][valor]`} value={objetivos[i].valor} />
                                 <input type="hidden" name={`objetivos[${i}][descripcion]`} value={objetivos[i].descripcion} />
@@ -270,7 +274,7 @@
             </Card>
 
             <div class="flex justify-end">
-                <Button type="submit" disabled={processing}>
+                <Button type="submit" disabled={processing || objetivos.length === 0}>
                     {#if processing}<Spinner />{/if}
                     Guardar Cambios
                 </Button>
