@@ -128,15 +128,7 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(Reporte::class, 'asignado_a');
     }
 
-    /**
-     * Las claves PGP del usuario.
-     *
-     * @return HasMany<ClavePgp, $this>
-     */
-    public function clavesPgp(): HasMany
-    {
-        return $this->hasMany(ClavePgp::class, 'usuario_id');
-    }
+/** @var list<string> */
 
     /**
      * Los eventos de timeline en los que el usuario participó como actor.

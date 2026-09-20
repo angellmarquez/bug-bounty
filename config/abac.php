@@ -122,26 +122,8 @@ return [
         ],
 
         // ------------------------------------------------------------------
-        // 2. Investigador: claves PGP propias y apelaciones propias en plazo.
+        // 2. Investigador: apelaciones propias en plazo.
         // ------------------------------------------------------------------
-        [
-            'id' => 'inv-gestionar-clave-propia',
-            'prioridad' => 20,
-            'acciones' => ['claves_pgp.ver', 'claves_pgp.revocar'],
-            'sujeto' => ['roles' => ['contains' => 'investigador']],
-            'objeto' => ['usuario_id' => ['=' => '@sujeto.id']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'inv-registrar-y-verificar-clave',
-            'prioridad' => 20,
-            'acciones' => ['claves_pgp.registrar', 'claves_pgp.verificar'],
-            'sujeto' => ['roles' => ['contains' => 'investigador']],
-            'objeto' => [],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
         [
             'id' => 'inv-apelar-sancion-propia-en-plazo',
             'prioridad' => 20,
@@ -228,15 +210,6 @@ return [
             'acciones' => ['programas.gestionar', 'programas.cambiar_estado'],
             'sujeto' => ['roles' => ['contains' => 'gestion']],
             'objeto' => ['creado_por' => ['=' => '@sujeto.id']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-ver-todas-claves',
-            'prioridad' => 30,
-            'acciones' => ['claves_pgp.ver', 'claves_pgp.verificar'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [],
             'entorno' => [],
             'decision' => 'permitir',
         ],

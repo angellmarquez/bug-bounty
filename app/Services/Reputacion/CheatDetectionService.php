@@ -120,7 +120,7 @@ class CheatDetectionService
         $detecciones = [];
 
         foreach ($reportes as $reporte) {
-            $sinPoc = $requierePoc && ($reporte->poc === null || $reporte->poc === []);
+$sinPoc = $requierePoc && $reporte->poc === null;
 
             if (! $sinPoc) {
                 continue;

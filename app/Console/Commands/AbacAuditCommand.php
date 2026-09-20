@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Abac\AbacEngine;
 use App\Models\Apelacion;
-use App\Models\ClavePgp;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
@@ -25,7 +24,6 @@ class AbacAuditCommand extends Command
         {--accion= : Acción a evaluar (p. ej. reportes.ver)}
         {--reporte= : ID del reporte como objeto}
         {--programa= : ID del programa como objeto}
-        {--clave= : ID de clave PGP como objeto}
         {--apelacion= : ID de apelación como objeto}';
 
     protected $description = 'Audita la configuración ABAC y evalúa una acción concreta';
@@ -34,7 +32,6 @@ class AbacAuditCommand extends Command
     private const OBJETOS = [
         'reporte' => Reporte::class,
         'programa' => Programa::class,
-        'clave' => ClavePgp::class,
         'apelacion' => Apelacion::class,
     ];
 
@@ -88,7 +85,7 @@ class AbacAuditCommand extends Command
             $this->newLine();
         }
 
-        $this->info('Usa --usuario, --accion y --reporte|--programa|--clave|--apelacion para evaluar un caso.');
+        $this->info('Usa --usuario, --accion y --reporte|--programa|--apelacion para evaluar un caso.');
 
         return self::SUCCESS;
     }
@@ -170,7 +167,7 @@ class AbacAuditCommand extends Command
         }
 
         if (count($proporcionados) > 1) {
-            throw new InvalidArgumentException('Indica un único objeto: --reporte, --programa, --clave o --apelacion.');
+            throw new InvalidArgumentException('Indica un único objeto: --reporte, --programa o --apelacion.');
         }
 
         $opcion = array_key_first($proporcionados);

@@ -10,6 +10,8 @@ use App\Models\Empresa;
 use App\Models\EmpresaInvitacion;
 use App\Models\Rol;
 use App\Models\User;
+use App\Services\Pgp\Exceptions\PgpException;
+use App\Services\Pgp\PgpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -47,18 +49,32 @@ class EmpresaController extends Controller
                             ->latest();
                     }])
                     ->get(['id', 'nombre'])
-                    ->flatMap(fn ($programa) => $programa->reportes->map(fn ($reporte) => [
-                        'id' => $reporte->id,
-                        'numero_reporte' => $reporte->numero_reporte,
-                        'titulo' => $reporte->titulo,
-                        'estado' => $reporte->estado->value,
-                        'severidad' => $reporte->severidad?->value,
-                        'programa_id' => $programa->id,
-                        'programa_nombre' => $programa->nombre,
-                        'investigador' => $reporte->investigador?->only(['id', 'name']),
-                        'poc' => $reporte->poc,
-                        'created_at' => $reporte->created_at?->toISOString(),
-                    ]))
+                    ->flatMap(function ($programa) {
+                        $pgpService = app(PgpService::class);
+
+                        return $programa->reportes->map(function ($reporte) use ($programa, $pgpService) {
+                            try {
+                                $poc = $reporte->poc !== null
+                                    ? $pgpService->descifrarReporte('', $reporte->poc)['poc']
+                                    : null;
+                            } catch (PgpException) {
+                                $poc = null;
+                            }
+
+                            return [
+                                'id' => $reporte->id,
+                                'numero_reporte' => $reporte->numero_reporte,
+                                'titulo' => $reporte->titulo,
+                                'estado' => $reporte->estado->value,
+                                'severidad' => $reporte->severidad?->value,
+                                'programa_id' => $programa->id,
+                                'programa_nombre' => $programa->nombre,
+                                'investigador' => $reporte->investigador?->only(['id', 'name']),
+                                'poc' => $poc,
+                                'created_at' => $reporte->created_at?->toISOString(),
+                            ];
+                        });
+                    })
                     ->values(),
                 'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email']),
                 'invitaciones' => $empresa->invitaciones()->where('estado', 'pendiente')->latest()->get(['id', 'email', 'expira_en']),

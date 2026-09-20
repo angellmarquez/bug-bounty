@@ -7,6 +7,7 @@ use App\Services\Pgp\Contracts\PgpDriver;
 use App\Services\Pgp\DataObjects\PgpKeyInfo;
 use App\Services\Pgp\Exceptions\PgpDriverUnavailableException;
 use App\Services\Pgp\Exceptions\PgpException;
+use JsonException;
 
 /**
  * Fachada del motor PGP interno de la plataforma.
@@ -22,6 +23,14 @@ class PgpService
     public function driver(): PgpDriver
     {
         return $this->driver;
+    }
+
+    /**
+     * Indica si un valor persistido parece un bloque PGP cifrado.
+     */
+    private function esMensajeCifrado(string $valor): bool
+    {
+        return str_contains($valor, 'BEGIN') && str_contains($valor, 'PGP');
     }
 
     public function driverName(): string
@@ -130,6 +139,71 @@ class PgpService
         }
 
         return $platform->clave_publica;
+    }
+
+    /**
+     * Cifra el contenido de un reporte (descripcion + PoC) con la clave
+     * pública de la plataforma para su custodia en la base de datos.
+     *
+     * @param  array<int|string, mixed>  $poc
+     * @return array{descripcion: string, poc: string|null, clave_huella: string}
+     */
+    public function cifrarReporte(string $descripcion, array $poc = []): array
+    {
+        $plataforma = $this->platformKey();
+
+        if ($plataforma === null) {
+            throw new PgpException(
+                'La plataforma no tiene un par de claves PGP activo. Ejecuta php artisan pgp:setup.',
+            );
+        }
+
+        $pocCifrado = $poc === []
+            ? null
+            : $this->encrypt(json_encode($poc, JSON_THROW_ON_ERROR), $plataforma->huella);
+
+        return [
+            'descripcion' => $this->encrypt($descripcion, $plataforma->huella),
+            'poc' => $pocCifrado,
+            'clave_huella' => $plataforma->huella,
+        ];
+    }
+
+    /**
+     * Descifra el contenido de un reporte custodiado en la base de datos.
+     *
+     * Los valores que no sean bloques PGP (datos legacy en claro) se devuelven
+     * tal cual. El PoC se devuelve decodificado.
+     *
+     * @return array{descripcion: string, poc: array<int|string, mixed>|null, clave_huella: string|null}
+     */
+    public function descifrarReporte(string $descripcion, ?string $poc = null): array
+    {
+        $descripcionLegible = $this->esMensajeCifrado($descripcion)
+            ? $this->decrypt($descripcion)
+            : $descripcion;
+
+        $pocLegible = null;
+
+        if ($poc !== null) {
+            $contenido = $this->esMensajeCifrado($poc) ? $this->decrypt($poc) : $poc;
+
+            try {
+                $pocLegible = json_decode($contenido, true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                $pocLegible = null;
+            }
+
+            if (! is_array($pocLegible)) {
+                $pocLegible = null;
+            }
+        }
+
+        return [
+            'descripcion' => $descripcionLegible,
+            'poc' => $pocLegible,
+            'clave_huella' => $this->platformKey()?->huella,
+        ];
     }
 
     /**

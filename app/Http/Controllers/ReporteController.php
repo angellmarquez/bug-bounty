@@ -8,10 +8,10 @@ use App\Http\Requests\StoreReporteRequest;
 use App\Http\Requests\TransitionReporteRequest;
 use App\Http\Requests\UpdateReporteRequest;
 use App\Mail\SancionAplicadaMail;
-use App\Models\ClavePgp;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
+use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
 use Illuminate\Http\RedirectResponse;
@@ -132,6 +132,29 @@ class ReporteController extends Controller
             'actor' => $evento->actor?->only(['id', 'name']),
         ]);
 
+        // El contenido confidencial se descifra con la clave privada de la
+        // plataforma y nunca se expone el ciphertext al frontend.
+        $cifradoIndisponible = false;
+        $claveHuella = $reporte->clave_huella;
+
+        try {
+            $descifrado = app(PgpService::class)->descifrarReporte(
+                (string) $reporte->descripcion,
+                $reporte->poc,
+            );
+            $descripcion = $descifrado['descripcion'];
+            $poc = $descifrado['poc'];
+            $claveHuella = $descifrado['clave_huella'];
+        } catch (PgpException $e) {
+            $cifradoIndisponible = true;
+            $descripcion = null;
+            $poc = null;
+        }
+
+        $reporteArray = $reporte->toArray();
+        $reporteArray['descripcion'] = $descripcion;
+        $reporteArray['poc'] = $poc;
+
         // Permisos de triaje por ABAC
         $puedeAsignar = Gate::allows('abac', [AccionesAbac::ReporteAsignar, $reporte]);
         $puedeValidar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]);
@@ -151,13 +174,15 @@ class ReporteController extends Controller
 
         return Inertia::render('reportes/Show', [
             'reporte' => [
-                ...$reporte->toArray(),
+                ...$reporteArray,
                 'programa' => $reporte->programa->only(['id', 'nombre', 'slug']),
                 'investigador' => $reporte->investigador->only(['id', 'name']),
                 'asignadoA' => $reporte->asignadoA?->only(['id', 'name']),
                 'duplicadoDe' => $reporte->duplicadoDe?->only(['id', 'numero_reporte', 'titulo']),
                 'eventos' => $eventos,
             ],
+            'cifradoIndisponible' => $cifradoIndisponible,
+            'claveHuella' => $claveHuella,
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
             'puedeTriar' => $puedeAsignar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedePagar || $puedeCerrar,
             'accionesDisponibles' => [
@@ -187,16 +212,9 @@ class ReporteController extends Controller
             $programaInicial = $programas->firstWhere('id', (int) $request->input('programa'));
         }
 
-        $clavesPgp = ClavePgp::where('usuario_id', $user->id)
-            ->where('estado', 'activa')
-            ->get();
-
         return Inertia::render('reportes/Create', [
             'programas' => $programas->map(fn ($p) => $p->only(['id', 'nombre', 'slug', 'poc_schema'])),
             'programaInicial' => $programaInicial?->only(['id', 'nombre', 'slug', 'poc_schema']),
-            'clavesPgp' => $clavesPgp->map(fn ($k) => $k->only([
-                'id', 'huella', 'algoritmo', 'bits', 'es_principal',
-            ])),
         ]);
     }
 
@@ -205,34 +223,38 @@ class ReporteController extends Controller
         $validated = $request->validated();
         $user = $request->user();
 
-        $descripcion = $validated['descripcion'];
+        $poc = $validated['poc'] ?? [];
 
-        if (! empty($validated['clave_pgp_id'])) {
-            $clavePgp = ClavePgp::query()->find($validated['clave_pgp_id']);
-            if (! $clavePgp instanceof ClavePgp || $clavePgp->usuario_id !== $user->id) {
-                abort(403, 'No tienes permiso para usar esta clave PGP.');
-            }
-            $pgpService = app(PgpService::class);
-            $descripcion = $pgpService->encrypt($descripcion, $clavePgp->huella);
+        if (! is_array($poc)) {
+            $poc = [];
+        }
+
+        try {
+            $cifrado = app(PgpService::class)->cifrarReporte($validated['descripcion'], $poc);
+        } catch (PgpException $e) {
+            return redirect()->back()
+                ->withErrors(['pgp' => $e->getMessage()])
+                ->withInput();
         }
 
         $programa = Programa::query()->where('id', (int) $validated['programa_id'])->first();
         abort_if($programa === null, 404, 'Programa no encontrado.');
 
-        $reporte = DB::transaction(function () use ($validated, $user, $descripcion, $programa) {
+        $reporte = DB::transaction(function () use ($validated, $user, $cifrado, $programa) {
             $reporte = Reporte::create([
                 'numero_reporte' => $this->generarNumeroReporte(),
                 'programa_id' => $validated['programa_id'],
                 'investigador_id' => $user->id,
                 'titulo' => $validated['titulo'],
-                'descripcion' => $descripcion,
+                'descripcion' => $cifrado['descripcion'],
                 'categoria' => $validated['categoria'] ?? null,
                 'vector_cvss' => $validated['vector_cvss'] ?? null,
                 'puntuacion_cvss' => $validated['puntuacion_cvss'] ?? null,
                 'severidad' => $validated['severidad'] ?? null,
-                'poc' => $validated['poc'] ?? null,
+                'poc' => $cifrado['poc'],
                 'estado' => 'borrador',
                 'moneda' => $programa->moneda,
+                'clave_huella' => $cifrado['clave_huella'],
             ]);
 
             $reporte->eventos()->create([
@@ -252,46 +274,59 @@ class ReporteController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ReporteEditar, $reporte]);
 
-        $user = request()->user();
-
         $reporte->load('programa');
 
-        $clavesPgp = ClavePgp::where('usuario_id', $user->id)
-            ->where('estado', 'activa')
-            ->get();
+        try {
+            $descifrado = app(PgpService::class)->descifrarReporte(
+                (string) $reporte->descripcion,
+                $reporte->poc,
+            );
+        } catch (PgpException) {
+            $descifrado = ['descripcion' => '', 'poc' => null];
+        }
+
+        $reporteArray = $reporte->toArray();
+        $reporteArray['descripcion'] = $descifrado['descripcion'];
+        $reporteArray['poc'] = $descifrado['poc'];
 
         return Inertia::render('reportes/Edit', [
             'reporte' => [
-                ...$reporte->toArray(),
+                ...$reporteArray,
                 'programa' => $reporte->programa->only(['id', 'nombre', 'slug', 'poc_schema']),
             ],
-            'clavesPgp' => $clavesPgp->map(fn ($k) => $k->only([
-                'id', 'huella', 'algoritmo', 'bits', 'es_principal',
-            ])),
         ]);
     }
 
     public function update(UpdateReporteRequest $request, Reporte $reporte): RedirectResponse
     {
         $validated = $request->validated();
-        $user = $request->user();
 
-        $camposActualizar = array_filter($validated, fn ($v) => $v !== 'clave_pgp_id');
+        $pgpService = app(PgpService::class);
 
-        if (! empty($validated['clave_pgp_id']) && isset($camposActualizar['descripcion'])) {
-            $clavePgp = ClavePgp::query()->find($validated['clave_pgp_id']);
-            if (! $clavePgp instanceof ClavePgp || $clavePgp->usuario_id !== $user->id) {
-                abort(403, 'No tienes permiso para usar esta clave PGP.');
-            }
-            $pgpService = app(PgpService::class);
-            $camposActualizar['descripcion'] = $pgpService->encrypt(
-                $camposActualizar['descripcion'],
-                $clavePgp->huella
-            );
+        // Se descifra el estado actual para no re-cifrar un bloque ya cifrado.
+        $actual = $pgpService->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
+
+        $descripcion = $validated['descripcion'] ?? $actual['descripcion'];
+        $poc = $validated['poc'] ?? $actual['poc'] ?? [];
+
+        if (! is_array($poc)) {
+            $poc = [];
         }
 
-        unset($camposActualizar['clave_pgp_id']);
-        $reporte->update($camposActualizar);
+        try {
+            $cifrado = $pgpService->cifrarReporte($descripcion, $poc);
+        } catch (PgpException $e) {
+            return redirect()->back()
+                ->withErrors(['pgp' => $e->getMessage()])
+                ->withInput();
+        }
+
+        $reporte->update([
+            ...$validated,
+            'descripcion' => $cifrado['descripcion'],
+            'poc' => $cifrado['poc'],
+            'clave_huella' => $cifrado['clave_huella'],
+        ]);
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte actualizado exitosamente.');
