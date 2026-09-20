@@ -120,7 +120,7 @@ class CheatDetectionService
         $detecciones = [];
 
         foreach ($reportes as $reporte) {
-$sinPoc = $requierePoc && $reporte->poc === null;
+            $sinPoc = $requierePoc && $reporte->poc === null;
 
             if (! $sinPoc) {
                 continue;
@@ -158,11 +158,11 @@ $sinPoc = $requierePoc && $reporte->poc === null;
         $severidades = config('reputacion.cheat.fabricacion.severidades', ['alta', 'critica']);
         $estados = config('reputacion.cheat.fabricacion.estados_sospechosos', ['duplicado', 'fuera_de_alcance', 'rechazado']);
 
-        if (! in_array($reporte->estado->value, $estados, true) || ! in_array($reporte->severidad->value, $severidades, true)) {
+        if (! in_array($reporte->estado->value, $estados, true) || ! in_array($reporte->severidad?->value, $severidades, true)) {
             return [];
         }
 
-        $sinPoc = $requierePoc && ($reporte->poc === null || $reporte->poc === []);
+        $sinPoc = $requierePoc && $reporte->poc === null;
 
         if (! $sinPoc) {
             return [];

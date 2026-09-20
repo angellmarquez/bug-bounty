@@ -60,7 +60,8 @@
         usuariosGestion?: { id: number; name: string }[];
     } = $props();
 
-    let reporte = $state(initialReporte);
+    // Derivado: tras cada acción de triaje Inertia entrega props nuevas a esta misma instancia.
+    const reporte = $derived(initialReporte);
     const auth = $derived(page.props.auth);
 
     let transitionOpen = $state(false);

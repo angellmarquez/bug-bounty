@@ -35,7 +35,6 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read Collection<int, Programa> $programas
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, Reporte> $reportesAsignados
- * @property-read Collection<int, ClavePgp> $clavesPgp
  * @property-read Collection<int, EventoReporte> $eventos
  * @property-read Collection<int, EntradaReputacion> $entradasReputacion
  * @property-read Collection<int, Sancion> $sanciones
@@ -127,8 +126,6 @@ class User extends Authenticatable implements PasskeyUser
     {
         return $this->hasMany(Reporte::class, 'asignado_a');
     }
-
-/** @var list<string> */
 
     /**
      * Los eventos de timeline en los que el usuario participó como actor.

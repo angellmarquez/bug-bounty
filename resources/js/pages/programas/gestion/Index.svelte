@@ -25,6 +25,7 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import {
         Card,
@@ -52,6 +53,14 @@
         filtros: { estado?: string; busqueda?: string };
         esAdmin: boolean;
     } = $props();
+
+    const ESTADOS_FILTRO = [
+        { value: 'todos', label: 'Todos los estados' },
+        { value: 'borrador', label: 'Borrador' },
+        { value: 'activo', label: 'Activo' },
+        { value: 'en_pausa', label: 'En pausa' },
+        { value: 'archivado', label: 'Archivado' },
+    ];
 
     let busqueda = $state(filtros.busqueda ?? '');
 
@@ -142,16 +151,17 @@
                 <Select
                     value={filtros.estado ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('estado', v)}
+                    items={ESTADOS_FILTRO}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Estado</span>
+                        <SelectValue placeholder="Estado" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todos los estados</SelectItem>
-                        <SelectItem value="borrador">Borrador</SelectItem>
-                        <SelectItem value="activo">Activo</SelectItem>
-                        <SelectItem value="en_pausa">En pausa</SelectItem>
-                        <SelectItem value="archivado">Archivado</SelectItem>
+                        {#each ESTADOS_FILTRO as estado (estado.value)}
+                            <SelectItem value={estado.value} label={estado.label}>
+                                {estado.label}
+                            </SelectItem>
+                        {/each}
                     </SelectContent>
                 </Select>
             </div>

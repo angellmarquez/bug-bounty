@@ -1,10 +1,10 @@
 <?php
 
-use App\Models\ClavePgp;
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Services\Pgp\PgpService;
 
-test('without pgp key description is plain text', function () {
+test('description and poc are encrypted internally without a user supplied pgp key', function () {
     $user = investigador();
     $this->actingAs($user);
 
@@ -12,75 +12,44 @@ test('without pgp key description is plain text', function () {
 
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
-        'titulo' => 'Test',
-        'descripcion' => 'Esta es una descripcion normal sin cifrar',
+        'titulo' => 'Test PGP interno',
+        'descripcion' => 'Descripcion sensible cifrada internamente',
+        'poc' => ['paso' => 'ejecutar'],
     ]);
 
-    $this->assertDatabaseHas('reportes', [
-        'investigador_id' => $user->id,
-        'descripcion' => 'Esta es una descripcion normal sin cifrar',
-    ]);
+    $reporte = Reporte::where('investigador_id', $user->id)->firstOrFail();
+    $pgp = app(PgpService::class);
+
+    expect($reporte->getRawOriginal('descripcion'))->not->toBe('Descripcion sensible cifrada internamente');
+    expect($reporte->getRawOriginal('poc'))->not->toBeNull()->not->toContain('ejecutar');
+    expect($reporte->clave_huella)->toBe($pgp->platformKey()->huella);
+
+    $descifrado = $pgp->descifrarReporte($reporte->getRawOriginal('descripcion'), $reporte->getRawOriginal('poc'));
+    expect($descifrado['descripcion'])->toBe('Descripcion sensible cifrada internamente');
+    expect($descifrado['poc'])->toBe(['paso' => 'ejecutar']);
 });
 
-test('with pgp key description is encrypted', function () {
-    $user = investigador();
-    $this->actingAs($user);
-
+test('only the report author can view its private content', function () {
+    $author = investigador();
+    $this->actingAs($author);
     $programa = Programa::factory()->create();
-
-    $clave = ClavePgp::factory()->create([
-        'usuario_id' => $user->id,
-        'estado' => 'activa',
-    ]);
 
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
-        'titulo' => 'Test PGP',
-        'descripcion' => 'Descripcion sensible que debe cifrarse',
-        'clave_pgp_id' => $clave->id,
+        'titulo' => 'Contenido privado',
+        'descripcion' => 'Solo debe verlo el autor',
+        'poc' => ['evidencia' => 'privada'],
     ]);
 
-    $reporte = Reporte::where('investigador_id', $user->id)->first();
-    $this->assertNotEquals(
-        'Descripcion sensible que debe cifrarse',
-        $reporte->descripcion
-    );
-});
+    $reporte = Reporte::where('investigador_id', $author->id)->firstOrFail();
 
-test('nonexistent pgp key returns 422', function () {
-    $user = investigador();
-    $this->actingAs($user);
+    $this->get(route('reportes.show', $reporte))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('reporte.descripcion', 'Solo debe verlo el autor')
+            ->where('reporte.poc', ['evidencia' => 'privada']));
 
-    $programa = Programa::factory()->create();
-
-    $response = $this->post(route('reportes.store'), [
-        'programa_id' => $programa->id,
-        'titulo' => 'Test',
-        'descripcion' => 'Test',
-        'clave_pgp_id' => 99999,
-    ]);
-
-    $response->assertSessionHasErrors('clave_pgp_id');
-});
-
-test('another user pgp key is rejected', function () {
-    $user = investigador();
-    $this->actingAs($user);
-
-    $programa = Programa::factory()->create();
-
-    $otroUsuario = investigador();
-    $claveAjena = ClavePgp::factory()->create([
-        'usuario_id' => $otroUsuario->id,
-        'estado' => 'activa',
-    ]);
-
-    $response = $this->post(route('reportes.store'), [
-        'programa_id' => $programa->id,
-        'titulo' => 'Test',
-        'descripcion' => 'Test',
-        'clave_pgp_id' => $claveAjena->id,
-    ]);
-
-    $response->assertStatus(403);
+    $this->actingAs(investigador())
+        ->get(route('reportes.show', $reporte))
+        ->assertForbidden();
 });

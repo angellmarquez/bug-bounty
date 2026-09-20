@@ -157,7 +157,7 @@ test('poc is saved as array', function () {
 
     $reporte = Reporte::where('investigador_id', $user->id)->first();
     $this->assertNotNull($reporte->poc);
-    $this->assertEquals('curl -k https://...', $reporte->poc['pasos']);
+    $this->assertEquals('curl -k https://...', pocDe($reporte)['pasos']);
 });
 
 test('poc null is valid', function () {

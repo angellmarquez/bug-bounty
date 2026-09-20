@@ -260,7 +260,7 @@ return [
             'prioridad' => 35,
             'acciones' => ['reportes.ver', 'reportes.ver_notas_internas'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
-            'objeto' => ['estado' => ['!=' => 'borrador']],
+            'objeto' => [],
             'entorno' => [],
             'decision' => 'permitir',
         ],

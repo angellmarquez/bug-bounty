@@ -26,6 +26,7 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import {
         Card,
@@ -37,6 +38,30 @@
     import { Button } from '@/components/ui/button';
     import Plus from '@lucide/svelte/icons/plus';
     import type { Reporte } from '@/types/domain';
+
+    const ESTADOS_FILTRO = [
+        { value: 'todos', label: 'Todos los estados' },
+        { value: 'borrador', label: 'Borrador' },
+        { value: 'enviado', label: 'Enviado' },
+        { value: 'en_revision', label: 'En revision' },
+        { value: 'validado', label: 'Validado' },
+        { value: 'en_reparacion', label: 'En reparacion' },
+        { value: 'pago_pendiente', label: 'Pago pendiente' },
+        { value: 'pagado', label: 'Pagado' },
+        { value: 'rechazado', label: 'Rechazado' },
+        { value: 'duplicado', label: 'Duplicado' },
+        { value: 'fuera_de_alcance', label: 'Fuera de alcance' },
+        { value: 'cerrado', label: 'Cerrado' },
+    ];
+
+    const SEVERIDADES_FILTRO = [
+        { value: 'todos', label: 'Todas las severidades' },
+        { value: 'critica', label: 'Critica' },
+        { value: 'alta', label: 'Alta' },
+        { value: 'media', label: 'Media' },
+        { value: 'baja', label: 'Baja' },
+        { value: 'ninguna', label: 'Ninguna' },
+    ];
 
     let {
         reportes: reportesData,
@@ -143,40 +168,34 @@
                 <Select
                     value={filtros.estado ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('estado', v)}
+                    items={ESTADOS_FILTRO}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Estado</span>
+                        <SelectValue placeholder="Estado" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todos los estados</SelectItem>
-                        <SelectItem value="borrador">Borrador</SelectItem>
-                        <SelectItem value="enviado">Enviado</SelectItem>
-                        <SelectItem value="en_revision">En revision</SelectItem>
-                        <SelectItem value="validado">Validado</SelectItem>
-                        <SelectItem value="en_reparacion">En reparacion</SelectItem>
-                        <SelectItem value="pago_pendiente">Pago pendiente</SelectItem>
-                        <SelectItem value="pagado">Pagado</SelectItem>
-                        <SelectItem value="rechazado">Rechazado</SelectItem>
-                        <SelectItem value="duplicado">Duplicado</SelectItem>
-                        <SelectItem value="fuera_de_alcance">Fuera de alcance</SelectItem>
-                        <SelectItem value="cerrado">Cerrado</SelectItem>
+                        {#each ESTADOS_FILTRO as estado (estado.value)}
+                            <SelectItem value={estado.value} label={estado.label}>
+                                {estado.label}
+                            </SelectItem>
+                        {/each}
                     </SelectContent>
                 </Select>
 
                 <Select
                     value={filtros.severidad ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('severidad', v)}
+                    items={SEVERIDADES_FILTRO}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Severidad</span>
+                        <SelectValue placeholder="Severidad" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todas las severidades</SelectItem>
-                        <SelectItem value="critica">Critica</SelectItem>
-                        <SelectItem value="alta">Alta</SelectItem>
-                        <SelectItem value="media">Media</SelectItem>
-                        <SelectItem value="baja">Baja</SelectItem>
-                        <SelectItem value="ninguna">Ninguna</SelectItem>
+                        {#each SEVERIDADES_FILTRO as severidad (severidad.value)}
+                            <SelectItem value={severidad.value} label={severidad.label}>
+                                {severidad.label}
+                            </SelectItem>
+                        {/each}
                     </SelectContent>
                 </Select>
 
@@ -184,14 +203,15 @@
                     <Select
                         value={filtros.programa_id ?? 'todos'}
                         onValueChange={(v) => aplicarFiltro('programa_id', v)}
+                        items={[{ value: 'todos', label: 'Todos los programas' }, ...programas.map((p) => ({ value: String(p.id), label: p.nombre }))]}
                     >
                         <SelectTrigger class="w-full sm:w-[200px]">
-                            <span>Programa</span>
+                            <SelectValue placeholder="Programa" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="todos">Todos los programas</SelectItem>
+                            <SelectItem value="todos" label="Todos los programas">Todos los programas</SelectItem>
                             {#each programas as programa (programa.id)}
-                                <SelectItem value={String(programa.id)}>
+                                <SelectItem value={String(programa.id)} label={programa.nombre}>
                                     {programa.nombre}
                                 </SelectItem>
                             {/each}

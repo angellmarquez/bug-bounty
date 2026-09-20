@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\Empresa;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\Rol;
 use App\Models\User;
+use App\Services\Pgp\PgpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -21,6 +23,10 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+// El contenido de los reportes se cifra con la clave PGP activa de la plataforma.
+pest()->beforeEach(fn () => app(PgpService::class)->generatePlatformKeyPair())
+    ->in('Feature/Reportes', 'Feature/Reputacion');
 
 /*
 |--------------------------------------------------------------------------
@@ -98,9 +104,47 @@ function gestion(array $atributos = []): User
     return conRol(User::factory()->create($atributos), 'gestion');
 }
 
+function moderador(array $atributos = []): User
+{
+    return conRol(User::factory()->create($atributos), 'moderador');
+}
+
+/**
+ * Usuario con rol empresa, miembro activo de la empresa indicada.
+ */
+function miembroDeEmpresa(Empresa $empresa): User
+{
+    $usuario = conRol(User::factory()->create(), 'empresa');
+    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'miembro', 'estado' => 'activo']);
+
+    return $usuario;
+}
+
 function administrador(array $atributos = []): User
 {
     return conRol(User::factory()->create($atributos), 'administrador');
+}
+
+/**
+ * Descifra el PoC de un reporte (se guarda cifrado con la clave PGP de la plataforma).
+ *
+ * @return array<int|string, mixed>|null
+ */
+function pocDe(Reporte $reporte): ?array
+{
+    $poc = $reporte->getRawOriginal('poc');
+
+    return $poc === null ? null : app(PgpService::class)->descifrarReporte('', $poc)['poc'];
+}
+
+/**
+ * PoC cifrado, tal como queda guardado en la base de datos.
+ *
+ * @param  array<int|string, mixed>  $poc
+ */
+function pocCifrado(array $poc): ?string
+{
+    return app(PgpService::class)->cifrarReporte('x', $poc)['poc'];
 }
 
 function programaDe(User $usuario, array $atributos = []): Programa

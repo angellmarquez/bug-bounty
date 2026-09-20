@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Empresa;
 use App\Models\Programa;
+use App\Models\User;
 
 test('guests are redirected to the login page', function () {
     $response = $this->get(route('reportes.index'));
@@ -32,36 +34,43 @@ test('investigador sees only own reportes', function () {
     $this->assertNotContains($ajeno->id, $ids);
 });
 
-test('gestion sees all non-borrador reportes', function () {
-    $user = gestion();
-    $this->actingAs($user);
+test('moderador sees all reportes including borradores', function () {
+    $this->actingAs(moderador());
 
     $enviado = reporteDe(investigador(), null, ['estado' => 'enviado']);
     $borrador = reporteDe(investigador(), null, ['estado' => 'borrador']);
 
-    $response = $this->get(route('reportes.index'));
-    $response->assertOk();
-    $props = $response->inertiaProps();
-
-    $ids = collect($props['reportes']['data'])->pluck('id')->toArray();
-    $this->assertContains($enviado->id, $ids);
-    $this->assertNotContains($borrador->id, $ids);
-});
-
-test('admin sees all reportes including borradores', function () {
-    $user = administrador();
-    $this->actingAs($user);
-
-    $enviado = reporteDe(investigador(), null, ['estado' => 'enviado']);
-    $borrador = reporteDe(investigador(), null, ['estado' => 'borrador']);
-
-    $response = $this->get(route('reportes.index'));
-    $response->assertOk();
-    $props = $response->inertiaProps();
-
-    $ids = collect($props['reportes']['data'])->pluck('id')->toArray();
+    $ids = collect($this->get(route('reportes.index'))->inertiaProps()['reportes']['data'])->pluck('id')->toArray();
     $this->assertContains($enviado->id, $ids);
     $this->assertContains($borrador->id, $ids);
+});
+
+test('admin and gestion do not see reportes de otros', function (User $usuario) {
+    $this->actingAs($usuario);
+
+    $enviado = reporteDe(investigador(), null, ['estado' => 'enviado']);
+
+    $ids = collect($this->get(route('reportes.index'))->inertiaProps()['reportes']['data'])->pluck('id')->toArray();
+    $this->assertNotContains($enviado->id, $ids);
+})->with([
+    'administrador' => fn () => administrador(),
+    'gestion' => fn () => gestion(),
+]);
+
+test('empresa member sees only non-borrador reportes of its programas', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $ajeno = Programa::factory()->create(['empresa_id' => Empresa::factory()->aprobada()->create()->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+
+    $enviado = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+    $borrador = reporteDe(investigador(), $programa, ['estado' => 'borrador']);
+    $deOtraEmpresa = reporteDe(investigador(), $ajeno, ['estado' => 'enviado']);
+
+    $ids = collect($this->get(route('reportes.index'))->inertiaProps()['reportes']['data'])->pluck('id')->toArray();
+    $this->assertContains($enviado->id, $ids);
+    $this->assertNotContains($borrador->id, $ids);
+    $this->assertNotContains($deOtraEmpresa->id, $ids);
 });
 
 test('filter by estado works', function () {
@@ -97,11 +106,11 @@ test('filter by severidad works', function () {
 });
 
 test('search by titulo works', function () {
-    $user = administrador();
+    $user = investigador();
     $this->actingAs($user);
 
-    reporteDe(investigador(), null, ['titulo' => 'Vulnerabilidad XSS en login']);
-    reporteDe(investigador(), null, ['titulo' => 'SQL Injection en API']);
+    reporteDe($user, null, ['titulo' => 'Vulnerabilidad XSS en login']);
+    reporteDe($user, null, ['titulo' => 'SQL Injection en API']);
 
     $response = $this->get(route('reportes.index', ['busqueda' => 'XSS']));
     $response->assertOk();
@@ -112,11 +121,11 @@ test('search by titulo works', function () {
 });
 
 test('search by numero_reporte works', function () {
-    $user = administrador();
+    $user = investigador();
     $this->actingAs($user);
 
-    reporteDe(investigador(), null, ['numero_reporte' => 'BB-2026-0001']);
-    reporteDe(investigador(), null, ['numero_reporte' => 'BB-2026-0002']);
+    reporteDe($user, null, ['numero_reporte' => 'BB-2026-0001']);
+    reporteDe($user, null, ['numero_reporte' => 'BB-2026-0002']);
 
     $response = $this->get(route('reportes.index', ['busqueda' => 'BB-2026-0001']));
     $response->assertOk();
@@ -127,12 +136,12 @@ test('search by numero_reporte works', function () {
 });
 
 test('pagination works with 15 items per page', function () {
-    $user = administrador();
+    $user = investigador();
     $this->actingAs($user);
 
     $programa = Programa::factory()->create();
     for ($i = 0; $i < 20; $i++) {
-        reporteDe(investigador(), $programa);
+        reporteDe($user, $programa);
     }
 
     $response = $this->get(route('reportes.index'));

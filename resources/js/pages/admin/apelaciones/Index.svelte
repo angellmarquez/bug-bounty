@@ -26,6 +26,7 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import {
         Card,
@@ -35,6 +36,13 @@
     } from '@/components/ui/card';
     import { estadoApelacionColor, estadoApelacionLabel, estadoSancionColor, estadoSancionLabel, gravedadSancionColor, gravedadSancionLabel } from '@/lib/status-colors';
     import type { Apelacion } from '@/types/domain';
+
+    const ESTADOS_FILTRO = [
+        { value: 'todos', label: 'Todos los estados' },
+        { value: 'pendiente', label: 'Pendiente' },
+        { value: 'aprobada', label: 'Aprobada' },
+        { value: 'rechazada', label: 'Rechazada' },
+    ];
 
     let {
         apelaciones: apelacionesData,
@@ -110,15 +118,17 @@
                 <Select
                     value={filtros.estado ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('estado', v)}
+                    items={ESTADOS_FILTRO}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Estado</span>
+                        <SelectValue placeholder="Estado" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todos los estados</SelectItem>
-                        <SelectItem value="pendiente">Pendiente</SelectItem>
-                        <SelectItem value="aprobada">Aprobada</SelectItem>
-                        <SelectItem value="rechazada">Rechazada</SelectItem>
+                        {#each ESTADOS_FILTRO as estado (estado.value)}
+                            <SelectItem value={estado.value} label={estado.label}>
+                                {estado.label}
+                            </SelectItem>
+                        {/each}
                     </SelectContent>
                 </Select>
             </div>

@@ -2,6 +2,7 @@
 
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Services\Pgp\PgpService;
 
 test('poc null is valid', function () {
     $user = investigador();
@@ -41,7 +42,7 @@ test('poc array is saved', function () {
     ]);
 
     $reporte = Reporte::where('investigador_id', $user->id)->first();
-    $this->assertEquals($poc, $reporte->poc);
+    $this->assertEquals($poc, app(PgpService::class)->descifrarReporte($reporte->descripcion, $reporte->poc)['poc']);
 });
 
 test('poc with multiple keys is saved', function () {
@@ -65,8 +66,8 @@ test('poc with multiple keys is saved', function () {
     ]);
 
     $reporte = Reporte::where('investigador_id', $user->id)->first();
-    $this->assertEquals('https://api.example.com/v1/users', $reporte->poc['endpoint']);
-    $this->assertEquals('POST', $reporte->poc['metodo']);
+    $this->assertEquals('https://api.example.com/v1/users', pocDe($reporte)['endpoint']);
+    $this->assertEquals('POST', pocDe($reporte)['metodo']);
 });
 
 test('poc string values are saved', function () {
@@ -83,7 +84,7 @@ test('poc string values are saved', function () {
     ]);
 
     $reporte = Reporte::where('investigador_id', $user->id)->first();
-    $this->assertEquals('just a string value', $reporte->poc['simple']);
+    $this->assertEquals('just a string value', pocDe($reporte)['simple']);
 });
 
 test('poc nested array is saved', function () {
@@ -104,5 +105,5 @@ test('poc nested array is saved', function () {
     ]);
 
     $reporte = Reporte::where('investigador_id', $user->id)->first();
-    $this->assertCount(2, $reporte->poc['pasos']);
+    $this->assertCount(2, pocDe($reporte)['pasos']);
 });

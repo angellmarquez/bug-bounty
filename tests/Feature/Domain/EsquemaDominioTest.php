@@ -7,7 +7,6 @@ use App\Enums\TipoEventoReporte;
 use App\Enums\TipoObjetivo;
 use App\Models\Apelacion;
 use App\Models\Auditoria;
-use App\Models\ClavePgp;
 use App\Models\EntradaReputacion;
 use App\Models\EventoReporte;
 use App\Models\ObjetivoPrograma;
@@ -26,7 +25,6 @@ test('todas las tablas del dominio existen', function () {
         'objetivos_programa',
         'reportes',
         'eventos_reporte',
-        'claves_pgp',
         'claves_pgp_plataforma',
         'sanciones',
         'apelaciones',
@@ -99,12 +97,4 @@ test('la cadena sanción-apelación-ledger y auditoría se resuelven', function 
         ->and($entrada->apelacion->is($apelacion))->toBeTrue()
         ->and($usuario->entradasReputacion)->toHaveCount(1)
         ->and($usuario->auditorias->first()->is($auditoria))->toBeTrue();
-});
-
-test('las claves PGP pertenecen a su usuario', function () {
-    $usuario = User::factory()->create();
-    $clave = ClavePgp::factory()->create(['usuario_id' => $usuario->id]);
-
-    expect($usuario->clavesPgp->first()->is($clave))->toBeTrue()
-        ->and($clave->usuario->is($usuario))->toBeTrue();
 });

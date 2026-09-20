@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\Empresa;
 use App\Models\EventoReporte;
 use App\Models\Programa;
+use App\Models\User;
 
 test('guests are redirected to the login page', function () {
     $reporte = reporteDe(investigador());
@@ -31,54 +33,69 @@ test('investigador cannot view reporte de otro', function () {
     $response->assertForbidden();
 });
 
-test('gestion can view non-borrador reporte', function () {
-    $user = gestion();
-    $this->actingAs($user);
+test('moderador can view any reporte including borradores', function (string $estado) {
+    $this->actingAs(moderador());
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), null, ['estado' => $estado]);
 
-    $response = $this->get(route('reportes.show', $reporte));
-    $response->assertOk();
-});
+    $this->get(route('reportes.show', $reporte))->assertOk();
+})->with(['enviado', 'borrador']);
 
-test('gestion can view notas internas', function () {
-    $user = gestion();
-    $this->actingAs($user);
+test('moderador can view notas internas', function () {
+    $this->actingAs(moderador());
 
     $reporte = reporteDe(investigador(), null, [
         'estado' => 'enviado',
-        'notas_internas' => 'Nota confidencial de gestion',
+        'notas_internas' => 'Nota confidencial de moderacion',
     ]);
 
     $response = $this->get(route('reportes.show', $reporte));
     $response->assertOk();
     $props = $response->inertiaProps();
     $this->assertTrue($props['puedeVerNotasInternas']);
-    $this->assertEquals('Nota confidencial de gestion', $props['reporte']['notas_internas']);
+    $this->assertEquals('Nota confidencial de moderacion', $props['reporte']['notas_internas']);
 });
 
-test('admin can view any reporte', function () {
-    $user = administrador();
-    $this->actingAs($user);
+test('admin and gestion cannot view reportes de otros', function (User $usuario) {
+    $this->actingAs($usuario);
 
-    $reporte = reporteDe(investigador());
+    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
 
-    $response = $this->get(route('reportes.show', $reporte));
-    $response->assertOk();
+    $this->get(route('reportes.show', $reporte))->assertForbidden();
+})->with([
+    'administrador' => fn () => administrador(),
+    'gestion' => fn () => gestion(),
+]);
+
+test('empresa member can view non-borrador reportes of its programas', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+
+    $this->get(route('reportes.show', $reporte))->assertOk();
 });
 
-test('admin can view notas internas', function () {
-    $user = administrador();
-    $this->actingAs($user);
+test('empresa member cannot view borradores', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
 
-    $reporte = reporteDe(investigador(), null, [
-        'notas_internas' => 'Nota de administrador',
-    ]);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'borrador']);
 
-    $response = $this->get(route('reportes.show', $reporte));
-    $response->assertOk();
-    $props = $response->inertiaProps();
-    $this->assertTrue($props['puedeVerNotasInternas']);
+    $this->get(route('reportes.show', $reporte))->assertForbidden();
+});
+
+test('member of another empresa cannot view the reporte', function () {
+    $duena = Empresa::factory()->aprobada()->create();
+    $otra = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $duena->id]);
+    $this->actingAs(miembroDeEmpresa($otra));
+
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+
+    $this->get(route('reportes.show', $reporte))->assertForbidden();
 });
 
 test('investigador does not see notas internas', function () {

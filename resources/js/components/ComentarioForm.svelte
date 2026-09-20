@@ -21,10 +21,12 @@
         processing = true;
         router.post(`/reportes/${reporteId}/comentar`, { nota }, {
             preserveScroll: true,
-            onFinish: () => {
-                processing = false;
+            onSuccess: () => {
                 nota = '';
                 onsuccess?.();
+            },
+            onFinish: () => {
+                processing = false;
             },
         });
     }

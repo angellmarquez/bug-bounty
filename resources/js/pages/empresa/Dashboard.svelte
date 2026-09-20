@@ -16,6 +16,7 @@
     import Plus from '@lucide/svelte/icons/plus';
     import Settings from '@lucide/svelte/icons/settings';
     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+    import type { EstadoReporte, Severidad } from '@/types/enums';
 
     let { empresa }: {
         empresa: {
@@ -35,8 +36,8 @@
                 id: number;
                 numero_reporte: string;
                 titulo: string;
-                estado: string;
-                severidad: string | null;
+                estado: EstadoReporte;
+                severidad: Severidad | null;
                 programa_id: number;
                 programa_nombre: string;
                 investigador: { id: number; name: string } | null;

@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\AdminController;
-use App\Http\Controllers\ClavePgpController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
@@ -88,12 +87,6 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('reputacion/sanciones', [ReputacionController::class, 'sanciones'])->name('reputacion.sanciones');
     Route::get('reputacion/apelaciones', [ReputacionController::class, 'apelaciones'])->name('reputacion.apelaciones');
     Route::post('reputacion/sanciones/{sancion}/apelar', [ReputacionController::class, 'apelar'])->name('reputacion.apelar');
-
-    // Claves PGP
-    Route::get('claves-pgp', [ClavePgpController::class, 'index'])->name('claves-pgp.index');
-    Route::post('claves-pgp', [ClavePgpController::class, 'registrar'])->name('claves-pgp.registrar');
-    Route::post('claves-pgp/{clave}/verificar', [ClavePgpController::class, 'verificar'])->name('claves-pgp.verificar');
-    Route::post('claves-pgp/{clave}/revocar', [ClavePgpController::class, 'revocar'])->name('claves-pgp.revocar');
 });
 
 require __DIR__.'/settings.php';

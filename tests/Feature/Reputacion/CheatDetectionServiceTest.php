@@ -96,7 +96,7 @@ test('los reportes con PoC válida no se consideran fabricación', function () {
         'investigador_id' => $investigador->id,
         'estado' => 'rechazado',
         'severidad' => 'critica',
-        'poc' => ['pasos' => 'curl -k https://...', 'evidencia' => '<script>alert(1)</script>'],
+        'poc' => pocCifrado(['pasos' => 'curl -k https://...', 'evidencia' => '<script>alert(1)</script>']),
     ]);
 
     expect(app(CheatDetectionService::class)->analizarFabricaciones($investigador))->toBeEmpty();
@@ -112,7 +112,7 @@ test('analizar detecta la fabricación de un reporte concreto', function () {
     $legitimo = Reporte::factory()->create([
         'estado' => 'rechazado',
         'severidad' => 'alta',
-        'poc' => ['pasos' => 'curl', 'evidencia' => 'output'],
+        'poc' => pocCifrado(['pasos' => 'curl', 'evidencia' => 'output']),
     ]);
 
     expect(app(CheatDetectionService::class)->analizar($reporte))->toHaveCount(1)

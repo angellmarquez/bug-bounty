@@ -31,7 +31,9 @@
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
+    import ReportesTimeline from '@/components/ReportesTimeline.svelte';
     import type { DashboardRoleStats, DashboardStats } from '@/types/domain';
+    import type { EstadoReporte } from '@/types/enums';
 
     const user = $derived(page.props.auth?.user);
     const stats = $derived(
@@ -49,6 +51,16 @@
         (page.props.userRoles as string[]) ?? (user?.roles as string[]) ?? [],
     );
     const roleStats = $derived((page.props.roleStats as DashboardRoleStats) ?? {});
+    const misReportes = $derived(
+        (page.props.misReportes as {
+            id: number;
+            numero_reporte: string;
+            titulo: string;
+            estado: EstadoReporte;
+            fecha: string;
+            programa?: { nombre: string } | null;
+        }[]) ?? [],
+    );
 
     const isAdmin = $derived(userRoles.includes('administrador'));
     const isGestion = $derived(userRoles.includes('gestion'));
@@ -181,6 +193,22 @@
                     PGP y revisa el estado de tus hallazgos.
                 </CardDescription>
             </CardHeader>
+        </Card>
+    {/if}
+
+    {#if !isAdmin && !isGestion}
+        <Card>
+            <CardHeader>
+                <CardTitle>Tu línea de tiempo de reportes</CardTitle>
+                <CardDescription>
+                    Cada punto es un reporte que enviaste; el color indica su
+                    estado actual. Pasa el cursor o haz clic para ver el
+                    detalle.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ReportesTimeline reportes={misReportes} />
+            </CardContent>
         </Card>
     {/if}
 

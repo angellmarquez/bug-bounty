@@ -16,17 +16,15 @@
 </script>
 
 <script lang="ts">
-    import { Form, router } from '@inertiajs/svelte';
+    import { Form } from '@inertiajs/svelte';
     import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ArrowRight from '@lucide/svelte/icons/arrow-right';
-    import Send from '@lucide/svelte/icons/send';
     import Save from '@lucide/svelte/icons/save';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
-    import PgpKeySelector from '@/components/PgpKeySelector.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -43,20 +41,20 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import { index as reportesIndex, create as createRoute, store } from '@/routes/reportes';
     import type { PocSchemaField, Programa } from '@/types/domain';
     import type { Severidad } from '@/types/enums';
     import { schemaVacio, validarPoc } from '@/lib/poc-schema';
+    import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
 
     let {
         programas = [],
         programaInicial = null,
-        clavesPgp = [],
     }: {
         programas: Pick<Programa, 'id' | 'nombre' | 'slug' | 'poc_schema'>[];
         programaInicial: Pick<Programa, 'id' | 'nombre' | 'slug'> | null;
-        clavesPgp: { id: number; huella: string; algoritmo: string | null; bits: number | null; es_principal: boolean }[];
     } = $props();
 
     let pasoActual = $state(1);
@@ -71,12 +69,11 @@
         puntuacion_cvss: null as number | null,
         severidad: null as Severidad | null,
         poc: {} as Record<string, unknown>,
-        clave_pgp_id: null as string | null,
     });
 
-    let pocSchema = $derived<PocSchemaField[]>([]);
-
-    let processing = $state(false);
+    const schemaInicial = programas.find((p) => String(p.id) === formulario.programa_id)?.poc_schema ?? [];
+    let pocSchema = $state<PocSchemaField[]>(schemaInicial);
+    formulario.poc = schemaVacio(schemaInicial);
 
     function seleccionarPrograma(id: string) {
         formulario.programa_id = id;
@@ -104,7 +101,7 @@
 
     function siguientePaso() {
         if (validarPasoActual()) {
-            if (pasoActual < 5) pasoActual++;
+            if (pasoActual < 4) pasoActual++;
         }
     }
 
@@ -112,8 +109,18 @@
         if (pasoActual > 1) pasoActual--;
     }
 
-    function enviarFormulario(e: Event) {
-        processing = true;
+    // El payload sale del estado del wizard y no del DOM: los pasos anteriores
+    // ya están desmontados cuando se llega al paso final.
+    function construirPayload() {
+        return $state.snapshot(formulario);
+    }
+
+    // Enter en un campo de un paso intermedio avanza el wizard en lugar de enviar.
+    function alEnviar() {
+        if (pasoActual < 4) {
+            siguientePaso();
+            return false;
+        }
     }
 </script>
 
@@ -130,13 +137,14 @@
         />
     </div>
 
-    <WizardSteps pasos={['Detalles', 'CVSS', 'PoC', 'PGP', 'Revision']} {pasoActual} />
+    <WizardSteps pasos={['Detalles', 'CVSS', 'PoC', 'Revision']} {pasoActual} />
 
     <Form
         {...store.form()}
         options={{ preserveScroll: true }}
         class="space-y-6"
-        on:submit={enviarFormulario}
+        transform={(data) => ({ ...data, ...construirPayload() })}
+        onBefore={alEnviar}
     >
         {#snippet children({ errors: formErrors, processing: formProcessing })}
             {#if pasoActual === 1}
@@ -150,19 +158,19 @@
                             <Select
                                 value={formulario.programa_id}
                                 onValueChange={seleccionarPrograma}
+                                items={programas.map((p) => ({ value: String(p.id), label: p.nombre }))}
                             >
                                 <SelectTrigger class="w-full">
-                                    <span>Seleccionar programa...</span>
+                                    <SelectValue placeholder="Seleccionar programa..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {#each programas as prog (prog.id)}
-                                        <SelectItem value={String(prog.id)}>
+                                        <SelectItem value={String(prog.id)} label={prog.nombre}>
                                             {prog.nombre}
                                         </SelectItem>
                                     {/each}
                                 </SelectContent>
                             </Select>
-                            <input type="hidden" name="programa_id" value={formulario.programa_id} />
                             {#if erroresPaso.programa_id || formErrors.programa_id}
                                 <InputError message={erroresPaso.programa_id ?? formErrors.programa_id} />
                             {/if}
@@ -203,22 +211,19 @@
                             <Select
                                 value={formulario.categoria}
                                 onValueChange={(v) => (formulario.categoria = v)}
+                                items={CATEGORIAS_REPORTE}
                             >
                                 <SelectTrigger class="w-full">
-                                    <span>Seleccionar categoria...</span>
+                                    <SelectValue placeholder="Seleccionar categoria..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="xss">XSS</SelectItem>
-                                    <SelectItem value="sql_injection">SQL Injection</SelectItem>
-                                    <SelectItem value="rce">RCE</SelectItem>
-                                    <SelectItem value="idor">IDOR</SelectItem>
-                                    <SelectItem value="csrf">CSRF</SelectItem>
-                                    <SelectItem value="ssrf">SSRF</SelectItem>
-                                    <SelectItem value="xxe">XXE</SelectItem>
-                                    <SelectItem value="otro">Otro</SelectItem>
+                                    {#each CATEGORIAS_REPORTE as categoria (categoria.value)}
+                                        <SelectItem value={categoria.value} label={categoria.label}>
+                                            {categoria.label}
+                                        </SelectItem>
+                                    {/each}
                                 </SelectContent>
                             </Select>
-                            <input type="hidden" name="categoria" value={formulario.categoria} />
                         </div>
                     </CardContent>
                 </Card>
@@ -232,9 +237,6 @@
                         formulario.severidad = sev;
                     }}
                 />
-                <input type="hidden" name="vector_cvss" value={formulario.vector_cvss} />
-                <input type="hidden" name="puntuacion_cvss" value={formulario.puntuacion_cvss ?? ''} />
-                <input type="hidden" name="severidad" value={formulario.severidad ?? ''} />
 
             {:else if pasoActual === 3}
                 <PocForm
@@ -242,16 +244,8 @@
                     bind:data={formulario.poc}
                     bind:errors={erroresPaso}
                 />
-                <input type="hidden" name="poc" value={JSON.stringify(formulario.poc)} />
 
             {:else if pasoActual === 4}
-                <PgpKeySelector
-                    claves={clavesPgp}
-                    bind:value={formulario.clave_pgp_id}
-                />
-                <input type="hidden" name="clave_pgp_id" value={formulario.clave_pgp_id ?? ''} />
-
-            {:else if pasoActual === 5}
                 <Card>
                     <CardHeader>
                         <CardTitle>Revision del reporte</CardTitle>
@@ -286,9 +280,6 @@
                                 <pre class="overflow-x-auto rounded-lg bg-muted p-3 text-xs">{JSON.stringify(formulario.poc, null, 2)}</pre>
                             </div>
                         {/if}
-
-                        <input type="hidden" name="titulo" value={formulario.titulo} />
-                        <input type="hidden" name="descripcion" value={formulario.descripcion} />
                     </CardContent>
                 </Card>
             {/if}
@@ -305,7 +296,7 @@
                 </Button>
 
                 <div class="flex items-center gap-2">
-                    {#if pasoActual < 5}
+                    {#if pasoActual < 4}
                         <Button type="button" onclick={siguientePaso}>
                             Siguiente
                             <ArrowRight class="ml-1 h-4 w-4" />

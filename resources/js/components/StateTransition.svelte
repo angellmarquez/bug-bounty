@@ -110,11 +110,13 @@
 
         router.post(`/reportes/${reporteId}/${rutaMap[accion]}`, data, {
             preserveScroll: true,
-            onFinish: () => {
-                processing = false;
+            onSuccess: () => {
                 open = false;
                 resetForm();
                 onsuccess?.();
+            },
+            onFinish: () => {
+                processing = false;
             },
         });
     }

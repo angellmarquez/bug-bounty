@@ -23,12 +23,12 @@ use Illuminate\Support\Carbon;
  * @property int $investigador_id
  * @property int|null $asignado_a
  * @property string $titulo
- * @property string $descripcion
+ * @property string $descripcion Bloque PGP armored (o texto en claro legacy).
  * @property string|null $categoria
  * @property string|null $vector_cvss
  * @property int|float|null $puntuacion_cvss
  * @property Severidad|null $severidad
- * @property string|null $poc
+ * @property string|null $poc Bloque PGP armored con el PoC en JSON.
  * @property string|null $clave_huella
  * @property EstadoReporte $estado
  * @property int|float|null $recompensa

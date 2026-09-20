@@ -27,8 +27,10 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import { store as programaStore } from '@/routes/programas';
+    import { TIPOS_OBJETIVO } from '@/lib/tipo-objetivo';
 
     let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>([]);
 
@@ -194,15 +196,17 @@
                                 <Select
                                     value={objetivos[i].tipo}
                                     onValueChange={(v) => { objetivos[i].tipo = v; }}
+                                    items={TIPOS_OBJETIVO}
                                 >
                                     <SelectTrigger>
-                                        <span>Tipo</span>
+                                        <SelectValue placeholder="Tipo" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="web">Web</SelectItem>
-                                        <SelectItem value="api">API</SelectItem>
-                                        <SelectItem value="movil">Movil</SelectItem>
-                                        <SelectItem value="otro">Otro</SelectItem>
+                                        {#each TIPOS_OBJETIVO as tipo (tipo.value)}
+                                            <SelectItem value={tipo.value} label={tipo.label}>
+                                                {tipo.label}
+                                            </SelectItem>
+                                        {/each}
                                     </SelectContent>
                                 </Select>
 

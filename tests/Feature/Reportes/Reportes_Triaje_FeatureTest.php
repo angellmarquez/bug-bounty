@@ -1,10 +1,14 @@
 <?php
 
-test('gestion can asignar reporte enviado', function () {
-    $user = gestion();
+use App\Models\Empresa;
+use App\Models\Programa;
+use App\Models\User;
+
+test('moderador can asignar reporte enviado', function () {
+    $user = moderador();
     $this->actingAs($user);
 
-    $analista = gestion();
+    $analista = moderador();
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
 
     $response = $this->post(route('reportes.asignar', $reporte), [
@@ -19,10 +23,10 @@ test('gestion can asignar reporte enviado', function () {
 });
 
 test('asignar creates asignacion event', function () {
-    $user = gestion();
+    $user = moderador();
     $this->actingAs($user);
 
-    $analista = gestion();
+    $analista = moderador();
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
 
     $this->post(route('reportes.asignar', $reporte), [
@@ -36,8 +40,8 @@ test('asignar creates asignacion event', function () {
     ]);
 });
 
-test('gestion can validate reporte enviado', function () {
-    $user = gestion();
+test('moderador can validate reporte enviado', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -52,7 +56,7 @@ test('gestion can validate reporte enviado', function () {
 });
 
 test('validar creates cambio_estado event', function () {
-    $user = gestion();
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -65,8 +69,8 @@ test('validar creates cambio_estado event', function () {
     ]);
 });
 
-test('gestion can rechazar reporte with nota', function () {
-    $user = gestion();
+test('moderador can rechazar reporte with nota', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -87,8 +91,8 @@ test('gestion can rechazar reporte with nota', function () {
     ]);
 });
 
-test('gestion can mark reporte as duplicado', function () {
-    $user = gestion();
+test('moderador can mark reporte as duplicado', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $original = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -111,8 +115,8 @@ test('gestion can mark reporte as duplicado', function () {
     ]);
 });
 
-test('gestion can pay reporte with recompensa', function () {
-    $user = gestion();
+test('moderador can pay reporte with recompensa', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'pago_pendiente', 'moneda' => 'USD']);
@@ -134,8 +138,8 @@ test('gestion can pay reporte with recompensa', function () {
     ]);
 });
 
-test('gestion can cerrar reporte', function () {
-    $user = gestion();
+test('moderador can cerrar reporte', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'pagado']);
@@ -151,7 +155,7 @@ test('gestion can cerrar reporte', function () {
 });
 
 test('anyone can add comment to reporte they can view', function () {
-    $user = gestion();
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -224,8 +228,8 @@ test('investigador cannot cerrar reporte', function () {
     $response->assertForbidden();
 });
 
-test('gestion cannot validate reporte already validado', function () {
-    $user = gestion();
+test('moderador cannot validate reporte already validado', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
@@ -234,22 +238,33 @@ test('gestion cannot validate reporte already validado', function () {
     $response->assertUnprocessable();
 });
 
-test('admin can triaje any reporte', function () {
-    $user = administrador();
-    $this->actingAs($user);
+test('admin and gestion cannot triaje reportes they cannot access', function (User $usuario) {
+    $this->actingAs($usuario);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
 
-    $response = $this->post(route('reportes.validar', $reporte));
-    $response->assertRedirect();
-    $this->assertDatabaseHas('reportes', [
-        'id' => $reporte->id,
-        'estado' => 'validado',
-    ]);
+    $this->post(route('reportes.validar', $reporte))->assertForbidden();
+    $this->post(route('reportes.comentar', $reporte), ['nota' => 'hola'])->assertForbidden();
+    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'enviado']);
+})->with([
+    'administrador' => fn () => administrador(),
+    'gestion' => fn () => gestion(),
+]);
+
+test('empresa member can read but not triaje reportes of its programas', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+
+    $this->get(route('reportes.show', $reporte))->assertOk();
+    $this->post(route('reportes.validar', $reporte))->assertForbidden();
+    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'enviado']);
 });
 
-test('show page passes triaje props for gestion', function () {
-    $user = gestion();
+test('show page passes triaje props for moderador', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);

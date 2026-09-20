@@ -82,7 +82,7 @@ test('poc update works correctly', function () {
 
     $reporte = reporteDe($user, null, [
         'estado' => 'borrador',
-        'poc' => ['old_key' => 'old_value'],
+        'poc' => pocCifrado(['old_key' => 'old_value']),
     ]);
 
     $this->put(route('reportes.update', $reporte), [
@@ -90,6 +90,6 @@ test('poc update works correctly', function () {
     ]);
 
     $reporte->refresh();
-    $this->assertEquals('new_value', $reporte->poc['new_key']);
-    $this->assertEquals('data', $reporte->poc['extra']);
+    $this->assertEquals('new_value', pocDe($reporte)['new_key']);
+    $this->assertEquals('data', pocDe($reporte)['extra']);
 });

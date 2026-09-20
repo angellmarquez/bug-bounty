@@ -29,7 +29,6 @@
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
-    import PgpKeySelector from '@/components/PgpKeySelector.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -46,25 +45,25 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import { edit, update } from '@/routes/reportes';
     import type { PocSchemaField, Reporte } from '@/types/domain';
     import type { Severidad } from '@/types/enums';
     import { validarPoc } from '@/lib/poc-schema';
+    import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
 
     let {
         reporte,
-        clavesPgp = [],
     }: {
         reporte: Reporte & { programa: { id: number; nombre: string; slug: string; poc_schema: PocSchemaField[] | null } };
-        clavesPgp: { id: number; huella: string; algoritmo: string | null; bits: number | null; es_principal: boolean }[];
     } = $props();
 
     let pasoActual = $state(1);
     let erroresPaso = $state<Record<string, string>>({});
 
     const esEnviado = $derived(reporte.estado === 'enviado');
-    const maxPaso = $derived(esEnviado ? 3 : 5);
+    const maxPaso = $derived(esEnviado ? 3 : 4);
 
     let formulario = $state({
         titulo: reporte.titulo,
@@ -74,7 +73,6 @@
         puntuacion_cvss: reporte.puntuacion_cvss,
         severidad: reporte.severidad,
         poc: (reporte.poc ?? {}) as Record<string, unknown>,
-        clave_pgp_id: null as string | null,
     });
 
     let pocSchema = $derived<PocSchemaField[]>(reporte.programa?.poc_schema ?? []);
@@ -99,6 +97,25 @@
     function pasoAnterior() {
         if (pasoActual > 1) pasoActual--;
     }
+
+    // El payload sale del estado del wizard y no del DOM: los pasos anteriores
+    // ya están desmontados cuando se llega al paso final.
+    function construirPayload() {
+        const { titulo, descripcion, categoria, vector_cvss, puntuacion_cvss, severidad, poc } =
+            $state.snapshot(formulario);
+
+        return esEnviado
+            ? { titulo, descripcion, poc }
+            : { titulo, descripcion, categoria, vector_cvss, puntuacion_cvss, severidad, poc };
+    }
+
+    // Enter en un campo de un paso intermedio avanza el wizard en lugar de enviar.
+    function alEnviar() {
+        if (pasoActual < maxPaso) {
+            siguientePaso();
+            return false;
+        }
+    }
 </script>
 
 <AppHead title="Editar reporte — {reporte.numero_reporte}" />
@@ -115,7 +132,7 @@
     </div>
 
     <WizardSteps
-        pasos={esEnviado ? ['Detalles', 'CVSS', 'PoC'] : ['Detalles', 'CVSS', 'PoC', 'PGP', 'Revision']}
+        pasos={esEnviado ? ['Detalles', 'CVSS', 'PoC'] : ['Detalles', 'CVSS', 'PoC', 'Revision']}
         {pasoActual}
     />
 
@@ -124,6 +141,8 @@
         method="put"
         options={{ preserveScroll: true }}
         class="space-y-6"
+        transform={(data) => ({ ...data, ...construirPayload() })}
+        onBefore={alEnviar}
     >
         {#snippet children({ errors: formErrors, processing: formProcessing })}
             {#if pasoActual === 1}
@@ -172,22 +191,19 @@
                                 <Select
                                     value={formulario.categoria}
                                     onValueChange={(v) => (formulario.categoria = v)}
+                                    items={CATEGORIAS_REPORTE}
                                 >
                                     <SelectTrigger class="w-full">
-                                        <span>Seleccionar categoria...</span>
+                                        <SelectValue placeholder="Seleccionar categoria..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="xss">XSS</SelectItem>
-                                        <SelectItem value="sql_injection">SQL Injection</SelectItem>
-                                        <SelectItem value="rce">RCE</SelectItem>
-                                        <SelectItem value="idor">IDOR</SelectItem>
-                                        <SelectItem value="csrf">CSRF</SelectItem>
-                                        <SelectItem value="ssrf">SSRF</SelectItem>
-                                        <SelectItem value="xxe">XXE</SelectItem>
-                                        <SelectItem value="otro">Otro</SelectItem>
+                                        {#each CATEGORIAS_REPORTE as categoria (categoria.value)}
+                                            <SelectItem value={categoria.value} label={categoria.label}>
+                                                {categoria.label}
+                                            </SelectItem>
+                                        {/each}
                                     </SelectContent>
                                 </Select>
-                                <input type="hidden" name="categoria" value={formulario.categoria} />
                             </div>
                         {/if}
                     </CardContent>
@@ -209,9 +225,6 @@
                             formulario.severidad = sev;
                         }}
                     />
-                    <input type="hidden" name="vector_cvss" value={formulario.vector_cvss} />
-                    <input type="hidden" name="puntuacion_cvss" value={formulario.puntuacion_cvss ?? ''} />
-                    <input type="hidden" name="severidad" value={formulario.severidad ?? ''} />
                 {/if}
 
             {:else if pasoActual === 3}
@@ -220,16 +233,8 @@
                     bind:data={formulario.poc}
                     bind:errors={erroresPaso}
                 />
-                <input type="hidden" name="poc" value={JSON.stringify(formulario.poc)} />
 
             {:else if pasoActual === 4}
-                <PgpKeySelector
-                    claves={clavesPgp}
-                    bind:value={formulario.clave_pgp_id}
-                />
-                <input type="hidden" name="clave_pgp_id" value={formulario.clave_pgp_id ?? ''} />
-
-            {:else if pasoActual === 5}
                 <Card>
                     <CardHeader>
                         <CardTitle>Revision del reporte</CardTitle>
@@ -264,9 +269,6 @@
                                 <pre class="overflow-x-auto rounded-lg bg-muted p-3 text-xs">{JSON.stringify(formulario.poc, null, 2)}</pre>
                             </div>
                         {/if}
-
-                        <input type="hidden" name="titulo" value={formulario.titulo} />
-                        <input type="hidden" name="descripcion" value={formulario.descripcion} />
                     </CardContent>
                 </Card>
             {/if}

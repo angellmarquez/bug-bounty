@@ -8,6 +8,8 @@ use App\Mail\EmpresaInvitacionMail;
 use App\Models\Auditoria;
 use App\Models\Empresa;
 use App\Models\EmpresaInvitacion;
+use App\Models\Programa;
+use App\Models\Reporte;
 use App\Models\Rol;
 use App\Models\User;
 use App\Services\Pgp\Exceptions\PgpException;
@@ -49,10 +51,10 @@ class EmpresaController extends Controller
                             ->latest();
                     }])
                     ->get(['id', 'nombre'])
-                    ->flatMap(function ($programa) {
+                    ->flatMap(function (Programa $programa) {
                         $pgpService = app(PgpService::class);
 
-                        return $programa->reportes->map(function ($reporte) use ($programa, $pgpService) {
+                        return $programa->reportes->map(function (Reporte $reporte) use ($programa, $pgpService) {
                             try {
                                 $poc = $reporte->poc !== null
                                     ? $pgpService->descifrarReporte('', $reporte->poc)['poc']
@@ -69,7 +71,7 @@ class EmpresaController extends Controller
                                 'severidad' => $reporte->severidad?->value,
                                 'programa_id' => $programa->id,
                                 'programa_nombre' => $programa->nombre,
-                                'investigador' => $reporte->investigador?->only(['id', 'name']),
+                                'investigador' => $reporte->investigador->only(['id', 'name']),
                                 'poc' => $poc,
                                 'created_at' => $reporte->created_at?->toISOString(),
                             ];

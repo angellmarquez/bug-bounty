@@ -4,7 +4,6 @@ use App\Abac\AbacEngine;
 use App\Enums\EstadoPrograma;
 use App\Enums\EstadoReporte;
 use App\Models\Apelacion;
-use App\Models\ClavePgp;
 use App\Models\Sancion;
 use App\Models\User;
 
@@ -87,14 +86,6 @@ dataset('matriz_abac', [
     // ------------------------------------------------------------------
     // Claves PGP
     // ------------------------------------------------------------------
-    'inv ve su propia clave' => ['claves_pgp.ver', fn () => [($inv = investigador()), ClavePgp::factory()->create(['usuario_id' => $inv->id])], true],
-    'inv no ve la clave de otro investigador' => ['claves_pgp.ver', fn () => [investigador(), ClavePgp::factory()->create(['usuario_id' => investigador()->id])], false],
-    'inv revoca su propia clave' => ['claves_pgp.revocar', fn () => [($inv = investigador()), ClavePgp::factory()->create(['usuario_id' => $inv->id])], true],
-    'inv no revoca la clave ajena' => ['claves_pgp.revocar', fn () => [investigador(), ClavePgp::factory()->create(['usuario_id' => investigador()->id])], false],
-    'inv puede registrar una clave' => ['claves_pgp.registrar', fn () => [investigador(), null], true],
-    'inv puede verificar su clave' => ['claves_pgp.verificar', fn () => [($inv = investigador()), ClavePgp::factory()->create(['usuario_id' => $inv->id])], true],
-    'gestion audita claves de cualquier investigador' => ['claves_pgp.ver', fn () => [gestion(), ClavePgp::factory()->create(['usuario_id' => investigador()->id])], true],
-    'gestion no registra claves (solo investigador)' => ['claves_pgp.registrar', fn () => [gestion(), null], false],
 
     // ------------------------------------------------------------------
     // Apelaciones

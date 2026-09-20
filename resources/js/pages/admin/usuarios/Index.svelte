@@ -27,6 +27,7 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import {
         Card,
@@ -127,14 +128,15 @@
                 <Select
                     value={filtros.rol ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('rol', v)}
+                    items={[{ value: 'todos', label: 'Todos los roles' }, ...roles.map((r) => ({ value: r.slug, label: r.nombre }))]}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Rol</span>
+                        <SelectValue placeholder="Rol" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todos los roles</SelectItem>
+                        <SelectItem value="todos" label="Todos los roles">Todos los roles</SelectItem>
                         {#each roles as rol (rol.id)}
-                            <SelectItem value={rol.slug}>
+                            <SelectItem value={rol.slug} label={rol.nombre}>
                                 {rol.nombre}
                             </SelectItem>
                         {/each}
@@ -173,13 +175,14 @@
                             <Select
                                 value={usuario.roles[0] ?? 'investigador'}
                                 onValueChange={(v) => cambiarRol(usuario.id, v)}
+                                items={roles.map((r) => ({ value: r.slug, label: r.nombre }))}
                             >
                                 <SelectTrigger class="h-8 w-full text-xs">
-                                    <span>{usuario.roles[0] ?? 'investigador'}</span>
+                                    <SelectValue placeholder={usuario.roles[0] ?? 'investigador'} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {#each roles as rol (rol.id)}
-                                        <SelectItem value={rol.slug}>
+                                        <SelectItem value={rol.slug} label={rol.nombre}>
                                             {rol.nombre}
                                         </SelectItem>
                                     {/each}

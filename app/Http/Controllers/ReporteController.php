@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
+use App\Enums\EstadoReporte;
 use App\Enums\GravedadSancion;
 use App\Http\Requests\StoreReporteRequest;
 use App\Http\Requests\TransitionReporteRequest;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,21 +40,19 @@ class ReporteController extends Controller
         $query = Reporte::query()
             ->with(['programa', 'investigador', 'asignadoA']);
 
-        if ($isAdmin) {
-            // Admin ve todos
-        } elseif ($isGestion) {
-            $query->where('estado', '!=', 'borrador');
-        } elseif ($isModerador) {
-            $query->where('estado', '!=', 'borrador');
-        } elseif ($isEmpresa) {
-            $empresa = $user->empresas()
-                ->where('empresa_usuario.estado', 'activo')
-                ->first();
-            abort_if($empresa === null, 403, 'No perteneces a una empresa activa.');
-            $query->where('estado', '!=', 'borrador')
-                ->whereHas('programa', fn ($programa) => $programa->where('empresa_id', $empresa->id));
+        if ($isModerador) {
+            // Los moderadores pueden revisar también borradores sin exponerlos a otros roles.
         } else {
-            $query->where('investigador_id', $user->id);
+            $query->where(function ($scope) use ($user) {
+                $scope->where('investigador_id', $user->id)
+                    ->orWhere(function (Builder $empresa) use ($user) {
+                        $empresa->where('estado', '!=', 'borrador')
+                            ->whereHas('programa.empresa.usuarios', function ($usuarios) use ($user) {
+                                $usuarios->whereKey($user->id)
+                                    ->where('empresa_usuario.estado', 'activo');
+                            });
+                    });
+            });
         }
 
         if ($request->filled('estado')) {
@@ -97,18 +97,17 @@ class ReporteController extends Controller
 
     public function show(Reporte $reporte): InertiaResponse
     {
-        $this->asegurarAlcanceModerador($reporte);
+        $reporte->load('programa.empresa');
+        abort_unless($this->puedeVerContenido($reporte), 403, 'No tienes permiso para ver este reporte.');
         Gate::authorize('abac', [
             AccionesAbac::ReporteVer,
             $reporte,
             $this->empresaContexto(),
         ]);
 
-        $user = request()->user();
         $puedeVerNotasInternas = Gate::allows('abac', [AccionesAbac::ReporteVerNotasInternas, $reporte]);
 
         $reporte->load([
-            'programa',
             'investigador',
             'asignadoA',
             'eventos.actor',
@@ -165,7 +164,7 @@ class ReporteController extends Controller
 
         $usuariosGestion = [];
         if ($puedeAsignar) {
-            $usuariosGestion = User::whereHas('roles', fn ($q) => $q->whereIn('slug', ['gestion', 'administrador']))
+            $usuariosGestion = User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))
                 ->select('id', 'name')
                 ->orderBy('name')
                 ->get()
@@ -378,7 +377,7 @@ class ReporteController extends Controller
 
     public function asignar(Reporte $reporte, Request $request): RedirectResponse
     {
-        $this->asegurarAlcanceModerador($reporte);
+        $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteAsignar, $reporte]);
 
         $request->validate([
@@ -406,7 +405,7 @@ class ReporteController extends Controller
 
     public function validar(Reporte $reporte): RedirectResponse
     {
-        $this->asegurarAlcanceModerador($reporte);
+        $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
 
         $this->validarTransicion($reporte, 'validado');
@@ -426,7 +425,7 @@ class ReporteController extends Controller
 
     public function rechazar(TransitionReporteRequest $request, Reporte $reporte, ReputationService $reputacion): RedirectResponse
     {
-        $this->asegurarAlcanceModerador($reporte);
+        $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteRechazar, $reporte]);
 
         $validated = $request->validated();
@@ -462,7 +461,7 @@ class ReporteController extends Controller
 
     public function marcarDuplicado(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
     {
-        $this->asegurarAlcanceModerador($reporte);
+        $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]);
 
         $validated = $request->validated();
@@ -495,7 +494,7 @@ class ReporteController extends Controller
 
     public function pagar(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
     {
-        $this->asegurarAlcanceModerador($reporte);
+        $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReportePagar, $reporte]);
 
         $validated = $request->validated();
@@ -521,7 +520,7 @@ class ReporteController extends Controller
 
     public function cerrar(Reporte $reporte): RedirectResponse
     {
-        $this->asegurarAlcanceModerador($reporte);
+        $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte]);
 
         $this->validarTransicion($reporte, 'cerrado');
@@ -544,7 +543,7 @@ class ReporteController extends Controller
 
     public function comentar(Reporte $reporte, Request $request): RedirectResponse
     {
-        $this->asegurarAlcanceModerador($reporte);
+        $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte]);
 
         $request->validate([
@@ -561,13 +560,41 @@ class ReporteController extends Controller
             ->with('success', 'Comentario agregado.');
     }
 
-    private function asegurarAlcanceModerador(Reporte $reporte): void
+    /**
+     * Solo quien puede ver el contenido del reporte puede actuar sobre él.
+     */
+    private function asegurarAcceso(Reporte $reporte): void
+    {
+        $reporte->loadMissing('programa.empresa');
+
+        abort_unless($this->puedeVerContenido($reporte), 403, 'No tienes permiso para acceder a este reporte.');
+    }
+
+    private function puedeVerContenido(Reporte $reporte): bool
     {
         $user = request()->user();
-        if (! $user?->roles()->where('slug', 'moderador')->exists()) {
-            return;
+
+        if ($user === null) {
+            return false;
         }
 
+        if ($user->roles()->where('slug', 'moderador')->exists()) {
+            return true;
+        }
+
+        if ((int) $reporte->investigador_id === (int) $user->id) {
+            return true;
+        }
+
+        // La empresa solo accede a reportes ya enviados por el investigador.
+        if ($reporte->estado === EstadoReporte::Borrador) {
+            return false;
+        }
+
+        return $reporte->programa->empresa?->usuarios()
+            ->whereKey($user->id)
+            ->where('empresa_usuario.estado', 'activo')
+            ->exists() ?? false;
     }
 
     /** @return array{empresa_id?: int} */

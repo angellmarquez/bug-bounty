@@ -25,6 +25,7 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import {
         Card,
@@ -129,14 +130,15 @@
                 <Select
                     value={filtros.usuario_id ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('usuario_id', v)}
+                    items={[{ value: 'todos', label: 'Todos los usuarios' }, ...usuarios.map((u) => ({ value: String(u.id), label: u.name }))]}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Usuario</span>
+                        <SelectValue placeholder="Usuario" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todos los usuarios</SelectItem>
+                        <SelectItem value="todos" label="Todos los usuarios">Todos los usuarios</SelectItem>
                         {#each usuarios as usuario (usuario.id)}
-                            <SelectItem value={String(usuario.id)}>
+                            <SelectItem value={String(usuario.id)} label={usuario.name}>
                                 {usuario.name}
                             </SelectItem>
                         {/each}
@@ -146,14 +148,15 @@
                 <Select
                     value={filtros.entidad ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('entidad', v)}
+                    items={[{ value: 'todos', label: 'Todas las entidades' }, ...entidades.map((e) => ({ value: e, label: e }))]}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Entidad</span>
+                        <SelectValue placeholder="Entidad" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todas las entidades</SelectItem>
+                        <SelectItem value="todos" label="Todas las entidades">Todas las entidades</SelectItem>
                         {#each entidades as entidad (entidad)}
-                            <SelectItem value={entidad}>
+                            <SelectItem value={entidad} label={entidad}>
                                 {entidad}
                             </SelectItem>
                         {/each}
