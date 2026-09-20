@@ -31,8 +31,8 @@
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
-    import ReportesTimeline from '@/components/ReportesTimeline.svelte';
     import EstadoProgreso from '@/components/EstadoProgreso.svelte';
+    import ReportesTimeline from '@/components/ReportesTimeline.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import type { DashboardRoleStats, DashboardStats } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
@@ -63,6 +63,11 @@
             programa?: { id: number; nombre: string } | null;
             ultimo_evento?: { tipo: string; nota: string | null; fecha: string | null } | null;
         }[]) ?? [],
+    );
+
+    // Vista rápida: los últimos informes ya enviados (los borradores no cuentan).
+    const ultimosEnviados = $derived(
+        misReportes.filter((reporte) => reporte.estado !== 'borrador').slice(0, 10),
     );
 
     // Los informes agrupados por programa, para seguir el avance de cada uno.
@@ -221,30 +226,39 @@
         </Card>
     {/if}
 
-    {#if !isAdmin && !isGestion}
-        <Card>
-            <CardHeader>
-                <CardTitle>Tu línea de tiempo de reportes</CardTitle>
-                <CardDescription>
-                    Cada punto es un reporte que enviaste; el color indica su
-                    estado actual. Pasa el cursor o haz clic para ver el
-                    detalle.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ReportesTimeline reportes={misReportes} />
-            </CardContent>
-        </Card>
-
-        {#if misReportes.length > 0}
+    {#if userRoles.includes('investigador')}
+        {#if ultimosEnviados.length > 0}
             <Card>
                 <CardHeader>
-                    <CardTitle>Mis informes por programa</CardTitle>
+                    <CardTitle>Últimos informes enviados</CardTitle>
                     <CardDescription>
-                        El avance de cada informe: enviado, revisión del moderador, validación y pago.
+                        Vista rápida: cada punto es uno de tus últimos informes y su color indica en qué
+                        estado se encuentra. Pasa el cursor o haz clic para ver el detalle.
                     </CardDescription>
                 </CardHeader>
-                <CardContent class="space-y-6">
+                <CardContent>
+                    <ReportesTimeline reportes={ultimosEnviados} />
+                </CardContent>
+            </Card>
+        {/if}
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Estado de mis informes por programa</CardTitle>
+                <CardDescription>
+                    El avance de cada informe: enviado, revisión del moderador, validación y pago.
+                    Cada decisión del moderador aparece aquí.
+                </CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-6">
+                {#if misReportes.length === 0}
+                    <div class="flex flex-col items-start gap-3">
+                        <p class="text-sm text-muted-foreground">
+                            Todavía no has enviado informes. Elige un programa y reporta tu primer hallazgo.
+                        </p>
+                        <Button href="/programas">Explorar programas</Button>
+                    </div>
+                {:else}
                     {#each informesPorPrograma as grupo (grupo.nombre)}
                         <div class="space-y-3">
                             <h3 class="text-sm font-semibold">{grupo.nombre}</h3>
@@ -270,9 +284,9 @@
                             {/each}
                         </div>
                     {/each}
-                </CardContent>
-            </Card>
-        {/if}
+                {/if}
+            </CardContent>
+        </Card>
     {/if}
 
     {#if userRoles.includes('moderador') || isAdmin}

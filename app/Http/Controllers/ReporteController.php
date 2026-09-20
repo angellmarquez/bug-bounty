@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -157,11 +158,12 @@ class ReporteController extends Controller
 
         // Permisos de triaje por ABAC
         $puedeAsignar = Gate::allows('abac', [AccionesAbac::ReporteAsignar, $reporte]);
-        $puedeValidar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]);
-        $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]);
-        $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]);
-        $puedePagar = Gate::allows('abac', [AccionesAbac::ReportePagar, $reporte]);
-        $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte]);
+        $puedeValidar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'validado');
+        $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
+        $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
+        $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
+        $puedePagar = Gate::allows('abac', [AccionesAbac::ReportePagar, $reporte]) && $this->transicionPosible($reporte, 'pagado');
+        $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte]) && $this->transicionPosible($reporte, 'cerrado');
 
         // Originales posibles para marcar un duplicado: otros informes del mismo programa.
         $candidatosDuplicado = $puedeMarcarDuplicado
@@ -204,9 +206,10 @@ class ReporteController extends Controller
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
             'puedeModerar' => Gate::allows('abac', [AccionesAbac::ModeracionVer]),
             'candidatosDuplicado' => $candidatosDuplicado,
-            'puedeTriar' => $puedeAsignar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedePagar || $puedeCerrar,
+            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedePagar || $puedeCerrar,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
+                'revisar' => $puedeRevisar,
                 'validar' => $puedeValidar,
                 'rechazar' => $puedeRechazar,
                 'marcar_duplicado' => $puedeMarcarDuplicado,
@@ -378,22 +381,31 @@ class ReporteController extends Controller
     private const TRANSICIONES_VALIDAS = [
         'enviado' => ['en_revision', 'validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
         'en_revision' => ['validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
-        'validado' => ['en_reparacion', 'rechazado', 'duplicado'],
-        'en_reparacion' => ['pago_pendiente', 'rechazado', 'cerrado'],
-        'pago_pendiente' => ['pagado', 'rechazado', 'cerrado'],
+        // Tras validar, el informe se puede pagar y cerrar sin pasar por los estados
+        // intermedios (en_reparacion / pago_pendiente), que no tienen una acción propia.
+        'validado' => ['en_reparacion', 'pago_pendiente', 'pagado', 'cerrado', 'rechazado', 'duplicado'],
+        'en_reparacion' => ['pago_pendiente', 'pagado', 'cerrado', 'rechazado'],
+        'pago_pendiente' => ['pagado', 'cerrado', 'rechazado'],
         'pagado' => ['cerrado'],
     ];
+
+    private function transicionPosible(Reporte $reporte, string $estadoDestino): bool
+    {
+        return in_array($estadoDestino, self::TRANSICIONES_VALIDAS[$reporte->estado->value] ?? [], true);
+    }
 
     private function validarTransicion(Reporte $reporte, string $estadoDestino): void
     {
         $estadoActual = $reporte->estado->value;
         $permitidos = self::TRANSICIONES_VALIDAS[$estadoActual] ?? [];
 
-        abort_if(
-            ! in_array($estadoDestino, $permitidos),
-            422,
-            "No se puede transitar de \"{$estadoActual}\" a \"{$estadoDestino}\"."
-        );
+        // Un error de validación (y no un abort) permite mostrar el mensaje en la
+        // misma página cuando otro revisor cambió el estado mientras se tenía abierta.
+        if (! in_array($estadoDestino, $permitidos, true)) {
+            throw ValidationException::withMessages([
+                'estado' => "El informe ya no puede pasar de \"{$estadoActual}\" a \"{$estadoDestino}\". Recarga la página para ver su estado actual.",
+            ]);
+        }
     }
 
     /**

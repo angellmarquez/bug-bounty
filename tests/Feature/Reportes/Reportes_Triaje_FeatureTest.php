@@ -234,9 +234,44 @@ test('moderador cannot validate reporte already validado', function () {
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
 
-    $response = $this->post(route('reportes.validar', $reporte));
-    $response->assertUnprocessable();
+    $this->post(route('reportes.validar', $reporte))->assertSessionHasErrors('estado');
+    expect($reporte->fresh()->estado->value)->toBe('validado');
 });
+
+test('un informe validado se puede pagar y cerrar sin errores', function () {
+    $this->actingAs(moderador());
+    $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
+
+    $this->post(route('reportes.pagar', $reporte), ['recompensa' => 500])->assertRedirect()->assertSessionHasNoErrors();
+    expect($reporte->fresh()->estado->value)->toBe('pagado');
+
+    $this->post(route('reportes.cerrar', $reporte))->assertRedirect()->assertSessionHasNoErrors();
+    expect($reporte->fresh()->estado->value)->toBe('cerrado');
+});
+
+test('un informe validado se puede cerrar directamente', function () {
+    $this->actingAs(moderador());
+    $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
+
+    $this->post(route('reportes.cerrar', $reporte))->assertRedirect()->assertSessionHasNoErrors();
+    expect($reporte->fresh()->estado->value)->toBe('cerrado');
+});
+
+test('la pagina solo ofrece las acciones validas para el estado actual', function (string $estado, array $esperadas) {
+    $this->actingAs(moderador());
+    $reporte = reporteDe(investigador(), null, ['estado' => $estado]);
+
+    $acciones = $this->get(route('reportes.show', $reporte))->inertiaProps()['accionesDisponibles'];
+
+    foreach ($esperadas as $accion => $disponible) {
+        expect($acciones[$accion])->toBe($disponible, "{$estado}: {$accion}");
+    }
+})->with([
+    'enviado' => ['enviado', ['revisar' => true, 'validar' => true, 'rechazar' => true, 'pagar' => false, 'cerrar' => false]],
+    'en_revision' => ['en_revision', ['revisar' => false, 'validar' => true, 'rechazar' => true, 'pagar' => false, 'cerrar' => false]],
+    'validado' => ['validado', ['revisar' => false, 'validar' => false, 'rechazar' => true, 'pagar' => true, 'cerrar' => true]],
+    'pagado' => ['pagado', ['validar' => false, 'rechazar' => false, 'pagar' => false, 'cerrar' => true]],
+]);
 
 test('gestion cannot triaje reportes it cannot access', function (User $usuario) {
     $this->actingAs($usuario);

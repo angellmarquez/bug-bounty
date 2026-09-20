@@ -139,6 +139,12 @@
         {/if}
     </div>
 
+    {#if page.props.errors?.estado}
+        <div role="alert" class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {page.props.errors.estado}
+        </div>
+    {/if}
+
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
             <Card>
@@ -179,7 +185,7 @@
                     </CardHeader>
                     <CardContent>
                         <div class="flex flex-wrap gap-2">
-                            {#if accionesDisponibles.validar && reporte.estado === 'enviado'}
+                            {#if accionesDisponibles.revisar}
                                 <Button size="sm" onclick={iniciarRevision}>
                                     <Eye class="mr-1 h-3 w-3" />
                                     Iniciar revisión

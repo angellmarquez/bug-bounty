@@ -108,7 +108,7 @@ test('iniciar la revision cambia el estado y queda en el timeline del investigad
 test('solo se puede iniciar la revision de un informe enviado', function () {
     $reporte = reporteDe(investigador(), programaConEmpresa(), ['estado' => 'validado']);
 
-    $this->actingAs(moderador())->post(route('reportes.revisar', $reporte))->assertUnprocessable();
+    $this->actingAs(moderador())->post(route('reportes.revisar', $reporte))->assertSessionHasErrors('estado');
     $this->actingAs(investigador())->post(route('reportes.revisar', $reporte))->assertForbidden();
 });
 
