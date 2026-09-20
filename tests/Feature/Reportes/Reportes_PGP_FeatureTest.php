@@ -1,86 +1,54 @@
 <?php
 
-use App\Models\ClavePgp;
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Services\Pgp\PgpService;
 
-test('without pgp key description is plain text', function () {
-    $user = investigador();
-    $this->actingAs($user);
-
-    $programa = Programa::factory()->create();
-
-    $this->post(route('reportes.store'), [
-        'programa_id' => $programa->id,
-        'titulo' => 'Test',
-        'descripcion' => 'Esta es una descripcion normal sin cifrar',
-    ]);
-
-    $this->assertDatabaseHas('reportes', [
-        'investigador_id' => $user->id,
-        'descripcion' => 'Esta es una descripcion normal sin cifrar',
-    ]);
+beforeEach(function () {
+    app(PgpService::class)->generatePlatformKeyPair();
 });
 
-test('with pgp key description is encrypted', function () {
+test('description is encrypted internally without a user supplied pgp key', function () {
     $user = investigador();
     $this->actingAs($user);
 
     $programa = Programa::factory()->create();
 
-    $clave = ClavePgp::factory()->create([
-        'usuario_id' => $user->id,
-        'estado' => 'activa',
-    ]);
-
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
-        'titulo' => 'Test PGP',
-        'descripcion' => 'Descripcion sensible que debe cifrarse',
-        'clave_pgp_id' => $clave->id,
+        'titulo' => 'Test PGP interno',
+        'descripcion' => 'Descripcion sensible cifrada internamente',
+        'poc' => ['paso' => 'ejecutar'],
     ]);
 
     $reporte = Reporte::where('investigador_id', $user->id)->first();
-    $this->assertNotEquals(
-        'Descripcion sensible que debe cifrarse',
-        $reporte->descripcion
-    );
+    expect($reporte->getRawOriginal('descripcion_cifrada'))
+        ->not->toBe('Descripcion sensible cifrada internamente');
+    expect($reporte->getRawOriginal('poc'))->toBeNull();
+    expect($reporte->getRawOriginal('poc_cifrado'))->not->toBeNull();
 });
 
-test('nonexistent pgp key returns 422', function () {
-    $user = investigador();
-    $this->actingAs($user);
-
+test('only the report author can decrypt its private content', function () {
+    $author = investigador();
+    $this->actingAs($author);
     $programa = Programa::factory()->create();
 
-    $response = $this->post(route('reportes.store'), [
+    $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
-        'titulo' => 'Test',
-        'descripcion' => 'Test',
-        'clave_pgp_id' => 99999,
+        'titulo' => 'Contenido privado',
+        'descripcion' => 'Solo debe verlo el autor',
+        'poc' => ['evidencia' => 'privada'],
     ]);
 
-    $response->assertSessionHasErrors('clave_pgp_id');
-});
+    $reporte = Reporte::where('investigador_id', $author->id)->firstOrFail();
 
-test('another user pgp key is rejected', function () {
-    $user = investigador();
-    $this->actingAs($user);
+    $this->withHeaders(['X-Inertia' => 'true'])
+        ->get(route('reportes.show', $reporte))
+        ->assertOk();
+    expect(app(PgpService::class)->decrypt($reporte->getRawOriginal('descripcion_cifrada')))
+        ->toBe('Solo debe verlo el autor');
 
-    $programa = Programa::factory()->create();
-
-    $otroUsuario = investigador();
-    $claveAjena = ClavePgp::factory()->create([
-        'usuario_id' => $otroUsuario->id,
-        'estado' => 'activa',
-    ]);
-
-    $response = $this->post(route('reportes.store'), [
-        'programa_id' => $programa->id,
-        'titulo' => 'Test',
-        'descripcion' => 'Test',
-        'clave_pgp_id' => $claveAjena->id,
-    ]);
-
-    $response->assertStatus(403);
+    $this->actingAs(investigador())
+        ->get(route('reportes.show', $reporte))
+        ->assertForbidden();
 });

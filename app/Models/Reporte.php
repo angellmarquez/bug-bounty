@@ -23,12 +23,14 @@ use Illuminate\Support\Carbon;
  * @property int $investigador_id
  * @property int|null $asignado_a
  * @property string $titulo
- * @property string $descripcion
+ * @property string $descripcion Marcador heredado; el contenido nuevo está en descripcion_cifrada.
+ * @property string|null $descripcion_cifrada
  * @property string|null $categoria
  * @property string|null $vector_cvss
  * @property int|float|null $puntuacion_cvss
  * @property Severidad|null $severidad
- * @property array<int|string, mixed>|null $poc
+ * @property array<int|string, mixed>|null $poc No se persiste en claro.
+ * @property string|null $poc_cifrado
  * @property EstadoReporte $estado
  * @property int|float|null $recompensa
  * @property string $moneda
@@ -47,8 +49,8 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Reporte> $duplicados
  * @property-read Collection<int, EntradaReputacion> $entradasReputacion
  */
-#[Fillable(['numero_reporte', 'programa_id', 'investigador_id', 'asignado_a', 'titulo', 'descripcion', 'categoria', 'vector_cvss', 'puntuacion_cvss', 'severidad', 'poc', 'estado', 'recompensa', 'moneda', 'es_duplicado_de', 'notas_internas', 'enviado_en', 'cerrado_en'])]
-#[Hidden(['notas_internas'])]
+#[Fillable(['numero_reporte', 'programa_id', 'investigador_id', 'asignado_a', 'titulo', 'descripcion', 'descripcion_cifrada', 'categoria', 'vector_cvss', 'puntuacion_cvss', 'severidad', 'poc', 'poc_cifrado', 'estado', 'recompensa', 'moneda', 'es_duplicado_de', 'notas_internas', 'enviado_en', 'cerrado_en'])]
+#[Hidden(['descripcion', 'descripcion_cifrada', 'poc', 'poc_cifrado', 'notas_internas'])]
 class Reporte extends Model
 {
     /** @use HasFactory<ReporteFactory> */

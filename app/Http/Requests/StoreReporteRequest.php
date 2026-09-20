@@ -45,7 +45,6 @@ class StoreReporteRequest extends FormRequest
             'puntuacion_cvss' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'severidad' => ['nullable', Rule::enum(Severidad::class)],
             'poc' => ['nullable', 'array'],
-            'clave_pgp_id' => ['nullable', 'exists:claves_pgp,id'],
         ];
     }
 
@@ -60,7 +59,6 @@ class StoreReporteRequest extends FormRequest
             'descripcion.max' => 'La descripcion no puede exceder 50000 caracteres.',
             'puntuacion_cvss.min' => 'La puntuacion CVSS debe ser entre 0 y 10.',
             'puntuacion_cvss.max' => 'La puntuacion CVSS debe ser entre 0 y 10.',
-            'clave_pgp_id.exists' => 'La clave PGP seleccionada no existe.',
         ];
     }
 }
