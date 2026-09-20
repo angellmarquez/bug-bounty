@@ -20,6 +20,7 @@ Route::middleware('auth')->post('empresa/invitacion/{token}/aceptar', [EmpresaCo
 
 Route::middleware('auth')->group(function () {
     Route::get('empresa', [EmpresaController::class, 'dashboard'])->name('empresa.dashboard');
+    Route::get('empresa/reportes', [EmpresaController::class, 'reportes'])->name('empresa.reportes');
     Route::post('empresa/miembros', [EmpresaController::class, 'agregarMiembro'])->name('empresa.miembros.agregar');
     Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarMiembro'])->name('empresa.invitaciones.crear');
     Route::delete('empresa/miembros/{user}', [EmpresaController::class, 'eliminarMiembro'])->name('empresa.miembros.eliminar');

@@ -274,6 +274,18 @@ return [
             'decision' => 'permitir',
         ],
         [
+            'id' => 'empresa-pagar-y-cerrar-reportes-de-sus-programas',
+            'prioridad' => 35,
+            'acciones' => ['reportes.pagar', 'reportes.cerrar'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => [
+                'estado' => ['in' => ['validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'programa.empresa_id' => ['=' => '@entorno.empresa_id'],
+            ],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
             'id' => 'moderador-ver-cola-de-moderacion',
             'prioridad' => 35,
             'acciones' => ['moderacion.ver'],
@@ -302,8 +314,6 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
-                'reportes.pagar',
-                'reportes.cerrar',
             ],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
@@ -316,7 +326,7 @@ return [
         [
             'id' => 'moderador-triaje-asignado',
             'prioridad' => 35,
-            'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado', 'reportes.pagar', 'reportes.cerrar'],
+            'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
                 'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],

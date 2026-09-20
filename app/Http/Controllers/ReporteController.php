@@ -162,8 +162,10 @@ class ReporteController extends Controller
         $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
         $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
         $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
-        $puedePagar = Gate::allows('abac', [AccionesAbac::ReportePagar, $reporte]) && $this->transicionPosible($reporte, 'pagado');
-        $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte]) && $this->transicionPosible($reporte, 'cerrado');
+        // Pagar y cerrar corresponden a la empresa dueña del programa (y al admin), por eso
+        // se evalúan con el contexto de la empresa.
+        $puedePagar = Gate::allows('abac', [AccionesAbac::ReportePagar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'pagado');
+        $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'cerrado');
 
         // Originales posibles para marcar un duplicado: otros informes del mismo programa.
         $candidatosDuplicado = $puedeMarcarDuplicado
@@ -557,7 +559,7 @@ class ReporteController extends Controller
     public function pagar(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReportePagar, $reporte]);
+        Gate::authorize('abac', [AccionesAbac::ReportePagar, $reporte, $this->empresaContexto()]);
 
         $validated = $request->validated();
 
@@ -583,7 +585,7 @@ class ReporteController extends Controller
     public function cerrar(Reporte $reporte): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte]);
+        Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]);
 
         $this->validarTransicion($reporte, 'cerrado');
         $estadoAnterior = $reporte->estado->value;

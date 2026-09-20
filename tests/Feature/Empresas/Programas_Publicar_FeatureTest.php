@@ -1,8 +1,8 @@
 <?php
 
+use App\Enums\EstadoEmpresa;
 use App\Enums\EstadoPrograma;
 use App\Models\Empresa;
-use App\Models\EventoReporte;
 use App\Models\Programa;
 
 function programaBorradorDe(Empresa $empresa): Programa
@@ -73,21 +73,15 @@ test('investigadores only see the programa once it is published', function () {
         ->assertInertia(fn ($page) => $page->where('programas.data.0.id', $programa->id));
 });
 
-test('empresa dashboard summarizes reportes per programa and who approved them', function () {
+test('empresa dashboard summarizes reportes per programa with a compact list', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = programaBorradorDe($empresa);
     $programa->update(['estado' => EstadoPrograma::Activo]);
     $ajeno = programaBorradorDe(Empresa::factory()->aprobada()->create());
-    $moderador = moderador(['name' => 'Moderadora Ana']);
+    $autor = investigador(['name' => 'Ana Hacker', 'reputation_score' => 42]);
     $this->actingAs(miembroDeEmpresa($empresa));
 
-    $aprobado = reporteDe(investigador(), $programa, ['estado' => 'validado', 'descripcion' => 'XSS reflejado en /buscar']);
-    EventoReporte::factory()->create([
-        'reporte_id' => $aprobado->id,
-        'actor_id' => $moderador->id,
-        'tipo' => 'cambio_estado',
-        'datos' => ['estado_anterior' => 'enviado', 'estado_nuevo' => 'validado'],
-    ]);
+    reporteDe($autor, $programa, ['estado' => 'validado']);
     reporteDe(investigador(), $programa, ['estado' => 'enviado']);
     reporteDe(investigador(), $programa, ['estado' => 'rechazado']);
     reporteDe(investigador(), $programa, ['estado' => 'borrador']);
@@ -105,10 +99,48 @@ test('empresa dashboard summarizes reportes per programa and who approved them',
             ])
             ->where('empresa.programas.0.reportes_aprobados', 1)
             ->has('empresa.reportes', 3)
+            // La lista es compacta: sin descripción ni PoC.
+            ->missing('empresa.reportes.0.descripcion')
+            ->missing('empresa.reportes.0.poc')
             ->where('empresa.reportes', fn ($reportes) => collect($reportes)->contains(
-                fn ($r) => $r['id'] === $aprobado->id
-                    && $r['aprobado'] === true
-                    && $r['aprobado_por'] === 'Moderadora Ana'
-                    && $r['descripcion'] === 'XSS reflejado en /buscar'
+                fn ($r) => $r['investigador']['name'] === 'Ana Hacker' && $r['investigador']['reputation_score'] === 42
             )));
+});
+
+test('empresa reportes page is paginated and filterable', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = programaBorradorDe($empresa);
+    $otro = programaBorradorDe($empresa);
+    $this->actingAs(miembroDeEmpresa($empresa));
+
+    foreach (range(1, 25) as $i) {
+        reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+    }
+    $validado = reporteDe(investigador(), $otro, ['estado' => 'validado', 'titulo' => 'Bug validado unico']);
+    reporteDe(investigador(), $programa, ['estado' => 'borrador']);
+    reporteDe(investigador(), programaBorradorDe(Empresa::factory()->aprobada()->create()), ['estado' => 'enviado']);
+
+    $this->get(route('empresa.reportes'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('empresa/Reportes')
+            ->has('reportes.data', 20)
+            ->where('reportes.total', 26)
+            ->where('conteos.aprobados', 1));
+
+    $this->get(route('empresa.reportes', ['filtro' => 'aprobados']))
+        ->assertInertia(fn ($page) => $page->has('reportes.data', 1)->where('reportes.data.0.id', $validado->id));
+
+    $this->get(route('empresa.reportes', ['programa_id' => $otro->id]))
+        ->assertInertia(fn ($page) => $page->has('reportes.data', 1));
+
+    $this->get(route('empresa.reportes', ['busqueda' => 'unico']))
+        ->assertInertia(fn ($page) => $page->has('reportes.data', 1));
+});
+
+test('only members of an approved empresa can open the empresa reportes page', function () {
+    $this->actingAs(investigador())->get(route('empresa.reportes'))->assertForbidden();
+    $this->actingAs(miembroDeEmpresa(Empresa::factory()->create(['estado' => EstadoEmpresa::Pendiente])))
+        ->get(route('empresa.reportes'))
+        ->assertForbidden();
 });

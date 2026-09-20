@@ -11,8 +11,6 @@ use App\Models\EmpresaInvitacion;
 use App\Models\Reporte;
 use App\Models\Rol;
 use App\Models\User;
-use App\Services\Pgp\Exceptions\PgpException;
-use App\Services\Pgp\PgpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -61,7 +59,7 @@ class EmpresaController extends Controller
                     'aprobados' => $programas->sum('reportes_aprobados'),
                     'rechazados' => $programas->sum('reportes_rechazados'),
                 ],
-                'reportes' => $this->reportesRecibidos($empresa),
+                'reportes' => $this->reportesRecientes($empresa),
                 'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email']),
                 'invitaciones' => $empresa->invitaciones()->where('estado', 'pendiente')->latest()->get(['id', 'email', 'expira_en']),
             ],
@@ -69,60 +67,104 @@ class EmpresaController extends Controller
     }
 
     /**
-     * Informes enviados a los programas de la empresa, con su contenido
-     * descifrado: solo los miembros de la empresa llegan a este punto.
+     * Listado completo y paginado de informes recibidos, en formato compacto.
+     * El contenido (descripción y PoC) se lee en la página de cada informe.
+     */
+    public function reportes(Request $request): InertiaResponse
+    {
+        $empresa = $request->user()
+            ->empresas()
+            ->where('empresa_usuario.estado', 'activo')
+            ->latest('empresas.created_at')
+            ->first();
+
+        abort_if($empresa === null, 403, 'Tu usuario no pertenece a una empresa.');
+        abort_unless($empresa->estado === EstadoEmpresa::Aprobada, 403, 'Tu empresa todavía no tiene acceso operativo.');
+
+        $filtro = in_array($request->input('filtro'), ['todos', 'pendientes', 'aprobados', 'rechazados', 'cerrados'], true)
+            ? (string) $request->input('filtro')
+            : 'todos';
+        $programaId = $request->filled('programa_id') ? (int) $request->input('programa_id') : null;
+
+        $recibidos = fn () => Reporte::query()
+            ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
+            ->where('estado', '!=', 'borrador');
+
+        $reportes = $recibidos()
+            ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
+            ->when($programaId !== null, fn ($query) => $query->where('programa_id', $programaId))
+            ->when($request->filled('busqueda'), function ($query) use ($request) {
+                $busqueda = (string) $request->input('busqueda');
+                $query->where(fn ($q) => $q->where('titulo', 'like', "%{$busqueda}%")->orWhere('numero_reporte', 'like', "%{$busqueda}%"));
+            })
+            ->when($filtro === 'pendientes', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_PENDIENTES))
+            ->when($filtro === 'aprobados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_APROBADOS))
+            ->when($filtro === 'rechazados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_RECHAZADOS))
+            ->when($filtro === 'cerrados', fn ($query) => $query->where('estado', 'cerrado'))
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (Reporte $reporte): array => $this->reporteCompacto($reporte));
+
+        return Inertia::render('empresa/Reportes', [
+            'empresa' => ['id' => $empresa->id, 'nombre' => $empresa->nombre_comercial ?? $empresa->razon_social],
+            'programas' => $empresa->programas()->orderBy('nombre')->get(['id', 'nombre']),
+            'filtros' => [
+                'filtro' => $filtro,
+                'programa_id' => $programaId,
+                'busqueda' => (string) $request->input('busqueda', ''),
+            ],
+            'conteos' => [
+                'todos' => $recibidos()->count(),
+                'pendientes' => $recibidos()->whereIn('estado', Reporte::ESTADOS_PENDIENTES)->count(),
+                'aprobados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_APROBADOS)->count(),
+                'rechazados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_RECHAZADOS)->count(),
+                'cerrados' => $recibidos()->where('estado', 'cerrado')->count(),
+            ],
+            'reportes' => $reportes,
+        ]);
+    }
+
+    /**
+     * Los últimos informes recibidos, para la vista rápida del panel.
      *
      * @return array<int, array<string, mixed>>
      */
-    private function reportesRecibidos(Empresa $empresa): array
+    private function reportesRecientes(Empresa $empresa): array
     {
-        $pgp = app(PgpService::class);
-
         return Reporte::query()
             ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
             ->where('estado', '!=', 'borrador')
-            ->with([
-                'programa:id,nombre',
-                'investigador:id,name',
-                'eventos' => fn ($query) => $query->where('tipo', 'cambio_estado')->with('actor:id,name'),
-            ])
-            ->latest()
-            ->limit(100)
+            ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
+            ->latest('id')
+            ->limit(8)
             ->get()
-            ->map(function (Reporte $reporte) use ($pgp): array {
-                try {
-                    $contenido = $pgp->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
-                } catch (PgpException) {
-                    $contenido = null;
-                }
-
-                $aprobacion = $reporte->eventos->first(
-                    fn ($evento) => ($evento->datos['estado_nuevo'] ?? null) === 'validado',
-                );
-
-                return [
-                    'id' => $reporte->id,
-                    'numero_reporte' => $reporte->numero_reporte,
-                    'titulo' => $reporte->titulo,
-                    'estado' => $reporte->estado->value,
-                    'severidad' => $reporte->severidad?->value,
-                    'categoria' => $reporte->categoria,
-                    'vector_cvss' => $reporte->vector_cvss,
-                    'puntuacion_cvss' => $reporte->puntuacion_cvss,
-                    'programa_id' => $reporte->programa_id,
-                    'programa_nombre' => $reporte->programa->nombre,
-                    'investigador' => $reporte->investigador->only(['id', 'name']),
-                    'aprobado' => in_array($reporte->estado->value, Reporte::ESTADOS_APROBADOS, true),
-                    'aprobado_por' => $aprobacion?->actor?->name,
-                    'aprobado_en' => $aprobacion?->created_at?->toISOString(),
-                    'descripcion' => $contenido['descripcion'] ?? null,
-                    'poc' => $contenido['poc'] ?? null,
-                    'cifrado_indisponible' => $contenido === null,
-                    'created_at' => $reporte->created_at?->toISOString(),
-                ];
-            })
+            ->map(fn (Reporte $reporte): array => $this->reporteCompacto($reporte))
             ->values()
             ->all();
+    }
+
+    /**
+     * Datos mínimos para las listas: sin descripción ni PoC.
+     *
+     * @return array<string, mixed>
+     */
+    private function reporteCompacto(Reporte $reporte): array
+    {
+        return [
+            'id' => $reporte->id,
+            'numero_reporte' => $reporte->numero_reporte,
+            'titulo' => $reporte->titulo,
+            'estado' => $reporte->estado->value,
+            'severidad' => $reporte->severidad?->value,
+            'programa_nombre' => $reporte->programa->nombre,
+            'enviado_en' => ($reporte->enviado_en ?? $reporte->created_at)?->toISOString(),
+            'investigador' => [
+                'id' => $reporte->investigador->id,
+                'name' => $reporte->investigador->name,
+                'reputation_score' => $reporte->investigador->reputation_score,
+            ],
+        ];
     }
 
     public function invitarMiembro(Request $request): RedirectResponse

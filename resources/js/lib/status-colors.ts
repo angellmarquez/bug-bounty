@@ -26,6 +26,7 @@ type TonoColor =
     | 'emerald'
     | 'red'
     | 'purple'
+    | 'pink'
     | 'neutral'
     | 'zinc';
 
@@ -41,6 +42,7 @@ function pill(tono: TonoColor): string {
             'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
         red: 'border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400',
         purple: 'border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400',
+        pink: 'border-pink-500/20 bg-pink-500/10 text-pink-600 dark:text-pink-400',
         neutral:
             'border-neutral-500/20 bg-neutral-500/10 text-neutral-600 dark:text-neutral-400',
         zinc: 'border-zinc-500/20 bg-zinc-500/10 text-zinc-600 dark:text-zinc-400',
@@ -62,10 +64,10 @@ export function estadoReporteColor(estado: EstadoReporte): string {
         en_reparacion: pill('indigo'),
         pago_pendiente: pill('orange'),
         pagado: pill('emerald'),
-        rechazado: pill('red'),
+        rechazado: pill('pink'),
         duplicado: pill('purple'),
         fuera_de_alcance: pill('neutral'),
-        cerrado: pill('zinc'),
+        cerrado: pill('red'),
     };
     return map[estado] ?? pill('slate');
 }
@@ -141,10 +143,10 @@ export function estadoReporteDotColor(estado: EstadoReporte): string {
         en_reparacion: 'bg-indigo-500',
         pago_pendiente: 'bg-orange-500',
         pagado: 'bg-emerald-500',
-        rechazado: 'bg-red-500',
+        rechazado: 'bg-pink-500',
         duplicado: 'bg-purple-500',
         fuera_de_alcance: 'bg-neutral-500',
-        cerrado: 'bg-zinc-600',
+        cerrado: 'bg-red-600',
     };
     return map[estado] ?? 'bg-muted-foreground';
 }

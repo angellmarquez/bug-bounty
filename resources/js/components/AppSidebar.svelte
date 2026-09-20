@@ -69,7 +69,7 @@
                     : isModerador || isAdmin
                       ? 'Todos los reportes'
                       : 'Mis Reportes',
-                href: reportesIndex(),
+                href: isEmpresa ? '/empresa/reportes' : reportesIndex(),
                 icon: Bug,
             });
         }

@@ -134,6 +134,28 @@ export type EventoReporte = {
     actor?: User | null;
 };
 
+/**
+ * Informe en formato de lista: sin descripción ni PoC, con el investigador y su
+ * reputación. El contenido completo se lee en la página del informe.
+ */
+export type ReporteCompacto = {
+    id: number;
+    numero_reporte: string;
+    titulo: string;
+    estado: EstadoReporte;
+    severidad: Severidad | null;
+    programa_nombre?: string;
+    enviado_en: string | null;
+    es_duplicado_de?: number | null;
+    asignado_a?: { id: number; name: string } | null;
+    investigador: {
+        id: number;
+        name: string;
+        reputation_score: number;
+        reportes_descartados?: number;
+    };
+};
+
 export type ClavePgpResumen = {
     id: number;
     huella: string;
