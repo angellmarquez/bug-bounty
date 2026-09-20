@@ -8,7 +8,6 @@ use App\Mail\EmpresaInvitacionMail;
 use App\Models\Auditoria;
 use App\Models\Empresa;
 use App\Models\EmpresaInvitacion;
-use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\Rol;
 use App\Models\User;
@@ -35,6 +34,17 @@ class EmpresaController extends Controller
 
         abort_if($empresa === null, 403, 'Tu usuario no pertenece a una empresa.');
 
+        // Los borradores del investigador no cuentan: la empresa solo ve informes enviados.
+        $programas = $empresa->programas()
+            ->withCount([
+                'reportes as reportes_total' => fn ($query) => $query->where('estado', '!=', 'borrador'),
+                'reportes as reportes_pendientes' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_PENDIENTES),
+                'reportes as reportes_aprobados' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_APROBADOS),
+                'reportes as reportes_rechazados' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_RECHAZADOS),
+            ])
+            ->latest()
+            ->get(['id', 'nombre', 'estado', 'es_publico']);
+
         return Inertia::render('empresa/Dashboard', [
             'empresa' => [
                 ...$empresa->only([
@@ -43,45 +53,76 @@ class EmpresaController extends Controller
                 'estado' => $empresa->estado->value,
                 'rol_interno' => data_get($empresa->pivot, 'rol_interno'),
                 'puedeOperar' => $empresa->estado === EstadoEmpresa::Aprobada,
-                'programas' => $empresa->programas()->latest()->get(['id', 'nombre', 'estado']),
-                'reportes' => $empresa->programas()
-                    ->with(['reportes' => function ($query) {
-                        $query->where('estado', '!=', 'borrador')
-                            ->with('investigador:id,name')
-                            ->latest();
-                    }])
-                    ->get(['id', 'nombre'])
-                    ->flatMap(function (Programa $programa) {
-                        $pgpService = app(PgpService::class);
-
-                        return $programa->reportes->map(function (Reporte $reporte) use ($programa, $pgpService) {
-                            try {
-                                $poc = $reporte->poc !== null
-                                    ? $pgpService->descifrarReporte('', $reporte->poc)['poc']
-                                    : null;
-                            } catch (PgpException) {
-                                $poc = null;
-                            }
-
-                            return [
-                                'id' => $reporte->id,
-                                'numero_reporte' => $reporte->numero_reporte,
-                                'titulo' => $reporte->titulo,
-                                'estado' => $reporte->estado->value,
-                                'severidad' => $reporte->severidad?->value,
-                                'programa_id' => $programa->id,
-                                'programa_nombre' => $programa->nombre,
-                                'investigador' => $reporte->investigador->only(['id', 'name']),
-                                'poc' => $poc,
-                                'created_at' => $reporte->created_at?->toISOString(),
-                            ];
-                        });
-                    })
-                    ->values(),
+                'programas' => $programas,
+                'resumen' => [
+                    'programas' => $programas->count(),
+                    'reportes' => $programas->sum('reportes_total'),
+                    'pendientes' => $programas->sum('reportes_pendientes'),
+                    'aprobados' => $programas->sum('reportes_aprobados'),
+                    'rechazados' => $programas->sum('reportes_rechazados'),
+                ],
+                'reportes' => $this->reportesRecibidos($empresa),
                 'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email']),
                 'invitaciones' => $empresa->invitaciones()->where('estado', 'pendiente')->latest()->get(['id', 'email', 'expira_en']),
             ],
         ]);
+    }
+
+    /**
+     * Informes enviados a los programas de la empresa, con su contenido
+     * descifrado: solo los miembros de la empresa llegan a este punto.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function reportesRecibidos(Empresa $empresa): array
+    {
+        $pgp = app(PgpService::class);
+
+        return Reporte::query()
+            ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
+            ->where('estado', '!=', 'borrador')
+            ->with([
+                'programa:id,nombre',
+                'investigador:id,name',
+                'eventos' => fn ($query) => $query->where('tipo', 'cambio_estado')->with('actor:id,name'),
+            ])
+            ->latest()
+            ->limit(100)
+            ->get()
+            ->map(function (Reporte $reporte) use ($pgp): array {
+                try {
+                    $contenido = $pgp->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
+                } catch (PgpException) {
+                    $contenido = null;
+                }
+
+                $aprobacion = $reporte->eventos->first(
+                    fn ($evento) => ($evento->datos['estado_nuevo'] ?? null) === 'validado',
+                );
+
+                return [
+                    'id' => $reporte->id,
+                    'numero_reporte' => $reporte->numero_reporte,
+                    'titulo' => $reporte->titulo,
+                    'estado' => $reporte->estado->value,
+                    'severidad' => $reporte->severidad?->value,
+                    'categoria' => $reporte->categoria,
+                    'vector_cvss' => $reporte->vector_cvss,
+                    'puntuacion_cvss' => $reporte->puntuacion_cvss,
+                    'programa_id' => $reporte->programa_id,
+                    'programa_nombre' => $reporte->programa->nombre,
+                    'investigador' => $reporte->investigador->only(['id', 'name']),
+                    'aprobado' => in_array($reporte->estado->value, Reporte::ESTADOS_APROBADOS, true),
+                    'aprobado_por' => $aprobacion?->actor?->name,
+                    'aprobado_en' => $aprobacion?->created_at?->toISOString(),
+                    'descripcion' => $contenido['descripcion'] ?? null,
+                    'poc' => $contenido['poc'] ?? null,
+                    'cifrado_indisponible' => $contenido === null,
+                    'created_at' => $reporte->created_at?->toISOString(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function invitarMiembro(Request $request): RedirectResponse

@@ -66,14 +66,14 @@ class ProgramaController extends Controller
 
     public function show(Programa $programa): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ProgramaVer, $programa]);
+        $this->authorizeProgramAction(AccionesAbac::ProgramaVer, $programa);
 
         $programa->load(['creador', 'objetivos', 'reportes']);
 
         $puedeReportar = Gate::allows('abac', [AccionesAbac::ReporteCrear, $programa]);
-        $puedeGestionar = Gate::allows('abac', [AccionesAbac::ProgramaGestionar, $programa]);
-        $puedeCambiarEstado = Gate::allows('abac', [AccionesAbac::ProgramaCambiarEstado, $programa]);
-        $puedeEliminar = Gate::allows('abac', [AccionesAbac::ProgramaEliminar, $programa]);
+        $puedeGestionar = $this->puedeProgramAction(AccionesAbac::ProgramaGestionar, $programa);
+        $puedeCambiarEstado = $this->puedeProgramAction(AccionesAbac::ProgramaCambiarEstado, $programa);
+        $puedeEliminar = $this->puedeProgramAction(AccionesAbac::ProgramaEliminar, $programa);
 
         $transicionesPermitidas = $puedeCambiarEstado
             ? self::TRANSICIONES_VALIDAS[$programa->estado->value]
@@ -198,23 +198,31 @@ class ProgramaController extends Controller
 
         $programa->update(['estado' => $estadoDestino]);
 
-        return redirect()->route('programas.show', $programa)
+        return redirect()->back(fallback: route('programas.show', $programa))
             ->with('success', "Programa cambiado a \"{$estadoDestino}\" exitosamente.");
     }
 
     private function authorizeProgramAction(string $accion, Programa $programa): void
     {
-        $user = request()->user();
-        $empresa = $user?->empresas()
+        Gate::authorize('abac', $this->argumentosAbac($accion, $programa));
+    }
+
+    private function puedeProgramAction(string $accion, Programa $programa): bool
+    {
+        return Gate::allows('abac', $this->argumentosAbac($accion, $programa));
+    }
+
+    /**
+     * @return array{0: string, 1: Programa, 2: array{empresa_id?: int}}
+     */
+    private function argumentosAbac(string $accion, Programa $programa): array
+    {
+        $empresa = request()->user()?->empresas()
             ->where('empresas.estado', 'aprobada')
             ->where('empresa_usuario.estado', 'activo')
             ->first();
 
-        Gate::authorize('abac', [
-            $accion,
-            $programa,
-            $empresa === null ? [] : ['empresa_id' => $empresa->id],
-        ]);
+        return [$accion, $programa, $empresa === null ? [] : ['empresa_id' => $empresa->id]];
     }
 
     public function gestion(Request $request): InertiaResponse

@@ -237,6 +237,15 @@ return [
             'decision' => 'permitir',
         ],
         [
+            'id' => 'empresa-ver-programa-propio',
+            'prioridad' => 35,
+            'acciones' => ['programas.ver'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
             'id' => 'empresa-gestionar-programa-propio',
             'prioridad' => 35,
             'acciones' => ['programas.gestionar', 'programas.cambiar_estado', 'programas.eliminar'],
