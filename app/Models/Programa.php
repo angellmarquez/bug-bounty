@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
  * @property string $nombre
  * @property string $slug
  * @property string $descripcion
+ * @property string|null $bugs_buscados
  * @property EstadoPrograma $estado
  * @property string $moneda
  * @property int|float $recompensa_min
@@ -42,7 +43,7 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, User> $moderadores
  */
-#[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'reputacion_minima', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
+#[Fillable(['nombre', 'slug', 'descripcion', 'bugs_buscados', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'reputacion_minima', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
 class Programa extends Model
 {
     /** @use HasFactory<ProgramaFactory> */

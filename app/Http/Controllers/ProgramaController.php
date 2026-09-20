@@ -68,7 +68,9 @@ class ProgramaController extends Controller
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaVer, $programa);
 
-        $programa->load(['creador', 'objetivos', 'reportes']);
+        // Nunca se envía la relación `reportes`: contendría informes de otros investigadores.
+        $programa->load(['creador', 'objetivos', 'empresa:id,razon_social,nombre_comercial,sitio_web']);
+        $programa->loadCount(['reportes' => fn ($query) => $query->where('estado', '!=', 'borrador')]);
 
         $puedeReportar = Gate::allows('abac', [AccionesAbac::ReporteCrear, $programa]);
         $puedeGestionar = $this->puedeProgramAction(AccionesAbac::ProgramaGestionar, $programa);
@@ -82,9 +84,13 @@ class ProgramaController extends Controller
         return Inertia::render('programas/Show', [
             'programa' => [
                 ...$programa->toArray(),
-                'creador' => $programa->creador?->only(['id', 'name']),
+                'empresa' => $programa->empresa === null ? null : [
+                    'nombre' => $programa->empresa->nombre_comercial ?? $programa->empresa->razon_social,
+                    'sitio_web' => $programa->empresa->sitio_web,
+                ],
+                // El autor solo es relevante para quien gestiona el programa.
+                'creador' => $puedeGestionar ? $programa->creador?->only(['id', 'name']) : null,
                 'objetivos' => $programa->objetivos->map(fn (ObjetivoPrograma $o) => $o->toArray()),
-                'reportes_count' => $programa->reportes->count(),
             ],
             'puedeReportar' => $puedeReportar,
             'puedeGestionar' => $puedeGestionar,

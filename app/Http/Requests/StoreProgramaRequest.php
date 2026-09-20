@@ -23,6 +23,7 @@ class StoreProgramaRequest extends FormRequest
         return [
             'nombre' => ['required', 'string', 'max:255'],
             'descripcion' => ['required', 'string', 'max:5000'],
+            'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'recompensa_min' => ['required', 'numeric', 'min:0'],
             'recompensa_max' => ['required', 'numeric', 'gte:recompensa_min'],
             'moneda' => ['required', 'string', 'size:3'],

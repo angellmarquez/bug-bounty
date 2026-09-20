@@ -32,6 +32,8 @@
         CardTitle,
     } from '@/components/ui/card';
     import ReportesTimeline from '@/components/ReportesTimeline.svelte';
+    import EstadoProgreso from '@/components/EstadoProgreso.svelte';
+    import StateBadge from '@/components/StateBadge.svelte';
     import type { DashboardRoleStats, DashboardStats } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
 
@@ -58,9 +60,32 @@
             titulo: string;
             estado: EstadoReporte;
             fecha: string;
-            programa?: { nombre: string } | null;
+            programa?: { id: number; nombre: string } | null;
+            ultimo_evento?: { tipo: string; nota: string | null; fecha: string | null } | null;
         }[]) ?? [],
     );
+
+    // Los informes agrupados por programa, para seguir el avance de cada uno.
+    const informesPorPrograma = $derived.by(() => {
+        const grupos = new Map<string, { nombre: string; informes: typeof misReportes }>();
+        for (const reporte of misReportes) {
+            const nombre = reporte.programa?.nombre ?? 'Sin programa';
+            const grupo = grupos.get(nombre) ?? { nombre, informes: [] };
+            grupo.informes.push(reporte);
+            grupos.set(nombre, grupo);
+        }
+        return [...grupos.values()];
+    });
+
+    function formatearMovimiento(fecha: string | null | undefined): string {
+        if (!fecha) return '';
+        return new Intl.DateTimeFormat('es-ES', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(new Date(fecha));
+    }
 
     const isAdmin = $derived(userRoles.includes('administrador'));
     const isGestion = $derived(userRoles.includes('gestion'));
@@ -189,8 +214,8 @@
             <CardHeader>
                 <CardTitle>Vista de Investigador</CardTitle>
                 <CardDescription>
-                    Presenta reportes de vulnerabilidades, gestiona tus claves
-                    PGP y revisa el estado de tus hallazgos.
+                    Elige un programa, presenta tus hallazgos con su formulario
+                    y sigue el estado de cada informe desde aquí.
                 </CardDescription>
             </CardHeader>
         </Card>
@@ -210,6 +235,44 @@
                 <ReportesTimeline reportes={misReportes} />
             </CardContent>
         </Card>
+
+        {#if misReportes.length > 0}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Mis informes por programa</CardTitle>
+                    <CardDescription>
+                        El avance de cada informe: enviado, revisión del moderador, validación y pago.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-6">
+                    {#each informesPorPrograma as grupo (grupo.nombre)}
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold">{grupo.nombre}</h3>
+                            {#each grupo.informes as informe (informe.id)}
+                                <div class="space-y-3 rounded-md border p-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <Link href={`/reportes/${informe.id}`} class="text-sm font-medium hover:underline">
+                                            {informe.numero_reporte} · {informe.titulo}
+                                        </Link>
+                                        <StateBadge estado={informe.estado} />
+                                    </div>
+                                    <EstadoProgreso estado={informe.estado} />
+                                    {#if informe.ultimo_evento}
+                                        <p class="text-xs text-muted-foreground">
+                                            Último movimiento ({formatearMovimiento(informe.ultimo_evento.fecha)}):
+                                            {informe.ultimo_evento.nota ?? informe.ultimo_evento.tipo}
+                                        </p>
+                                    {/if}
+                                    <Link href={`/reportes/${informe.id}`} class="text-xs text-primary hover:underline">
+                                        Ver línea de tiempo completa
+                                    </Link>
+                                </div>
+                            {/each}
+                        </div>
+                    {/each}
+                </CardContent>
+            </Card>
+        {/if}
     {/if}
 
     {#if roleStats.tipo === 'empresa'}

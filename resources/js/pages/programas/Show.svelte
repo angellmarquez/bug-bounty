@@ -15,8 +15,9 @@
 </script>
 
 <script lang="ts">
-    import { Link, router } from '@inertiajs/svelte';
-    import ExternalLink from '@lucide/svelte/icons/external-link';
+    import { router } from '@inertiajs/svelte';
+    import Bug from '@lucide/svelte/icons/bug';
+    import Building2 from '@lucide/svelte/icons/building-2';
     import Settings from '@lucide/svelte/icons/settings';
     import Edit from '@lucide/svelte/icons/edit';
     import AppHead from '@/components/AppHead.svelte';
@@ -27,12 +28,13 @@
     import {
         Card,
         CardContent,
+        CardDescription,
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
     import { Separator } from '@/components/ui/separator';
-    import { show as programaShow, gestion as gestionRoute } from '@/routes/programas';
-    import type { Programa, ObjetivoPrograma, PocSchemaField } from '@/types/domain';
+    import { gestion as gestionRoute } from '@/routes/programas';
+    import type { Programa, ObjetivoPrograma } from '@/types/domain';
 
     let {
         programa,
@@ -42,6 +44,7 @@
         transicionesPermitidas = [],
     }: {
         programa: Programa & {
+            empresa?: { nombre: string; sitio_web: string | null } | null;
             creador?: { id: number; name: string } | null;
             objetivos?: ObjetivoPrograma[];
             reportes_count?: number;
@@ -86,45 +89,99 @@
         };
         return labels[type] ?? type;
     }
+
+    const urlReportar = $derived(`/reportes/crear?programa=${programa.id}`);
+    const enPausa = $derived(programa.estado === 'en_pausa');
 </script>
 
 <AppHead title={programa.nombre} />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-    <div class="flex items-center gap-4">
-        <PageHeader
-            title={programa.nombre}
-        />
-        <ProgramaStateBadge estado={programa.estado} />
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap items-center gap-3">
+            <PageHeader
+                title={programa.nombre}
+                description={programa.empresa ? `Programa de ${programa.empresa.nombre}` : undefined}
+            />
+            <ProgramaStateBadge estado={programa.estado} />
+        </div>
+        {#if puedeReportar}
+            <Button href={urlReportar}>
+                <Bug class="mr-2 h-4 w-4" />
+                Reportar un bug
+            </Button>
+        {/if}
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
+            {#if programa.empresa}
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <Building2 class="h-4 w-4" />
+                            Sobre la empresa
+                        </CardTitle>
+                        <CardDescription>{programa.empresa.nombre}</CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        <p class="whitespace-pre-wrap text-sm">{programa.descripcion}</p>
+                        {#if programa.empresa.sitio_web}
+                            <p class="text-sm">
+                                <span class="text-muted-foreground">Sitio web:</span>
+                                <a
+                                    href={programa.empresa.sitio_web}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="text-primary hover:underline"
+                                >{programa.empresa.sitio_web}</a>
+                            </p>
+                        {/if}
+                    </CardContent>
+                </Card>
+            {:else}
+                <Card>
+                    <CardHeader><CardTitle>Descripcion</CardTitle></CardHeader>
+                    <CardContent>
+                        <p class="whitespace-pre-wrap text-sm">{programa.descripcion}</p>
+                    </CardContent>
+                </Card>
+            {/if}
+
             <Card>
                 <CardHeader>
-                    <CardTitle>Descripcion</CardTitle>
+                    <CardTitle>Qué bugs buscamos</CardTitle>
+                    <CardDescription>Tipos de vulnerabilidad que este programa quiere que le reportes.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p class="whitespace-pre-wrap text-sm">{programa.descripcion}</p>
+                    {#if programa.bugs_buscados}
+                        <p class="whitespace-pre-wrap text-sm">{programa.bugs_buscados}</p>
+                    {:else}
+                        <p class="text-sm text-muted-foreground">
+                            La empresa no detalló tipos concretos. Revisa los objetivos y el alcance de abajo.
+                        </p>
+                    {/if}
                 </CardContent>
             </Card>
 
             {#if programa.objetivos && programa.objetivos.length > 0}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Objetivos</CardTitle>
+                        <CardTitle>Alcance</CardTitle>
+                        <CardDescription>Sistemas en los que puedes investigar.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div class="flex flex-wrap gap-2">
-                            {#each programa.objetivos as obj (obj.id)}
+                    <CardContent class="space-y-3">
+                        {#each programa.objetivos as obj (obj.id)}
+                            <div class="space-y-1">
                                 <div class="flex items-center gap-2">
-                                    <Badge variant="secondary">
-                                        {tipoObjetivoLabel(obj.tipo)}
-                                    </Badge>
-                                    <span class="text-sm text-foreground">{obj.valor}</span>
+                                    <Badge variant="secondary">{tipoObjetivoLabel(obj.tipo)}</Badge>
+                                    <span class="text-sm font-medium text-foreground">{obj.valor}</span>
                                 </div>
-                            {/each}
-                        </div>
+                                {#if obj.descripcion}
+                                    <p class="text-xs text-muted-foreground">{obj.descripcion}</p>
+                                {/if}
+                            </div>
+                        {/each}
                     </CardContent>
                 </Card>
             {/if}
@@ -132,7 +189,10 @@
             {#if programa.poc_schema && programa.poc_schema.length > 0}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Campos PoC requeridos</CardTitle>
+                        <CardTitle>Qué necesitarás para tu reporte</CardTitle>
+                        <CardDescription>
+                            El formulario de reporte se adapta a este programa y te pedirá estos datos de tu prueba de concepto.
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div class="space-y-2">
@@ -154,6 +214,29 @@
         </div>
 
         <div class="space-y-6">
+            {#if puedeReportar}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>¿Encontraste algo?</CardTitle>
+                        <CardDescription>
+                            Envía tu hallazgo con el formulario de este programa y sigue su estado desde tu panel.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button href={urlReportar} class="w-full">
+                            <Bug class="mr-2 h-4 w-4" />
+                            Reportar un bug
+                        </Button>
+                    </CardContent>
+                </Card>
+            {:else if enPausa && !puedeGestionar}
+                <Card>
+                    <CardContent class="pt-6 text-sm text-muted-foreground">
+                        Este programa está en pausa: por ahora no acepta nuevos reportes.
+                    </CardContent>
+                </Card>
+            {/if}
+
             <Card>
                 <CardHeader>
                     <CardTitle>Detalles</CardTitle>
@@ -177,7 +260,7 @@
                     </div>
 
                     <div class="flex items-center justify-between">
-                        <span class="text-sm text-muted-foreground">Reportes</span>
+                        <span class="text-sm text-muted-foreground">Reportes recibidos</span>
                         <span class="text-sm">{programa.reportes_count ?? 0}</span>
                     </div>
 
@@ -186,10 +269,12 @@
                         <span class="text-sm">{programa.requiere_poc ? 'Si' : 'No'}</span>
                     </div>
 
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-muted-foreground">Publico</span>
-                        <span class="text-sm">{programa.es_publico ? 'Si' : 'No'}</span>
-                    </div>
+                    {#if programa.reputacion_minima > 0}
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Reputación mínima</span>
+                            <span class="text-sm">{programa.reputacion_minima}</span>
+                        </div>
+                    {/if}
 
                     <Separator />
 
@@ -213,13 +298,6 @@
                     {/if}
                 </CardContent>
             </Card>
-
-            {#if puedeReportar}
-                <Button href={`/reportes/crear?programa=${programa.id}`} class="w-full">
-                    <ExternalLink class="mr-2 h-4 w-4" />
-                    Reportar
-                </Button>
-            {/if}
 
             {#if puedeGestionar}
                 <div class="flex flex-col gap-2 w-full">

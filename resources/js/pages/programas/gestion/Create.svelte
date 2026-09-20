@@ -79,6 +79,21 @@
                         <InputError message={errors.descripcion} />
                     </div>
 
+                    <div class="space-y-2">
+                        <Label for="bugs_buscados">Que bugs buscas</Label>
+                        <textarea
+                            id="bugs_buscados"
+                            name="bugs_buscados"
+                            placeholder="Ej: inyeccion SQL, XSS, fallos de autenticacion, exposicion de datos personales..."
+                            rows="3"
+                            class="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        ></textarea>
+                        <p class="text-xs text-muted-foreground">
+                            Los investigadores lo veran antes de enviarte un reporte.
+                        </p>
+                        <InputError message={errors.bugs_buscados} />
+                    </div>
+
                     <div class="grid gap-4 sm:grid-cols-3">
                         <div class="space-y-2">
                             <Label for="recompensa_min">Recompensa minima *</Label>

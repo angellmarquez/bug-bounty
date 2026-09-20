@@ -73,6 +73,7 @@ export type Programa = {
     nombre: string;
     slug: string;
     descripcion: string;
+    bugs_buscados: string | null;
     estado: EstadoPrograma;
     moneda: string;
     recompensa_min: number;

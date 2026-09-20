@@ -36,6 +36,7 @@ class UpdateProgramaRequest extends FormRequest
         return [
             'nombre' => ['sometimes', 'required', 'string', 'max:255'],
             'descripcion' => ['sometimes', 'required', 'string', 'max:5000'],
+            'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'recompensa_min' => ['sometimes', 'required', 'numeric', 'min:0'],
             'recompensa_max' => ['sometimes', 'required', 'numeric', 'gte:recompensa_min'],
             'moneda' => ['sometimes', 'required', 'string', 'size:3'],

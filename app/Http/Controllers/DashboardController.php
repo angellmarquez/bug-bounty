@@ -51,18 +51,27 @@ class DashboardController extends Controller
 
         $misReportes = (! $isAdmin && ! $isGestion)
             ? Reporte::where('investigador_id', $user->id)
-                ->with('programa:id,nombre')
+                ->with(['programa:id,nombre', 'eventos:id,reporte_id,tipo,nota,created_at'])
                 ->latest('created_at')
                 ->limit(30)
                 ->get(['id', 'numero_reporte', 'titulo', 'estado', 'programa_id', 'enviado_en', 'created_at'])
-                ->map(fn (Reporte $reporte) => [
-                    'id' => $reporte->id,
-                    'numero_reporte' => $reporte->numero_reporte,
-                    'titulo' => $reporte->titulo,
-                    'estado' => $reporte->estado,
-                    'fecha' => $reporte->enviado_en ?? $reporte->created_at,
-                    'programa' => ['nombre' => $reporte->programa->nombre],
-                ])
+                ->map(function (Reporte $reporte): array {
+                    $ultimo = $reporte->eventos->first();
+
+                    return [
+                        'id' => $reporte->id,
+                        'numero_reporte' => $reporte->numero_reporte,
+                        'titulo' => $reporte->titulo,
+                        'estado' => $reporte->estado,
+                        'fecha' => $reporte->enviado_en ?? $reporte->created_at,
+                        'programa' => ['id' => $reporte->programa_id, 'nombre' => $reporte->programa->nombre],
+                        'ultimo_evento' => $ultimo === null ? null : [
+                            'tipo' => $ultimo->tipo->value,
+                            'nota' => $ultimo->nota,
+                            'fecha' => $ultimo->created_at?->toISOString(),
+                        ],
+                    ];
+                })
             : [];
 
         $roleStats = [];
