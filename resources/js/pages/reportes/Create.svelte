@@ -26,7 +26,6 @@
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
-    import PgpKeySelector from '@/components/PgpKeySelector.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -54,11 +53,9 @@
     let {
         programas = [],
         programaInicial = null,
-        clavesPgp = [],
     }: {
         programas: Pick<Programa, 'id' | 'nombre' | 'slug' | 'poc_schema'>[];
         programaInicial: Pick<Programa, 'id' | 'nombre' | 'slug'> | null;
-        clavesPgp: { id: number; huella: string; algoritmo: string | null; bits: number | null; es_principal: boolean }[];
     } = $props();
 
     let pasoActual = $state(1);
@@ -73,7 +70,6 @@
         puntuacion_cvss: null as number | null,
         severidad: null as Severidad | null,
         poc: {} as Record<string, unknown>,
-        clave_pgp_id: null as string | null,
     });
 
     let pocSchema = $derived<PocSchemaField[]>([]);
@@ -106,7 +102,7 @@
 
     function siguientePaso() {
         if (validarPasoActual()) {
-            if (pasoActual < 5) pasoActual++;
+            if (pasoActual < 4) pasoActual++;
         }
     }
 
@@ -132,7 +128,7 @@
         />
     </div>
 
-    <WizardSteps pasos={['Detalles', 'CVSS', 'PoC', 'PGP', 'Revision']} {pasoActual} />
+    <WizardSteps pasos={['Detalles', 'CVSS', 'PoC', 'Revision']} {pasoActual} />
 
     <Form
         {...store.form()}
@@ -246,13 +242,6 @@
                 <input type="hidden" name="poc" value={JSON.stringify(formulario.poc)} />
 
             {:else if pasoActual === 4}
-                <PgpKeySelector
-                    claves={clavesPgp}
-                    bind:value={formulario.clave_pgp_id}
-                />
-                <input type="hidden" name="clave_pgp_id" value={formulario.clave_pgp_id ?? ''} />
-
-            {:else if pasoActual === 5}
                 <Card>
                     <CardHeader>
                         <CardTitle>Revision del reporte</CardTitle>
@@ -306,7 +295,7 @@
                 </Button>
 
                 <div class="flex items-center gap-2">
-                    {#if pasoActual < 5}
+                    {#if pasoActual < 4}
                         <Button type="button" onclick={siguientePaso}>
                             Siguiente
                             <ArrowRight class="ml-1 h-4 w-4" />

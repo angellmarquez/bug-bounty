@@ -29,7 +29,6 @@
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
-    import PgpKeySelector from '@/components/PgpKeySelector.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -56,17 +55,15 @@
 
     let {
         reporte,
-        clavesPgp = [],
     }: {
         reporte: Reporte & { programa: { id: number; nombre: string; slug: string; poc_schema: PocSchemaField[] | null } };
-        clavesPgp: { id: number; huella: string; algoritmo: string | null; bits: number | null; es_principal: boolean }[];
     } = $props();
 
     let pasoActual = $state(1);
     let erroresPaso = $state<Record<string, string>>({});
 
     const esEnviado = $derived(reporte.estado === 'enviado');
-    const maxPaso = $derived(esEnviado ? 3 : 5);
+    const maxPaso = $derived(esEnviado ? 3 : 4);
 
     let formulario = $state({
         titulo: reporte.titulo,
@@ -76,7 +73,6 @@
         puntuacion_cvss: reporte.puntuacion_cvss,
         severidad: reporte.severidad,
         poc: (reporte.poc ?? {}) as Record<string, unknown>,
-        clave_pgp_id: null as string | null,
     });
 
     let pocSchema = $derived<PocSchemaField[]>(reporte.programa?.poc_schema ?? []);
@@ -117,7 +113,7 @@
     </div>
 
     <WizardSteps
-        pasos={esEnviado ? ['Detalles', 'CVSS', 'PoC'] : ['Detalles', 'CVSS', 'PoC', 'PGP', 'Revision']}
+        pasos={esEnviado ? ['Detalles', 'CVSS', 'PoC'] : ['Detalles', 'CVSS', 'PoC', 'Revision']}
         {pasoActual}
     />
 
@@ -223,13 +219,6 @@
                 <input type="hidden" name="poc" value={JSON.stringify(formulario.poc)} />
 
             {:else if pasoActual === 4}
-                <PgpKeySelector
-                    claves={clavesPgp}
-                    bind:value={formulario.clave_pgp_id}
-                />
-                <input type="hidden" name="clave_pgp_id" value={formulario.clave_pgp_id ?? ''} />
-
-            {:else if pasoActual === 5}
                 <Card>
                     <CardHeader>
                         <CardTitle>Revision del reporte</CardTitle>
