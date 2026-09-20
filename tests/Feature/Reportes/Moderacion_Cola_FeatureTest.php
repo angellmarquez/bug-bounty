@@ -3,6 +3,7 @@
 use App\Enums\EstadoPrograma;
 use App\Models\Empresa;
 use App\Models\Programa;
+use App\Models\Reporte;
 use App\Models\User;
 
 function programaConEmpresa(array $atributos = []): Programa
@@ -155,4 +156,52 @@ test('el revisor puede marcar un duplicado eligiendo entre los informes del prog
     expect($duplicado->fresh())
         ->estado->value->toBe('duplicado')
         ->es_duplicado_de->toBe($original->id);
+});
+
+test('la pagina de moderacion lista directamente los informes por revisar, del mas antiguo al mas reciente', function () {
+    $this->actingAs(moderador());
+    $programa = programaConEmpresa();
+    $reciente = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()]);
+    $antiguo = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()->subDay()]);
+    reporteDe(investigador(), $programa, ['estado' => 'borrador']);
+    reporteDe(investigador(), $programa, ['estado' => 'validado']);
+
+    $this->get(route('moderacion.index'))
+        ->assertInertia(fn ($page) => $page
+            ->has('porRevisar', 2)
+            ->where('porRevisar.0.id', $antiguo->id)
+            ->where('porRevisar.1.id', $reciente->id)
+            ->where('porRevisar.0.investigador.reputation_score', fn ($valor) => is_int($valor)));
+});
+
+test('guardar y enviar deja el informe visible para el moderador y la empresa', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id, 'estado' => EstadoPrograma::Activo, 'es_publico' => true]);
+    $autor = investigador();
+
+    $this->actingAs($autor)->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'Solo borrador',
+        'descripcion' => 'No se envia',
+    ])->assertRedirect();
+    $this->actingAs($autor)->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'Enviado al guardar',
+        'descripcion' => 'Se envia',
+        'enviar' => true,
+    ])->assertRedirect();
+
+    $borrador = Reporte::where('titulo', 'Solo borrador')->firstOrFail();
+    $enviado = Reporte::where('titulo', 'Enviado al guardar')->firstOrFail();
+
+    expect($borrador->estado->value)->toBe('borrador')
+        ->and($enviado->estado->value)->toBe('enviado')
+        ->and($enviado->enviado_en)->not->toBeNull()
+        ->and($enviado->eventos()->pluck('tipo')->map->value->all())->toContain('creado', 'enviado');
+
+    $this->actingAs(moderador())->get(route('moderacion.index'))
+        ->assertInertia(fn ($page) => $page->has('porRevisar', 1)->where('porRevisar.0.id', $enviado->id));
+
+    $this->actingAs(miembroDeEmpresa($empresa))->get(route('empresa.reportes'))
+        ->assertInertia(fn ($page) => $page->has('reportes.data', 1)->where('reportes.data.0.id', $enviado->id));
 });

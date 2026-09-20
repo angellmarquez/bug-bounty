@@ -14,8 +14,10 @@
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
-    import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
+    import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+    import ReportesCompactos from '@/components/ReportesCompactos.svelte';
     import type { EstadoPrograma } from '@/types/enums';
+    import type { ReporteCompacto } from '@/types/domain';
 
     type ProgramaModeracion = {
         id: number;
@@ -30,10 +32,12 @@
     };
 
     let {
+        porRevisar = [],
         programas,
         filtros,
         resumen,
     }: {
+        porRevisar?: ReporteCompacto[];
         programas: {
             data: ProgramaModeracion[];
             last_page: number;
@@ -86,6 +90,25 @@
             </Card>
         {/each}
     </div>
+
+    {#if porRevisar.length > 0}
+        <Card>
+            <CardHeader>
+                <CardTitle>Informes por revisar</CardTitle>
+                <CardDescription>
+                    Los más antiguos primero. Abre uno para iniciar la revisión; o elige un programa abajo
+                    para ver todos sus informes.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ReportesCompactos
+                    reportes={porRevisar}
+                    destacar={() => true}
+                    etiquetaAccion={() => 'Revisar informe'}
+                />
+            </CardContent>
+        </Card>
+    {/if}
 
     <form class="flex flex-wrap items-center gap-3" onsubmit={filtrar}>
         <div class="relative min-w-60 flex-1">

@@ -56,6 +56,7 @@ class StoreReporteRequest extends FormRequest
             'puntuacion_cvss' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'severidad' => ['nullable', Rule::enum(Severidad::class)],
             'poc' => ['nullable', 'array'],
+            'enviar' => ['sometimes', 'boolean'],
         ];
     }
 

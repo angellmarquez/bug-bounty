@@ -20,6 +20,7 @@
     import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ArrowRight from '@lucide/svelte/icons/arrow-right';
     import Save from '@lucide/svelte/icons/save';
+    import Send from '@lucide/svelte/icons/send';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import WizardSteps from '@/components/WizardSteps.svelte';
@@ -111,8 +112,11 @@
 
     // El payload sale del estado del wizard y no del DOM: los pasos anteriores
     // ya están desmontados cuando se llega al paso final.
+    // Qué botón del último paso se pulsó: guardar solo o guardar y enviar al programa.
+    let enviarAlGuardar = $state(false);
+
     function construirPayload() {
-        return $state.snapshot(formulario);
+        return { ...$state.snapshot(formulario), enviar: enviarAlGuardar };
     }
 
     // Enter en un campo de un paso intermedio avanza el wizard en lugar de enviar.
@@ -306,10 +310,20 @@
                             type="submit"
                             disabled={formProcessing}
                             variant="outline"
+                            onclick={() => (enviarAlGuardar = false)}
                         >
-                            {#if formProcessing}<Spinner />{/if}
+                            {#if formProcessing && !enviarAlGuardar}<Spinner />{/if}
                             <Save class="mr-1 h-4 w-4" />
                             Guardar borrador
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={formProcessing}
+                            onclick={() => (enviarAlGuardar = true)}
+                        >
+                            {#if formProcessing && enviarAlGuardar}<Spinner />{/if}
+                            <Send class="mr-1 h-4 w-4" />
+                            Guardar y enviar
                         </Button>
                     {/if}
                 </div>

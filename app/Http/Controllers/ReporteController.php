@@ -291,8 +291,16 @@ class ReporteController extends Controller
             return $reporte;
         });
 
+        // "Guardar y enviar": un borrador no llega a la empresa ni a los moderadores.
+        if ($request->boolean('enviar')) {
+            $this->marcarEnviado($reporte, $user);
+
+            return redirect()->route('reportes.show', $reporte)
+                ->with('success', 'Reporte enviado exitosamente.');
+        }
+
         return redirect()->route('reportes.show', $reporte)
-            ->with('success', 'Reporte creado exitosamente.');
+            ->with('success', 'Reporte guardado como borrador. Envíalo para que lo revisen.');
     }
 
     public function edit(Reporte $reporte): InertiaResponse
@@ -361,19 +369,24 @@ class ReporteController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ReporteEnviar, $reporte]);
 
+        $this->marcarEnviado($reporte, request()->user());
+
+        return redirect()->route('reportes.show', $reporte)
+            ->with('success', 'Reporte enviado exitosamente.');
+    }
+
+    private function marcarEnviado(Reporte $reporte, User $autor): void
+    {
         $reporte->update([
             'estado' => 'enviado',
             'enviado_en' => now(),
         ]);
 
         $reporte->eventos()->create([
-            'actor_id' => request()->user()->id,
+            'actor_id' => $autor->id,
             'tipo' => 'enviado',
             'nota' => 'Reporte enviado para revision.',
         ]);
-
-        return redirect()->route('reportes.show', $reporte)
-            ->with('success', 'Reporte enviado exitosamente.');
     }
 
     // ------------------------------------------------------------------

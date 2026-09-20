@@ -59,7 +59,32 @@ class ModeracionController extends Controller
                 'reportes_rechazados' => (int) $programa->getAttribute('reportes_rechazados'),
             ]);
 
+        // Los informes más antiguos pendientes, para atenderlos sin abrir cada programa.
+        $porRevisar = $recibidos()
+            ->where('estado', 'enviado')
+            ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
+            ->orderBy('enviado_en')
+            ->orderBy('id')
+            ->limit(8)
+            ->get()
+            ->map(fn (Reporte $reporte): array => [
+                'id' => $reporte->id,
+                'numero_reporte' => $reporte->numero_reporte,
+                'titulo' => $reporte->titulo,
+                'estado' => $reporte->estado->value,
+                'severidad' => $reporte->severidad?->value,
+                'programa_nombre' => $reporte->programa->nombre,
+                'enviado_en' => $reporte->enviado_en?->toISOString(),
+                'investigador' => [
+                    'id' => $reporte->investigador->id,
+                    'name' => $reporte->investigador->name,
+                    'reputation_score' => $reporte->investigador->reputation_score,
+                ],
+            ])
+            ->all();
+
         return Inertia::render('moderacion/Index', [
+            'porRevisar' => $porRevisar,
             'programas' => $programas,
             'filtros' => [
                 'busqueda' => $request->input('busqueda', ''),
