@@ -275,6 +275,29 @@
         {/if}
     {/if}
 
+    {#if userRoles.includes('moderador') || isAdmin}
+        <Card>
+            <CardHeader>
+                <CardTitle>Cola de moderación</CardTitle>
+                <CardDescription>
+                    Revisa los informes que los investigadores envían a los programas: valida, rechaza,
+                    penaliza o marca duplicados. Cada decisión queda en la línea de tiempo del investigador.
+                </CardDescription>
+            </CardHeader>
+            <CardContent class="flex flex-wrap items-center gap-4">
+                {#if roleStats.tipo === 'moderador' || roleStats.tipo === 'administrador'}
+                    <p class="text-sm">
+                        <span class="text-2xl font-bold text-chart-4">{roleStats.por_revisar}</span>
+                        <span class="ml-1 text-muted-foreground">informes por revisar</span>
+                    </p>
+                {/if}
+                <Button href="/moderacion">
+                    Revisar informes
+                </Button>
+            </CardContent>
+        </Card>
+    {/if}
+
     {#if roleStats.tipo === 'empresa'}
         <Card>
             <CardHeader><CardTitle>Resumen empresarial</CardTitle></CardHeader>

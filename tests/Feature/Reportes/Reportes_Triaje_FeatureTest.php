@@ -238,7 +238,7 @@ test('moderador cannot validate reporte already validado', function () {
     $response->assertUnprocessable();
 });
 
-test('admin and gestion cannot triaje reportes they cannot access', function (User $usuario) {
+test('gestion cannot triaje reportes it cannot access', function (User $usuario) {
     $this->actingAs($usuario);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -247,9 +247,17 @@ test('admin and gestion cannot triaje reportes they cannot access', function (Us
     $this->post(route('reportes.comentar', $reporte), ['nota' => 'hola'])->assertForbidden();
     $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'enviado']);
 })->with([
-    'administrador' => fn () => administrador(),
     'gestion' => fn () => gestion(),
 ]);
+
+test('admin can triaje reportes de cualquier programa', function () {
+    $this->actingAs(administrador());
+
+    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+
+    $this->post(route('reportes.validar', $reporte))->assertRedirect();
+    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'validado']);
+});
 
 test('empresa member can read but not triaje reportes of its programas', function () {
     $empresa = Empresa::factory()->aprobada()->create();

@@ -63,4 +63,6 @@ final class AccionesAbac
     public const ModeradorAsignar = 'moderadores.asignar';
 
     public const ModeradorRevocar = 'moderadores.revocar';
+
+    public const ModeracionVer = 'moderacion.ver';
 }

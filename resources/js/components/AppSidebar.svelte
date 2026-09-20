@@ -6,6 +6,7 @@
     import Bug from '@lucide/svelte/icons/bug';
     import Shield from '@lucide/svelte/icons/shield';
     import Key from '@lucide/svelte/icons/key';
+    import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
     import Settings from '@lucide/svelte/icons/settings';
     import Users from '@lucide/svelte/icons/users';
     import type { Snippet } from 'svelte';
@@ -42,6 +43,7 @@
     const isGestion = $derived(userRoles.includes('gestion'));
     const isInvestigador = $derived(userRoles.includes('investigador'));
     const isEmpresa = $derived(userRoles.includes('empresa'));
+    const isModerador = $derived(userRoles.includes('moderador'));
 
     const mainNavItems = $derived.by(() => {
         const items: NavItem[] = [
@@ -52,9 +54,21 @@
             },
         ];
 
-        if (isInvestigador || isGestion || isAdmin || isEmpresa) {
+        if (isModerador || isAdmin) {
             items.push({
-                title: isEmpresa ? 'Reportes recibidos' : 'Mis Reportes',
+                title: 'Moderación',
+                href: '/moderacion',
+                icon: ClipboardCheck,
+            });
+        }
+
+        if (isInvestigador || isGestion || isAdmin || isEmpresa || isModerador) {
+            items.push({
+                title: isEmpresa
+                    ? 'Reportes recibidos'
+                    : isModerador || isAdmin
+                      ? 'Todos los reportes'
+                      : 'Mis Reportes',
                 href: reportesIndex(),
                 icon: Bug,
             });

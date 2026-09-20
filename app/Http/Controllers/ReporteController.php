@@ -36,12 +36,13 @@ class ReporteController extends Controller
         $isGestion = in_array('gestion', $roles);
         $isModerador = in_array('moderador', $roles);
         $isEmpresa = in_array('empresa', $roles);
+        $esRevisor = $isModerador || $isAdmin;
 
         $query = Reporte::query()
             ->with(['programa', 'investigador', 'asignadoA']);
 
-        if ($isModerador) {
-            // Los moderadores pueden revisar también borradores sin exponerlos a otros roles.
+        if ($esRevisor) {
+            // Moderadores y administradores revisan los informes de todos los programas.
         } else {
             $query->where(function ($scope) use ($user) {
                 $scope->where('investigador_id', $user->id)
@@ -162,6 +163,24 @@ class ReporteController extends Controller
         $puedePagar = Gate::allows('abac', [AccionesAbac::ReportePagar, $reporte]);
         $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte]);
 
+        // Originales posibles para marcar un duplicado: otros informes del mismo programa.
+        $candidatosDuplicado = $puedeMarcarDuplicado
+            ? Reporte::query()
+                ->where('programa_id', $reporte->programa_id)
+                ->where('id', '!=', $reporte->id)
+                ->where('estado', '!=', 'borrador')
+                ->orderBy('id')
+                ->limit(100)
+                ->get(['id', 'numero_reporte', 'titulo', 'estado'])
+                ->map(fn (Reporte $candidato) => [
+                    'id' => $candidato->id,
+                    'numero_reporte' => $candidato->numero_reporte,
+                    'titulo' => $candidato->titulo,
+                    'estado' => $candidato->estado->value,
+                ])
+                ->all()
+            : [];
+
         $usuariosGestion = [];
         if ($puedeAsignar) {
             $usuariosGestion = User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))
@@ -183,6 +202,8 @@ class ReporteController extends Controller
             'cifradoIndisponible' => $cifradoIndisponible,
             'claveHuella' => $claveHuella,
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
+            'puedeModerar' => Gate::allows('abac', [AccionesAbac::ModeracionVer]),
+            'candidatosDuplicado' => $candidatosDuplicado,
             'puedeTriar' => $puedeAsignar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedePagar || $puedeCerrar,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
@@ -373,6 +394,35 @@ class ReporteController extends Controller
             422,
             "No se puede transitar de \"{$estadoActual}\" a \"{$estadoDestino}\"."
         );
+    }
+
+    /**
+     * El revisor toma el informe: pasa a "en revisión" y queda asignado a él
+     * (si nadie lo tenía), lo que se refleja en la línea de tiempo del investigador.
+     */
+    public function revisar(Reporte $reporte, Request $request): RedirectResponse
+    {
+        $this->asegurarAcceso($reporte);
+        Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
+
+        $this->validarTransicion($reporte, 'en_revision');
+        $revisor = $request->user();
+        $estadoAnterior = $reporte->estado->value;
+
+        $reporte->update([
+            'estado' => 'en_revision',
+            'asignado_a' => $reporte->asignado_a ?? $revisor->id,
+        ]);
+
+        $reporte->eventos()->create([
+            'actor_id' => $revisor->id,
+            'tipo' => 'cambio_estado',
+            'nota' => 'Un moderador comenzó a revisar tu informe.',
+            'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'en_revision'],
+        ]);
+
+        return redirect()->route('reportes.show', $reporte)
+            ->with('success', 'Revisión iniciada.');
     }
 
     public function asignar(Reporte $reporte, Request $request): RedirectResponse
@@ -578,7 +628,7 @@ class ReporteController extends Controller
             return false;
         }
 
-        if ($user->roles()->where('slug', 'moderador')->exists()) {
+        if ($user->roles()->whereIn('slug', ['moderador', 'administrador'])->exists()) {
             return true;
         }
 

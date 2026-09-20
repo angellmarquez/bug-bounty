@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\ModeracionController;
 use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ReputacionController;
@@ -34,6 +35,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('reportes/{reporte}/enviar', [ReporteController::class, 'enviar'])->name('reportes.enviar');
 
     // Acciones de triaje (Slice 5.4)
+    Route::post('reportes/{reporte}/revisar', [ReporteController::class, 'revisar'])->name('reportes.revisar');
     Route::post('reportes/{reporte}/asignar', [ReporteController::class, 'asignar'])->name('reportes.asignar');
     Route::post('reportes/{reporte}/validar', [ReporteController::class, 'validar'])->name('reportes.validar');
     Route::post('reportes/{reporte}/rechazar', [ReporteController::class, 'rechazar'])->name('reportes.rechazar');
@@ -45,6 +47,9 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('reportes/{reporte}', [ReporteController::class, 'show'])->name('reportes.show');
 
     // Programas (Slice 5.5)
+    Route::get('moderacion', [ModeracionController::class, 'index'])->name('moderacion.index');
+    Route::get('moderacion/programas/{programa}', [ModeracionController::class, 'programa'])->name('moderacion.programa');
+
     Route::get('programas', [ProgramaController::class, 'index'])->name('programas.index');
     Route::get('programas/{programa}', [ProgramaController::class, 'show'])->name('programas.show');
     Route::post('programas', [ProgramaController::class, 'store'])->name('programas.store');

@@ -246,12 +246,15 @@ export type DashboardRoleStats =
     | {
           tipo: 'moderador';
           pendientes_revision: number;
+          por_revisar: number;
           validados: number;
           rechazados: number;
           sanciones_aplicadas: number;
       }
     | {
           tipo: 'administrador';
+          por_revisar: number;
+          pendientes_revision: number;
           empresas_pendientes: number;
           empresas_aprobadas: number;
           moderadores: number;

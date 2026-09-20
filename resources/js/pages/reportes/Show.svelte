@@ -27,6 +27,7 @@
     import Lock from '@lucide/svelte/icons/lock';
     import Edit from '@lucide/svelte/icons/edit';
     import Send from '@lucide/svelte/icons/send';
+    import Eye from '@lucide/svelte/icons/eye';
     import { page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
@@ -50,14 +51,18 @@
         reporte: initialReporte,
         puedeVerNotasInternas,
         puedeTriar = false,
+        puedeModerar = false,
         accionesDisponibles = {},
         usuariosGestion = [],
+        candidatosDuplicado = [],
     }: {
         reporte: Reporte;
         puedeVerNotasInternas: boolean;
         puedeTriar?: boolean;
+        puedeModerar?: boolean;
         accionesDisponibles?: Record<string, boolean>;
         usuariosGestion?: { id: number; name: string }[];
+        candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
     } = $props();
 
     // Derivado: tras cada acción de triaje Inertia entrega props nuevas a esta misma instancia.
@@ -70,6 +75,10 @@
     function openTransition(accion: typeof transitionAccion) {
         transitionAccion = accion;
         transitionOpen = true;
+    }
+
+    function iniciarRevision() {
+        router.post(`/reportes/${reporte.id}/revisar`, {}, { preserveScroll: true });
     }
 
     function enviarReporte() {
@@ -103,7 +112,12 @@
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="flex items-center gap-4">
-            <Button variant="ghost" size="icon" href={reportesRoute()}>
+            <Button
+                variant="ghost"
+                size="icon"
+                href={puedeModerar && reporte.programa ? `/moderacion/programas/${reporte.programa.id}` : reportesRoute()}
+                aria-label={puedeModerar ? 'Volver a la cola de moderación' : 'Volver a reportes'}
+            >
                 <ArrowLeft class="h-4 w-4" />
             </Button>
             <PageHeader
@@ -165,6 +179,12 @@
                     </CardHeader>
                     <CardContent>
                         <div class="flex flex-wrap gap-2">
+                            {#if accionesDisponibles.validar && reporte.estado === 'enviado'}
+                                <Button size="sm" onclick={iniciarRevision}>
+                                    <Eye class="mr-1 h-3 w-3" />
+                                    Iniciar revisión
+                                </Button>
+                            {/if}
                             {#if accionesDisponibles.asignar}
                                 <Button variant="outline" size="sm" onclick={() => openTransition('asignar')}>
                                     <UserPlus class="mr-1 h-3 w-3" />
@@ -327,5 +347,6 @@
     reporteId={reporte.id}
     estadoActual={reporte.estado}
     {usuariosGestion}
+    {candidatosDuplicado}
     onsuccess={recargar}
 />

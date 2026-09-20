@@ -96,6 +96,7 @@ class DashboardController extends Controller
             $roleStats = [
                 'tipo' => 'moderador',
                 'pendientes_revision' => (clone $reportesModerador)->whereIn('estado', ['enviado', 'en_revision'])->count(),
+                'por_revisar' => (clone $reportesModerador)->where('estado', 'enviado')->count(),
                 'validados' => (clone $reportesModerador)->where('estado', 'validado')->count(),
                 'rechazados' => (clone $reportesModerador)->where('estado', 'rechazado')->count(),
                 'sanciones_aplicadas' => $user->auditorias()->where('accion', 'sancion.aplicada')->count(),
@@ -103,6 +104,8 @@ class DashboardController extends Controller
         } elseif ($isAdmin) {
             $roleStats = [
                 'tipo' => 'administrador',
+                'por_revisar' => Reporte::where('estado', 'enviado')->count(),
+                'pendientes_revision' => Reporte::whereIn('estado', ['enviado', 'en_revision'])->count(),
                 'empresas_pendientes' => Empresa::where('estado', 'pendiente')->count(),
                 'empresas_aprobadas' => Empresa::where('estado', 'aprobada')->count(),
                 'moderadores' => User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))->count(),

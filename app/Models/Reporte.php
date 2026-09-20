@@ -137,7 +137,8 @@ class Reporte extends Model
      */
     public function eventos(): HasMany
     {
-        return $this->hasMany(EventoReporte::class)->latest();
+        // Desempate por id: varios eventos pueden crearse en el mismo segundo.
+        return $this->hasMany(EventoReporte::class)->latest()->orderByDesc('id');
     }
 
     /**
