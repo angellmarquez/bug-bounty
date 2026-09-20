@@ -37,9 +37,11 @@
     import ComentarioForm from '@/components/ComentarioForm.svelte';
     import StateTransition from '@/components/StateTransition.svelte';
     import { Button } from '@/components/ui/button';
+    import ContenidoInforme from '@/components/ContenidoInforme.svelte';
     import {
         Card,
         CardContent,
+        CardDescription,
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
@@ -52,6 +54,8 @@
         puedeVerNotasInternas,
         puedeTriar = false,
         puedeModerar = false,
+        cifradoIndisponible = false,
+        historialInvestigador = null,
         accionesDisponibles = {},
         usuariosGestion = [],
         candidatosDuplicado = [],
@@ -60,6 +64,13 @@
         puedeVerNotasInternas: boolean;
         puedeTriar?: boolean;
         puedeModerar?: boolean;
+        cifradoIndisponible?: boolean;
+        historialInvestigador?: {
+            reputation_score: number;
+            informes: number;
+            aprobados: number;
+            descartados: number;
+        } | null;
         accionesDisponibles?: Record<string, boolean>;
         usuariosGestion?: { id: number; name: string }[];
         candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
@@ -95,11 +106,6 @@
             hour: '2-digit',
             minute: '2-digit',
         }).format(new Date(dateStr));
-    }
-
-    function formatJson(obj: Record<string, unknown> | null): string {
-        if (!obj) return '';
-        return JSON.stringify(obj, null, 2);
     }
 
     function recargar() {
@@ -149,23 +155,21 @@
         <div class="space-y-6 lg:col-span-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Descripcion</CardTitle>
+                    <CardTitle>Informe del investigador</CardTitle>
+                    <CardDescription>Todo lo que envió el investigador, tal cual.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p class="whitespace-pre-wrap text-sm">{reporte.descripcion}</p>
+                    <ContenidoInforme
+                        descripcion={reporte.descripcion}
+                        poc={reporte.poc}
+                        pocSchema={reporte.programa?.poc_schema}
+                        categoria={reporte.categoria}
+                        vectorCvss={reporte.vector_cvss}
+                        puntuacionCvss={reporte.puntuacion_cvss}
+                        {cifradoIndisponible}
+                    />
                 </CardContent>
             </Card>
-
-            {#if reporte.poc && Object.keys(reporte.poc).length > 0}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Prueba de concepto (PoC)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <pre class="overflow-x-auto rounded-lg bg-muted p-4 text-xs">{formatJson(reporte.poc)}</pre>
-                    </CardContent>
-                </Card>
-            {/if}
 
             {#if puedeVerNotasInternas && reporte.notas_internas}
                 <Card>
@@ -315,6 +319,68 @@
                     {/if}
                 </CardContent>
             </Card>
+
+            {#if puedeModerar && historialInvestigador}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Investigador</CardTitle>
+                        <CardDescription>Su historial ayuda a valorar el informe.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Nombre</span>
+                            <span class="text-sm">{reporte.investigador?.name ?? 'Desconocido'}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Reputación</span>
+                            <span class="text-sm font-semibold text-primary">{historialInvestigador.reputation_score}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Informes enviados</span>
+                            <span class="text-sm">{historialInvestigador.informes}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Aprobados</span>
+                            <span class="text-sm text-chart-1">{historialInvestigador.aprobados}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Descartados</span>
+                            <span class="text-sm {historialInvestigador.descartados > 0 ? 'text-chart-4' : ''}">{historialInvestigador.descartados}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+            {/if}
+
+            {#if puedeModerar && reporte.programa}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Alcance del programa</CardTitle>
+                        <CardDescription>Comprueba que el hallazgo esté dentro de lo que la empresa quiere revisar.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        {#if reporte.programa.bugs_buscados}
+                            <div class="space-y-1">
+                                <p class="text-xs font-medium text-muted-foreground">Bugs que buscan</p>
+                                <p class="whitespace-pre-wrap text-sm">{reporte.programa.bugs_buscados}</p>
+                            </div>
+                        {/if}
+                        <div class="space-y-1">
+                            <p class="text-xs font-medium text-muted-foreground">Objetivos</p>
+                            {#if reporte.programa.objetivos && reporte.programa.objetivos.length > 0}
+                                {#each reporte.programa.objetivos as objetivo (objetivo.id)}
+                                    <p class="text-sm">
+                                        <span class="text-xs uppercase text-muted-foreground">{objetivo.tipo}</span>
+                                        {objetivo.valor}
+                                        {#if objetivo.descripcion}<span class="text-xs text-muted-foreground"> · {objetivo.descripcion}</span>{/if}
+                                    </p>
+                                {/each}
+                            {:else}
+                                <p class="text-sm text-muted-foreground">El programa no define objetivos.</p>
+                            {/if}
+                        </div>
+                    </CardContent>
+                </Card>
+            {/if}
 
             {#if reporte.duplicadoDe}
                 <Card>

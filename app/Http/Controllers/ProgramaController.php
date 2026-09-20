@@ -7,6 +7,8 @@ use App\Http\Requests\StoreProgramaRequest;
 use App\Http\Requests\UpdateProgramaRequest;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
+use App\Models\Reporte;
+use App\Services\Moderacion\ColaDeInformes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +67,7 @@ class ProgramaController extends Controller
         ]);
     }
 
-    public function show(Programa $programa): InertiaResponse
+    public function show(Request $request, Programa $programa, ColaDeInformes $cola): InertiaResponse
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaVer, $programa);
 
@@ -82,7 +84,18 @@ class ProgramaController extends Controller
             ? self::TRANSICIONES_VALIDAS[$programa->estado->value]
             : [];
 
+        // Los moderadores y admins ven ahí mismo los informes del programa para revisarlos.
+        $puedeModerar = Gate::allows('abac', [AccionesAbac::ModeracionVer]);
+        $filtroInformes = ColaDeInformes::filtro($request->input('filtro'));
+
         return Inertia::render('programas/Show', [
+            'puedeModerar' => $puedeModerar,
+            'filtroInformes' => $filtroInformes,
+            'conteosInformes' => $puedeModerar ? $cola->conteos($programa) : null,
+            'informes' => $puedeModerar
+                ? $cola->consulta($programa, $filtroInformes)->limit(10)->get()
+                    ->map(fn (Reporte $reporte): array => $cola->resumen($reporte))->all()
+                : [],
             'programa' => [
                 ...$programa->toArray(),
                 'empresa' => $programa->empresa === null ? null : [

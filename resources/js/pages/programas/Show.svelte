@@ -34,7 +34,8 @@
     } from '@/components/ui/card';
     import { Separator } from '@/components/ui/separator';
     import { gestion as gestionRoute } from '@/routes/programas';
-    import type { Programa, ObjetivoPrograma } from '@/types/domain';
+    import InformesDelPrograma from '@/components/InformesDelPrograma.svelte';
+    import type { Programa, ObjetivoPrograma, ReporteCompacto } from '@/types/domain';
 
     let {
         programa,
@@ -43,6 +44,10 @@
         puedeCambiarEstado = false,
         puedeEliminar = false,
         transicionesPermitidas = [],
+        puedeModerar = false,
+        filtroInformes = 'por_revisar',
+        conteosInformes = null,
+        informes = [],
     }: {
         programa: Programa & {
             empresa?: { nombre: string; sitio_web: string | null } | null;
@@ -55,6 +60,10 @@
         puedeCambiarEstado?: boolean;
         puedeEliminar?: boolean;
         transicionesPermitidas?: string[];
+        puedeModerar?: boolean;
+        filtroInformes?: 'por_revisar' | 'en_revision' | 'aprobados' | 'rechazados' | 'todos';
+        conteosInformes?: Record<'por_revisar' | 'en_revision' | 'aprobados' | 'rechazados' | 'todos', number> | null;
+        informes?: ReporteCompacto[];
     } = $props();
 
     function cambiarEstado(estado: string) {
@@ -132,6 +141,15 @@
 
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
+            {#if puedeModerar && conteosInformes}
+                <InformesDelPrograma
+                    programaId={programa.id}
+                    filtro={filtroInformes}
+                    conteos={conteosInformes}
+                    {informes}
+                />
+            {/if}
+
             {#if programa.empresa}
                 <Card>
                     <CardHeader>

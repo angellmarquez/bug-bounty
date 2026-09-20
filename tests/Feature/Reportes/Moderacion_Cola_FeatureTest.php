@@ -2,6 +2,7 @@
 
 use App\Enums\EstadoPrograma;
 use App\Models\Empresa;
+use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
@@ -204,4 +205,136 @@ test('guardar y enviar deja el informe visible para el moderador y la empresa', 
 
     $this->actingAs(miembroDeEmpresa($empresa))->get(route('empresa.reportes'))
         ->assertInertia(fn ($page) => $page->has('reportes.data', 1)->where('reportes.data.0.id', $enviado->id));
+});
+
+function informeEnviadoConContenido(Programa $programa, User $autor): Reporte
+{
+    test()->actingAs($autor)->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'XSS en el buscador',
+        'descripcion' => 'El parametro q se refleja sin escapar.',
+        'categoria' => 'xss',
+        'vector_cvss' => 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N',
+        'puntuacion_cvss' => 6.1,
+        'poc' => ['pasos' => 'Abrir /buscar?q=<script>alert(1)</script>'],
+        'enviar' => true,
+    ])->assertRedirect();
+
+    return Reporte::where('titulo', 'XSS en el buscador')->latest('id')->firstOrFail();
+}
+
+test('la vista rapida devuelve el contenido descifrado a quien puede ver el informe', function (string $lector) {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = programaConEmpresa(['empresa_id' => $empresa->id, 'poc_schema' => [
+        ['name' => 'pasos', 'label' => 'Pasos para reproducir', 'type' => 'textarea', 'required' => true],
+    ]]);
+    $autor = investigador();
+    $reporte = informeEnviadoConContenido($programa, $autor);
+
+    $usuario = match ($lector) {
+        'moderador' => moderador(),
+        'administrador' => administrador(),
+        'autor' => $autor,
+        'empresa duena' => miembroDeEmpresa($empresa),
+    };
+
+    $this->actingAs($usuario)
+        ->getJson(route('reportes.vista-rapida', $reporte))
+        ->assertOk()
+        ->assertJsonPath('descripcion', 'El parametro q se refleja sin escapar.')
+        ->assertJsonPath('poc.pasos', 'Abrir /buscar?q=<script>alert(1)</script>')
+        ->assertJsonPath('poc_schema.0.label', 'Pasos para reproducir')
+        ->assertJsonPath('categoria', 'xss')
+        ->assertJsonPath('cifrado_indisponible', false);
+})->with(['moderador', 'administrador', 'autor', 'empresa duena']);
+
+test('la vista rapida no se entrega a quien no puede ver el informe', function (string $lector) {
+    $programa = programaConEmpresa();
+    $reporte = informeEnviadoConContenido($programa, investigador());
+
+    $usuario = match ($lector) {
+        'otro investigador' => investigador(),
+        'gestion' => gestion(),
+        'otra empresa' => miembroDeEmpresa(Empresa::factory()->aprobada()->create()),
+    };
+
+    $this->actingAs($usuario)->getJson(route('reportes.vista-rapida', $reporte))->assertForbidden();
+})->with(['otro investigador', 'gestion', 'otra empresa']);
+
+test('la vista rapida indica si el revisor puede iniciar la revision', function () {
+    $programa = programaConEmpresa();
+    $enviado = informeEnviadoConContenido($programa, investigador());
+    $this->actingAs(moderador());
+
+    $this->getJson(route('reportes.vista-rapida', $enviado))->assertJsonPath('puede_revisar', true);
+
+    $enviado->update(['estado' => 'validado']);
+    $this->getJson(route('reportes.vista-rapida', $enviado))->assertJsonPath('puede_revisar', false);
+});
+
+test('el revisor ve el alcance del programa y el historial del investigador en el informe', function () {
+    $programa = programaConEmpresa(['bugs_buscados' => 'Inyecciones y XSS']);
+    ObjetivoPrograma::factory()->create(['programa_id' => $programa->id, 'tipo' => 'web', 'valor' => 'app.acme.test']);
+    $autor = investigador(['reputation_score' => 30]);
+    reporteDe($autor, $programa, ['estado' => 'validado']);
+    reporteDe($autor, $programa, ['estado' => 'rechazado']);
+    $reporte = informeEnviadoConContenido($programa, $autor);
+
+    $this->actingAs(moderador())->get(route('reportes.show', $reporte))
+        ->assertInertia(fn ($page) => $page
+            ->where('historialInvestigador', ['reputation_score' => 30, 'informes' => 3, 'aprobados' => 1, 'descartados' => 1])
+            ->where('reporte.programa.bugs_buscados', 'Inyecciones y XSS')
+            ->where('reporte.programa.objetivos.0.valor', 'app.acme.test')
+            ->where('reporte.descripcion', 'El parametro q se refleja sin escapar.'));
+
+    // El autor ve su informe, pero no el historial ni el alcance pensados para revisar.
+    $this->actingAs($autor)->get(route('reportes.show', $reporte))
+        ->assertInertia(fn ($page) => $page
+            ->where('historialInvestigador', null)
+            ->missing('reporte.programa.objetivos')
+            ->has('reporte.programa.poc_schema'));
+});
+
+test('al entrar a un programa el revisor ve sus informes para revisarlos ahi mismo', function () {
+    $programa = programaConEmpresa();
+    $enviado = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()]);
+    reporteDe(investigador(), $programa, ['estado' => 'validado']);
+    reporteDe(investigador(), $programa, ['estado' => 'borrador']);
+    $this->actingAs(moderador());
+
+    $this->get(route('programas.show', $programa))
+        ->assertInertia(fn ($page) => $page
+            ->where('puedeModerar', true)
+            ->where('filtroInformes', 'por_revisar')
+            ->has('informes', 1)
+            ->where('informes.0.id', $enviado->id)
+            ->where('conteosInformes', ['por_revisar' => 1, 'en_revision' => 0, 'aprobados' => 1, 'rechazados' => 0, 'todos' => 2]));
+
+    $this->get(route('programas.show', [$programa, 'filtro' => 'aprobados']))
+        ->assertInertia(fn ($page) => $page->has('informes', 1)->where('informes.0.estado', 'validado'));
+});
+
+test('quien no revisa no recibe los informes del programa', function (string $rol) {
+    $programa = programaConEmpresa();
+    reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+
+    $usuario = $rol === 'investigador' ? investigador() : miembroDeEmpresa($programa->empresa);
+
+    $this->actingAs($usuario)->get(route('programas.show', $programa))
+        ->assertInertia(fn ($page) => $page
+            ->where('puedeModerar', false)
+            ->where('informes', [])
+            ->where('conteosInformes', null));
+})->with(['investigador', 'empresa duena']);
+
+test('iniciar la revision desde una lista vuelve a la misma pagina', function () {
+    $programa = programaConEmpresa();
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+
+    $this->actingAs(moderador())
+        ->from(route('programas.show', $programa))
+        ->post(route('reportes.revisar', $reporte))
+        ->assertRedirect(route('programas.show', $programa));
+
+    expect($reporte->fresh()->estado->value)->toBe('en_revision');
 });

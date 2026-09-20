@@ -83,6 +83,7 @@
         <ReportesCompactos
             reportes={reportes.data}
             mostrarPrograma={false}
+            vistaRapida
             destacar={(reporte) => reporte.estado === 'enviado'}
             etiquetaAccion={(reporte) =>
                 reporte.estado === 'enviado' || reporte.estado === 'en_revision' ? 'Revisar informe' : 'Ver informe'}

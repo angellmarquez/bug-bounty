@@ -16,6 +16,7 @@ use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -135,22 +136,11 @@ class ReporteController extends Controller
 
         // El contenido confidencial se descifra con la clave privada de la
         // plataforma y nunca se expone el ciphertext al frontend.
-        $cifradoIndisponible = false;
-        $claveHuella = $reporte->clave_huella;
-
-        try {
-            $descifrado = app(PgpService::class)->descifrarReporte(
-                (string) $reporte->descripcion,
-                $reporte->poc,
-            );
-            $descripcion = $descifrado['descripcion'];
-            $poc = $descifrado['poc'];
-            $claveHuella = $descifrado['clave_huella'];
-        } catch (PgpException $e) {
-            $cifradoIndisponible = true;
-            $descripcion = null;
-            $poc = null;
-        }
+        $contenido = $this->contenidoDescifrado($reporte);
+        $cifradoIndisponible = $contenido['indisponible'];
+        $claveHuella = $contenido['clave_huella'];
+        $descripcion = $contenido['descripcion'];
+        $poc = $contenido['poc'];
 
         $reporteArray = $reporte->toArray();
         $reporteArray['descripcion'] = $descripcion;
@@ -194,10 +184,23 @@ class ReporteController extends Controller
                 ->toArray();
         }
 
+        $puedeModerar = Gate::allows('abac', [AccionesAbac::ModeracionVer]);
+
+        // Historial del autor: ayuda a valorar cuánto confiar en el informe.
+        $historialInvestigador = $puedeModerar ? $this->historialInvestigador($reporte->investigador) : null;
+
         return Inertia::render('reportes/Show', [
+            'historialInvestigador' => $historialInvestigador,
             'reporte' => [
                 ...$reporteArray,
-                'programa' => $reporte->programa->only(['id', 'nombre', 'slug']),
+                'programa' => [
+                    ...$reporte->programa->only(['id', 'nombre', 'slug', 'poc_schema']),
+                    // El alcance solo le hace falta a quien revisa: comprueba que el hallazgo esté en él.
+                    ...($puedeModerar ? [
+                        'bugs_buscados' => $reporte->programa->bugs_buscados,
+                        'objetivos' => $reporte->programa->objetivos()->get(['id', 'tipo', 'valor', 'descripcion'])->all(),
+                    ] : []),
+                ],
                 'investigador' => $reporte->investigador->only(['id', 'name']),
                 'asignadoA' => $reporte->asignadoA?->only(['id', 'name']),
                 'duplicadoDe' => $reporte->duplicadoDe?->only(['id', 'numero_reporte', 'titulo']),
@@ -206,7 +209,7 @@ class ReporteController extends Controller
             'cifradoIndisponible' => $cifradoIndisponible,
             'claveHuella' => $claveHuella,
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
-            'puedeModerar' => Gate::allows('abac', [AccionesAbac::ModeracionVer]),
+            'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
             'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedePagar || $puedeCerrar,
             'accionesDisponibles' => [
@@ -424,6 +427,65 @@ class ReporteController extends Controller
     }
 
     /**
+     * Contenido del informe en JSON, para leerlo dentro de una lista sin abrir su página.
+     */
+    public function vistaRapida(Reporte $reporte): JsonResponse
+    {
+        $reporte->load('programa.empresa');
+        $this->asegurarAcceso($reporte);
+        Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte, $this->empresaContexto()]);
+
+        $contenido = $this->contenidoDescifrado($reporte);
+
+        return response()->json([
+            'id' => $reporte->id,
+            'descripcion' => $contenido['descripcion'],
+            'poc' => $contenido['poc'],
+            'poc_schema' => $reporte->programa->poc_schema,
+            'cifrado_indisponible' => $contenido['indisponible'],
+            'categoria' => $reporte->categoria,
+            'vector_cvss' => $reporte->vector_cvss,
+            'puntuacion_cvss' => $reporte->puntuacion_cvss,
+            'puede_revisar' => Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte, $this->empresaContexto()])
+                && $this->transicionPosible($reporte, 'en_revision'),
+        ]);
+    }
+
+    /**
+     * @return array{descripcion: string|null, poc: array<int|string, mixed>|null, clave_huella: string|null, indisponible: bool}
+     */
+    private function contenidoDescifrado(Reporte $reporte): array
+    {
+        try {
+            $descifrado = app(PgpService::class)->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
+
+            return [
+                'descripcion' => $descifrado['descripcion'],
+                'poc' => $descifrado['poc'],
+                'clave_huella' => $descifrado['clave_huella'],
+                'indisponible' => false,
+            ];
+        } catch (PgpException) {
+            return ['descripcion' => null, 'poc' => null, 'clave_huella' => $reporte->clave_huella, 'indisponible' => true];
+        }
+    }
+
+    /**
+     * @return array{reputation_score: int, informes: int, aprobados: int, descartados: int}
+     */
+    private function historialInvestigador(User $investigador): array
+    {
+        $enviados = fn () => Reporte::query()->where('investigador_id', $investigador->id)->where('estado', '!=', 'borrador');
+
+        return [
+            'reputation_score' => $investigador->reputation_score,
+            'informes' => $enviados()->count(),
+            'aprobados' => $enviados()->whereIn('estado', Reporte::ESTADOS_APROBADOS)->count(),
+            'descartados' => $enviados()->whereIn('estado', Reporte::ESTADOS_RECHAZADOS)->count(),
+        ];
+    }
+
+    /**
      * El revisor toma el informe: pasa a "en revisión" y queda asignado a él
      * (si nadie lo tenía), lo que se refleja en la línea de tiempo del investigador.
      */
@@ -448,7 +510,7 @@ class ReporteController extends Controller
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'en_revision'],
         ]);
 
-        return redirect()->route('reportes.show', $reporte)
+        return redirect()->back(fallback: route('reportes.show', $reporte))
             ->with('success', 'Revisión iniciada.');
     }
 

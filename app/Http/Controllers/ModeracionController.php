@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Abac\AccionesAbac;
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Services\Moderacion\ColaDeInformes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -16,8 +17,6 @@ use Inertia\Response as InertiaResponse;
  */
 class ModeracionController extends Controller
 {
-    private const FILTROS = ['por_revisar', 'en_revision', 'aprobados', 'rechazados', 'todos'];
-
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('abac', [AccionesAbac::ModeracionVer]);
@@ -100,52 +99,11 @@ class ModeracionController extends Controller
         ]);
     }
 
-    public function programa(Request $request, Programa $programa): InertiaResponse
+    public function programa(Request $request, Programa $programa, ColaDeInformes $cola): InertiaResponse
     {
         Gate::authorize('abac', [AccionesAbac::ModeracionVer]);
 
-        $filtro = in_array($request->input('filtro'), self::FILTROS, true)
-            ? (string) $request->input('filtro')
-            : 'por_revisar';
-
-        $recibidos = fn () => $programa->reportes()->where('estado', '!=', 'borrador');
-
-        $reportes = $recibidos()
-            ->with([
-                'investigador' => fn ($query) => $query
-                    ->select('id', 'name', 'reputation_score')
-                    ->withCount(['reportes as reportes_descartados' => fn ($descartados) => $descartados->whereIn('estado', Reporte::ESTADOS_RECHAZADOS)]),
-                'asignadoA:id,name',
-            ])
-            ->when($filtro === 'por_revisar', fn ($query) => $query->where('estado', 'enviado'))
-            ->when($filtro === 'en_revision', fn ($query) => $query->where('estado', 'en_revision'))
-            ->when($filtro === 'aprobados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_APROBADOS))
-            ->when($filtro === 'rechazados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_RECHAZADOS))
-            // La cola pendiente se atiende por orden de llegada; el resto, lo más reciente primero.
-            ->when(
-                in_array($filtro, ['por_revisar', 'en_revision'], true),
-                fn ($query) => $query->orderBy('enviado_en')->orderBy('id'),
-                fn ($query) => $query->latest('id'),
-            )
-            ->paginate(20)
-            ->withQueryString()
-            ->through(fn (Reporte $reporte): array => [
-                'id' => $reporte->id,
-                'numero_reporte' => $reporte->numero_reporte,
-                'titulo' => $reporte->titulo,
-                'estado' => $reporte->estado->value,
-                'severidad' => $reporte->severidad?->value,
-                'categoria' => $reporte->categoria,
-                'enviado_en' => $reporte->enviado_en?->toISOString(),
-                'es_duplicado_de' => $reporte->es_duplicado_de,
-                'asignado_a' => $reporte->asignadoA?->only(['id', 'name']),
-                'investigador' => [
-                    'id' => $reporte->investigador->id,
-                    'name' => $reporte->investigador->name,
-                    'reputation_score' => $reporte->investigador->reputation_score,
-                    'reportes_descartados' => (int) $reporte->investigador->getAttribute('reportes_descartados'),
-                ],
-            ]);
+        $filtro = ColaDeInformes::filtro($request->input('filtro'));
 
         return Inertia::render('moderacion/Programa', [
             'programa' => [
@@ -157,14 +115,11 @@ class ModeracionController extends Controller
                     : ($programa->empresa->nombre_comercial ?? $programa->empresa->razon_social),
             ],
             'filtro' => $filtro,
-            'conteos' => [
-                'por_revisar' => $recibidos()->where('estado', 'enviado')->count(),
-                'en_revision' => $recibidos()->where('estado', 'en_revision')->count(),
-                'aprobados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_APROBADOS)->count(),
-                'rechazados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_RECHAZADOS)->count(),
-                'todos' => $recibidos()->count(),
-            ],
-            'reportes' => $reportes,
+            'conteos' => $cola->conteos($programa),
+            'reportes' => $cola->consulta($programa, $filtro)
+                ->paginate(20)
+                ->withQueryString()
+                ->through(fn (Reporte $reporte): array => $cola->resumen($reporte)),
         ]);
     }
 }
