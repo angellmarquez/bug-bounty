@@ -1,5 +1,7 @@
 <script lang="ts">
     import type { Snippet } from 'svelte';
+    import type { LinkComponentBaseProps } from '@inertiajs/core';
+    import { Link } from '@inertiajs/svelte';
     import { cn } from '@/lib/utils';
 
     type Variant =
@@ -44,6 +46,7 @@
         size = 'default',
         class: className = '',
         type = 'button',
+        href,
         ...rest
     }: {
         children?: Snippet<[AsChildProps]>;
@@ -52,6 +55,7 @@
         size?: Size;
         class?: string;
         type?: 'button' | 'submit' | 'reset';
+        href?: LinkComponentBaseProps['href'];
         [key: string]: unknown;
     } = $props();
 
@@ -60,6 +64,10 @@
 
 {#if asChild}
     {@render children?.({ class: classes(), ...rest })}
+{:else if href}
+    <Link {href} class={classes()} {...rest}>
+        {@render children?.({})}
+    </Link>
 {:else}
     <button class={classes()} type={type} {...rest}>
         {@render children?.({})}

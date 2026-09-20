@@ -43,11 +43,13 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import { index as reportesIndex, create as createRoute, store } from '@/routes/reportes';
     import type { PocSchemaField, Programa } from '@/types/domain';
     import type { Severidad } from '@/types/enums';
     import { schemaVacio, validarPoc } from '@/lib/poc-schema';
+    import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
 
     let {
         programas = [],
@@ -150,13 +152,14 @@
                             <Select
                                 value={formulario.programa_id}
                                 onValueChange={seleccionarPrograma}
+                                items={programas.map((p) => ({ value: String(p.id), label: p.nombre }))}
                             >
                                 <SelectTrigger class="w-full">
-                                    <span>Seleccionar programa...</span>
+                                    <SelectValue placeholder="Seleccionar programa..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {#each programas as prog (prog.id)}
-                                        <SelectItem value={String(prog.id)}>
+                                        <SelectItem value={String(prog.id)} label={prog.nombre}>
                                             {prog.nombre}
                                         </SelectItem>
                                     {/each}
@@ -203,19 +206,17 @@
                             <Select
                                 value={formulario.categoria}
                                 onValueChange={(v) => (formulario.categoria = v)}
+                                items={CATEGORIAS_REPORTE}
                             >
                                 <SelectTrigger class="w-full">
-                                    <span>Seleccionar categoria...</span>
+                                    <SelectValue placeholder="Seleccionar categoria..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="xss">XSS</SelectItem>
-                                    <SelectItem value="sql_injection">SQL Injection</SelectItem>
-                                    <SelectItem value="rce">RCE</SelectItem>
-                                    <SelectItem value="idor">IDOR</SelectItem>
-                                    <SelectItem value="csrf">CSRF</SelectItem>
-                                    <SelectItem value="ssrf">SSRF</SelectItem>
-                                    <SelectItem value="xxe">XXE</SelectItem>
-                                    <SelectItem value="otro">Otro</SelectItem>
+                                    {#each CATEGORIAS_REPORTE as categoria (categoria.value)}
+                                        <SelectItem value={categoria.value} label={categoria.label}>
+                                            {categoria.label}
+                                        </SelectItem>
+                                    {/each}
                                 </SelectContent>
                             </Select>
                             <input type="hidden" name="categoria" value={formulario.categoria} />

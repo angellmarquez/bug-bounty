@@ -26,6 +26,7 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import {
         Card,
@@ -35,6 +36,20 @@
     } from '@/components/ui/card';
     import { gravedadSancionColor, estadoSancionColor, gravedadSancionLabel, estadoSancionLabel } from '@/lib/status-colors';
     import type { Sancion } from '@/types/domain';
+
+    const ESTADOS_FILTRO = [
+        { value: 'todos', label: 'Todos los estados' },
+        { value: 'aplicada', label: 'Aplicada' },
+        { value: 'apelada', label: 'Apelada' },
+        { value: 'revocada', label: 'Revocada' },
+    ];
+
+    const GRAVEDADES_FILTRO = [
+        { value: 'todos', label: 'Todas las gravedades' },
+        { value: 'leve', label: 'Leve' },
+        { value: 'media', label: 'Media' },
+        { value: 'grave', label: 'Grave' },
+    ];
 
     let {
         sanciones: sancionesData,
@@ -111,30 +126,34 @@
                 <Select
                     value={filtros.estado ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('estado', v)}
+                    items={ESTADOS_FILTRO}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Estado</span>
+                        <SelectValue placeholder="Estado" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todos los estados</SelectItem>
-                        <SelectItem value="aplicada">Aplicada</SelectItem>
-                        <SelectItem value="apelada">Apelada</SelectItem>
-                        <SelectItem value="revocada">Revocada</SelectItem>
+                        {#each ESTADOS_FILTRO as estado (estado.value)}
+                            <SelectItem value={estado.value} label={estado.label}>
+                                {estado.label}
+                            </SelectItem>
+                        {/each}
                     </SelectContent>
                 </Select>
 
                 <Select
                     value={filtros.gravedad ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('gravedad', v)}
+                    items={GRAVEDADES_FILTRO}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Gravedad</span>
+                        <SelectValue placeholder="Gravedad" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todas las gravedades</SelectItem>
-                        <SelectItem value="leve">Leve</SelectItem>
-                        <SelectItem value="media">Media</SelectItem>
-                        <SelectItem value="grave">Grave</SelectItem>
+                        {#each GRAVEDADES_FILTRO as gravedad (gravedad.value)}
+                            <SelectItem value={gravedad.value} label={gravedad.label}>
+                                {gravedad.label}
+                            </SelectItem>
+                        {/each}
                     </SelectContent>
                 </Select>
             </div>

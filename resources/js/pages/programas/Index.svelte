@@ -25,6 +25,7 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import {
         Card,
@@ -59,6 +60,18 @@
     } = $props();
 
     let busqueda = $state(filtros.busqueda ?? '');
+
+    const estadosFiltro = $derived([
+        { value: 'todos', label: 'Todos los estados' },
+        { value: 'activo', label: 'Activo' },
+        { value: 'en_pausa', label: 'En pausa' },
+        ...(esGestion || esAdmin
+            ? [
+                  { value: 'borrador', label: 'Borrador' },
+                  { value: 'archivado', label: 'Archivado' },
+              ]
+            : []),
+    ]);
 
     function aplicarFiltro(key: string, value: string | null) {
         const params: Record<string, string> = {};
@@ -138,18 +151,17 @@
                 <Select
                     value={filtros.estado ?? 'todos'}
                     onValueChange={(v) => aplicarFiltro('estado', v)}
+                    items={estadosFiltro}
                 >
                     <SelectTrigger class="w-full sm:w-[180px]">
-                        <span>Estado</span>
+                        <SelectValue placeholder="Estado" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="todos">Todos los estados</SelectItem>
-                        <SelectItem value="activo">Activo</SelectItem>
-                        <SelectItem value="en_pausa">En pausa</SelectItem>
-                        {#if esGestion || esAdmin}
-                            <SelectItem value="borrador">Borrador</SelectItem>
-                            <SelectItem value="archivado">Archivado</SelectItem>
-                        {/if}
+                        {#each estadosFiltro as estado (estado.value)}
+                            <SelectItem value={estado.value} label={estado.label}>
+                                {estado.label}
+                            </SelectItem>
+                        {/each}
                     </SelectContent>
                 </Select>
             </div>

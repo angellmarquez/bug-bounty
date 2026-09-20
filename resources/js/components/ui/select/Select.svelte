@@ -11,8 +11,14 @@ type SelectProps = Omit<SelectPrimitive.RootProps, 'type' | 'value'> & {
 		open = $bindable(false),
 		value = $bindable(''),
 		type = 'single',
+		onValueChange,
 		...restProps
 	}: SelectProps = $props();
+
+	function handleValueChange(v: string) {
+		value = v;
+		onValueChange?.(v);
+	}
 </script>
 
-<SelectPrimitive.Root {type} bind:open bind:value={value as never} {...restProps} />
+<SelectPrimitive.Root {type} bind:open value={value as never} onValueChange={handleValueChange as never} {...restProps} />

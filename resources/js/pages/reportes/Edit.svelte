@@ -46,11 +46,13 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import { edit, update } from '@/routes/reportes';
     import type { PocSchemaField, Reporte } from '@/types/domain';
     import type { Severidad } from '@/types/enums';
     import { validarPoc } from '@/lib/poc-schema';
+    import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
 
     let {
         reporte,
@@ -172,19 +174,17 @@
                                 <Select
                                     value={formulario.categoria}
                                     onValueChange={(v) => (formulario.categoria = v)}
+                                    items={CATEGORIAS_REPORTE}
                                 >
                                     <SelectTrigger class="w-full">
-                                        <span>Seleccionar categoria...</span>
+                                        <SelectValue placeholder="Seleccionar categoria..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="xss">XSS</SelectItem>
-                                        <SelectItem value="sql_injection">SQL Injection</SelectItem>
-                                        <SelectItem value="rce">RCE</SelectItem>
-                                        <SelectItem value="idor">IDOR</SelectItem>
-                                        <SelectItem value="csrf">CSRF</SelectItem>
-                                        <SelectItem value="ssrf">SSRF</SelectItem>
-                                        <SelectItem value="xxe">XXE</SelectItem>
-                                        <SelectItem value="otro">Otro</SelectItem>
+                                        {#each CATEGORIAS_REPORTE as categoria (categoria.value)}
+                                            <SelectItem value={categoria.value} label={categoria.label}>
+                                                {categoria.label}
+                                            </SelectItem>
+                                        {/each}
                                     </SelectContent>
                                 </Select>
                                 <input type="hidden" name="categoria" value={formulario.categoria} />

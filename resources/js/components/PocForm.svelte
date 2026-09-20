@@ -18,6 +18,7 @@
         SelectContent,
         SelectItem,
         SelectTrigger,
+        SelectValue,
     } from '@/components/ui/select';
     import type { PocSchemaField } from '@/types/domain';
     import { validarPoc } from '@/lib/poc-schema';
@@ -172,13 +173,14 @@
                                 <Select
                                     value={(data[field.name] as string) ?? ''}
                                     onValueChange={(v) => actualizarCampo(field.name, v)}
+                                    items={field.options}
                                 >
                                     <SelectTrigger class="w-full">
-                                        <span>{field.placeholder ?? 'Seleccionar...'}</span>
+                                        <SelectValue placeholder={field.placeholder ?? 'Seleccionar...'} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {#each field.options as option (option.value)}
-                                            <SelectItem value={option.value}>
+                                            <SelectItem value={option.value} label={option.label}>
                                                 {option.label}
                                             </SelectItem>
                                         {/each}

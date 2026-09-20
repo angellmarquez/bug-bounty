@@ -49,6 +49,22 @@ class DashboardController extends Controller
             'reputacion' => $user->reputation_score,
         ];
 
+        $misReportes = (! $isAdmin && ! $isGestion)
+            ? Reporte::where('investigador_id', $user->id)
+                ->with('programa:id,nombre')
+                ->latest('created_at')
+                ->limit(30)
+                ->get(['id', 'numero_reporte', 'titulo', 'estado', 'programa_id', 'enviado_en', 'created_at'])
+                ->map(fn (Reporte $reporte) => [
+                    'id' => $reporte->id,
+                    'numero_reporte' => $reporte->numero_reporte,
+                    'titulo' => $reporte->titulo,
+                    'estado' => $reporte->estado,
+                    'fecha' => $reporte->enviado_en ?? $reporte->created_at,
+                    'programa' => ['nombre' => $reporte->programa->nombre],
+                ])
+            : [];
+
         $roleStats = [];
 
         if ($isEmpresa) {
@@ -89,6 +105,7 @@ class DashboardController extends Controller
             'stats' => $stats,
             'userRoles' => $roles,
             'roleStats' => $roleStats,
+            'misReportes' => $misReportes,
         ]);
     }
 }
