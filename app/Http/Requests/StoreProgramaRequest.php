@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
+use App\Enums\NivelAcceso;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -24,12 +25,9 @@ class StoreProgramaRequest extends FormRequest
             'nombre' => ['required', 'string', 'max:255'],
             'descripcion' => ['required', 'string', 'max:5000'],
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
-            'recompensa_min' => ['required', 'numeric', 'min:0'],
-            'recompensa_max' => ['required', 'numeric', 'gte:recompensa_min'],
-            'moneda' => ['required', 'string', 'size:3'],
             'requiere_poc' => ['boolean'],
             'es_publico' => ['boolean'],
-            'reputacion_minima' => ['sometimes', 'integer', 'min:0'],
+            'nivel_acceso' => ['sometimes', Rule::enum(NivelAcceso::class)],
             // Solo lo usa un administrador para crear el programa en nombre de una empresa aprobada.
             'empresa_id' => ['nullable', 'integer', Rule::exists('empresas', 'id')->where('estado', 'aprobada')],
             'poc_schema' => ['nullable', 'array'],
@@ -67,12 +65,6 @@ class StoreProgramaRequest extends FormRequest
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
             'descripcion.required' => 'La descripcion es obligatoria.',
             'descripcion.max' => 'La descripcion no puede exceder 5000 caracteres.',
-            'recompensa_min.required' => 'La recompensa minima es obligatoria.',
-            'recompensa_min.min' => 'La recompensa minima debe ser mayor o igual a 0.',
-            'recompensa_max.required' => 'La recompensa maxima es obligatoria.',
-            'recompensa_max.gte' => 'La recompensa maxima debe ser mayor o igual a la minima.',
-            'moneda.required' => 'La moneda es obligatoria.',
-            'moneda.size' => 'La moneda debe tener 3 caracteres (ej. USD).',
             'inicia_en.date' => 'La fecha de inicio debe ser una fecha valida.',
             'termina_en.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la de inicio.',
         ];

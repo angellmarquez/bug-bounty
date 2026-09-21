@@ -99,9 +99,6 @@ test('el administrador crea un programa a nombre de una empresa aprobada', funct
     $this->post(route('programas.store'), [
         'nombre' => 'Programa del admin',
         'descripcion' => 'Creado por el administrador.',
-        'recompensa_min' => 10,
-        'recompensa_max' => 100,
-        'moneda' => 'USD',
         'empresa_id' => $empresa->id,
         'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
     ])->assertRedirect();
@@ -116,9 +113,6 @@ test('el administrador no puede crear un programa para una empresa no aprobada',
     $this->post(route('programas.store'), [
         'nombre' => 'Programa inválido',
         'descripcion' => 'x',
-        'recompensa_min' => 10,
-        'recompensa_max' => 100,
-        'moneda' => 'USD',
         'empresa_id' => $empresa->id,
         'objetivos' => [['tipo' => 'web', 'valor' => 'x.test']],
     ])->assertSessionHasErrors('empresa_id');
@@ -133,9 +127,6 @@ test('un usuario de gestión no puede asignar un programa a una empresa enviando
     $this->post(route('programas.store'), [
         'nombre' => 'Programa de gestión',
         'descripcion' => 'x',
-        'recompensa_min' => 10,
-        'recompensa_max' => 100,
-        'moneda' => 'USD',
         'empresa_id' => $empresa->id,
         'objetivos' => [['tipo' => 'web', 'valor' => 'x.test']],
     ]);

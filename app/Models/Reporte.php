@@ -31,8 +31,6 @@ use Illuminate\Support\Carbon;
  * @property string|null $poc Bloque PGP armored con el PoC en JSON.
  * @property string|null $clave_huella
  * @property EstadoReporte $estado
- * @property int|float|null $recompensa
- * @property string $moneda
  * @property int|null $es_duplicado_de
  * @property string|null $notas_internas
  * @property Carbon|null $enviado_en
@@ -48,7 +46,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Reporte> $duplicados
  * @property-read Collection<int, EntradaReputacion> $entradasReputacion
  */
-#[Fillable(['numero_reporte', 'programa_id', 'investigador_id', 'asignado_a', 'titulo', 'descripcion', 'categoria', 'vector_cvss', 'puntuacion_cvss', 'severidad', 'poc', 'clave_huella', 'estado', 'recompensa', 'moneda', 'es_duplicado_de', 'notas_internas', 'enviado_en', 'cerrado_en'])]
+#[Fillable(['numero_reporte', 'programa_id', 'investigador_id', 'asignado_a', 'titulo', 'descripcion', 'categoria', 'vector_cvss', 'puntuacion_cvss', 'severidad', 'poc', 'clave_huella', 'estado', 'es_duplicado_de', 'notas_internas', 'enviado_en', 'cerrado_en'])]
 #[Hidden(['notas_internas'])]
 class Reporte extends Model
 {
@@ -64,7 +62,6 @@ class Reporte extends Model
         'en_revision',
         'validado',
         'en_reparacion',
-        'pago_pendiente',
     ];
 
     /**
@@ -75,7 +72,7 @@ class Reporte extends Model
     /**
      * Estados que indican que el moderador aprobó (validó) el informe.
      */
-    public const ESTADOS_APROBADOS = ['validado', 'en_reparacion', 'pago_pendiente', 'pagado'];
+    public const ESTADOS_APROBADOS = ['validado', 'en_reparacion', 'cerrado'];
 
     /**
      * Estados en los que el informe fue descartado.
@@ -93,7 +90,6 @@ class Reporte extends Model
             'puntuacion_cvss' => 'decimal:1',
             'severidad' => Severidad::class,
             'estado' => EstadoReporte::class,
-            'recompensa' => 'decimal:2',
             'enviado_en' => 'datetime',
             'cerrado_en' => 'datetime',
             'deleted_at' => 'datetime',

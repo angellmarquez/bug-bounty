@@ -217,6 +217,8 @@ class AdminController extends Controller
             return redirect()->route('admin.moderadores');
         }
         $user->roles()->detach($rol->id);
+        // Sin el rol no tiene sentido conservar los programas asignados.
+        $user->programasModerados()->detach();
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.revocado');
 
@@ -227,6 +229,12 @@ class AdminController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ModeradorAsignar]);
         abort_unless($user->roles()->where('slug', 'moderador')->exists(), 422, 'El usuario no tiene rol de moderador.');
+
+        // Quien ya reportó en un programa no puede moderarlo: revisaría (o vería) informes con conflicto de interés.
+        if ($programa->reportes()->where('investigador_id', $user->id)->exists()) {
+            return redirect()->route('admin.moderadores')
+                ->with('error', "{$user->name} ya presentó informes en {$programa->nombre}: no puede moderarlo.");
+        }
 
         $programa->moderadores()->syncWithoutDetaching([
             $user->id => ['asignado_por' => $request->user()->id],
@@ -481,7 +489,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'puntos_inicial' => ['required', 'integer', 'min:0'],
             'puntos.reporte_validado' => ['required', 'integer', 'min:0'],
-            'puntos.reporte_pagado' => ['required', 'integer', 'min:0'],
+            'puntos.reporte_resuelto' => ['required', 'integer', 'min:0'],
             'puntos.calidad_documentacion' => ['required', 'integer', 'min:0'],
             'puntos.participacion' => ['required', 'integer', 'min:0'],
             'penalizacion.leve' => ['required', 'integer'],

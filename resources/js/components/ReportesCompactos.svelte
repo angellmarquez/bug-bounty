@@ -1,6 +1,7 @@
 <script lang="ts">
     import StateBadge from '@/components/StateBadge.svelte';
     import SeverityBadge from '@/components/SeverityBadge.svelte';
+    import RangoBadge from '@/components/RangoBadge.svelte';
     import VistaRapidaInforme from '@/components/VistaRapidaInforme.svelte';
     import { Button } from '@/components/ui/button';
     import type { ReporteCompacto } from '@/types/domain';
@@ -67,7 +68,8 @@
                 <div class="min-w-0">
                     <p class="truncate text-sm">{reporte.investigador.name}</p>
                     <p class="text-xs text-muted-foreground">
-                        Reputación {reporte.investigador.reputation_score}
+                        <RangoBadge puntos={reporte.investigador.reputation_score} class="align-middle" />
+                        {reporte.investigador.reputation_score} pts
                         {#if (reporte.investigador.reportes_descartados ?? 0) > 0}
                             · <span class="text-chart-4">{reporte.investigador.reportes_descartados} descartados</span>
                         {/if}

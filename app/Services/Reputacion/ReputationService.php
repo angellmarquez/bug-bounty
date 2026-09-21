@@ -119,7 +119,7 @@ class ReputationService
 
     /**
      * Otorga los puntos configurados para un evento de reputación positiva
-     * (p. ej. `reporte_validado`, `reporte_pagado`).
+     * (p. ej. `reporte_validado`, `reporte_resuelto`).
      *
      * @param  array<string, mixed>  $metadata
      */

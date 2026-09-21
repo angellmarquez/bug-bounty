@@ -11,12 +11,9 @@ function datosDeEdicion(array $extra = []): array
     return [
         'nombre' => 'Programa editado',
         'descripcion' => 'Descripcion editada',
-        'recompensa_min' => 100,
-        'recompensa_max' => 900,
-        'moneda' => 'USD',
         'requiere_poc' => '1',
         'es_publico' => '1',
-        'reputacion_minima' => 0,
+        'nivel_acceso' => 'bajo',
         ...$extra,
     ];
 }
@@ -40,7 +37,7 @@ test('solo la empresa duena puede editar el programa', function (string $rol, bo
         'empresa duena' => miembroDeEmpresa($empresa),
         'otra empresa' => miembroDeEmpresa(Empresa::factory()->aprobada()->create()),
         'administrador' => administrador(),
-        'moderador' => moderador(),
+        'moderador' => moderadorDe($programa),
         'investigador' => investigador(),
         'gestion' => gestion(),
     };
@@ -74,7 +71,7 @@ test('la pagina del programa solo ofrece editar a la empresa duena', function (s
     $usuario = match ($rol) {
         'empresa duena' => miembroDeEmpresa($empresa),
         'administrador' => administrador(),
-        'moderador' => moderador(),
+        'moderador' => moderadorDe($programa),
     };
 
     $this->actingAs($usuario)->get(route('programas.show', $programa))

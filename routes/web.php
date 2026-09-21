@@ -42,7 +42,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('reportes/{reporte}/validar', [ReporteController::class, 'validar'])->name('reportes.validar');
     Route::post('reportes/{reporte}/rechazar', [ReporteController::class, 'rechazar'])->name('reportes.rechazar');
     Route::post('reportes/{reporte}/marcar-duplicado', [ReporteController::class, 'marcarDuplicado'])->name('reportes.marcar-duplicado');
-    Route::post('reportes/{reporte}/pagar', [ReporteController::class, 'pagar'])->name('reportes.pagar');
+    Route::post('reportes/{reporte}/reparacion', [ReporteController::class, 'reparacion'])->name('reportes.reparacion');
     Route::post('reportes/{reporte}/cerrar', [ReporteController::class, 'cerrar'])->name('reportes.cerrar');
     Route::post('reportes/{reporte}/comentar', [ReporteController::class, 'comentar'])->name('reportes.comentar');
 

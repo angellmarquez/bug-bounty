@@ -22,9 +22,6 @@ test('empresa member is redirected to its new borrador programa without 403', fu
         'nombre' => 'Programa Acme',
         'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
         'descripcion' => 'Programa de seguridad de Acme.',
-        'recompensa_min' => 100,
-        'recompensa_max' => 1000,
-        'moneda' => 'USD',
     ]);
 
     $programa = Programa::where('nombre', 'Programa Acme')->firstOrFail();
@@ -152,9 +149,6 @@ test('la empresa no puede crear un programa sin objetivos', function () {
     $datos = [
         'nombre' => 'Programa sin alcance',
         'descripcion' => 'Descripcion',
-        'recompensa_min' => 100,
-        'recompensa_max' => 500,
-        'moneda' => 'USD',
     ];
 
     $this->post(route('programas.store'), $datos)->assertSessionHasErrors('objetivos');
@@ -216,7 +210,7 @@ test('una empresa ajena no puede eliminar el programa', function () {
 
 test('el moderador puede ver los programas que reciben informes', function () {
     $programa = programaBorradorDe(Empresa::factory()->aprobada()->create());
-    $this->actingAs(moderador());
+    $this->actingAs(moderadorDe($programa));
 
     $this->get(route('programas.show', $programa))->assertOk();
     $this->get(route('programas.index'))

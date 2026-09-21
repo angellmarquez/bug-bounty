@@ -35,20 +35,58 @@ El panel empresarial solo muestra reportes no borrador asociados a los programas
 El detalle permite consultar la prueba de concepto enviada por el investigador, pero no
 expone las notas internas de moderación ni reportes de otras empresas.
 
-Al crear o editar un programa, la empresa puede marcarlo como público y definir una
-reputación mínima. Los investigadores solo verán programas públicos activos cuando
-su puntuación de reputación sea igual o superior a ese mínimo. La misma regla se
-aplica al crear un reporte, incluso si se intenta acceder directamente mediante
-una URL.
+Al crear o editar un programa, la empresa puede marcarlo como público y elegir su
+**nivel de acceso** (bajo, medio o alto). Cada nivel exige un rango de reputación
+(por defecto bajo = Bronce, medio = Plata, alto = Oro; ver "Reputación y rangos").
+Los investigadores solo ven los programas públicos activos de los niveles a los que su
+rango les da acceso. La misma regla se aplica al crear un reporte, incluso si se intenta
+abrir el programa mediante una URL.
+
+## Sin pagos: la recompensa es la reputación
+
+La plataforma no gestiona dinero (es software libre y las empresas no pagan a través de ella).
+El ciclo de un informe es:
+
+`enviado → en revisión → validado → en reparación → cerrado (resuelto)`
+
+- El moderador decide si es válido, duplicado o no válido; al validar, el investigador suma puntos.
+- La empresa marca el informe **en reparación** y lo **cierra como resuelto** cuando la
+  vulnerabilidad queda corregida; al cerrarlo, el investigador suma más puntos.
+- Los puntos de cada evento se configuran en `config/reputacion.php` (`puntos.reporte_validado`,
+  `puntos.reporte_resuelto`).
+
+## Reputación y rangos
+
+El saldo de reputación se traduce en un rango, como en un programa de niveles:
+
+| Rango    | Desde |
+| -------- | ----- |
+| Bronce   | 0 pts |
+| Plata    | 100   |
+| Oro      | 300   |
+| Platino  | 700   |
+| Diamante | 1500  |
+
+Los umbrales y la equivalencia nivel → rango están en `config/reputacion.php`
+(`rangos` y `acceso`). El rango se calcula a partir del ledger, nunca se guarda; una sanción
+puede bajar de rango. El panel "Mi estado" (Dashboard) y el menú de usuario muestran los roles,
+el rango, la suspensión vigente, los programas que modera y el estado de la empresa.
 
 ## Flujo de moderación
 
-El rol `moderador` puede revisar todos los reportes que no estén en borrador. Desde el detalle de un reporte puede validar o rechazarlo.
+El rol `moderador` revisa **solo los programas que un administrador le asigna** (`/admin/moderadores`);
+nunca ve borradores. Desde el detalle de un informe puede iniciar la revisión, validarlo, rechazarlo o marcarlo como duplicado.
+
+Un moderador puede ser también investigador (conserva ambas etiquetas), pero por conflicto de interés:
+
+- no puede enviar informes a los programas que modera (vería las vulnerabilidades de los demás);
+- no se le puede asignar un programa en el que ya presentó informes;
+- nadie revisa, valida ni cierra su propio informe (tampoco un administrador).
 
 Al rechazar, la opción **Marcar como reporte falso y aplicar sanción** permite seleccionar gravedad `leve`, `media` o `grave`. La sanción:
 
 - descuenta puntos mediante el ledger de reputación;
-- puede suspender al investigador según la gravedad;
+- puede suspender al investigador según la gravedad: mientras dure la suspensión no puede enviar informes nuevos (sí puede entrar, ver su reputación y apelar);
 - crea un evento en la línea de tiempo;
 - queda registrada en auditoría;
 - puede ser apelada por el investigador.

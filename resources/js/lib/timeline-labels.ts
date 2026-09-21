@@ -6,7 +6,6 @@ const tipoEventoLabelMap: Record<TipoEventoReporte, string> = {
     cambio_estado: 'Cambio de estado',
     comentario: 'Comentario',
     marcado_duplicado: 'Marcado como duplicado',
-    pago: 'Recompensa pagada',
     sancion: 'Sanción aplicada',
     asignacion: 'Asignado a analista',
 };

@@ -23,7 +23,7 @@
     import CheckCircle from '@lucide/svelte/icons/check-circle';
     import XCircle from '@lucide/svelte/icons/x-circle';
     import Copy from '@lucide/svelte/icons/copy';
-    import DollarSign from '@lucide/svelte/icons/dollar-sign';
+    import Wrench from '@lucide/svelte/icons/wrench';
     import Lock from '@lucide/svelte/icons/lock';
     import Edit from '@lucide/svelte/icons/edit';
     import Send from '@lucide/svelte/icons/send';
@@ -38,6 +38,7 @@
     import StateTransition from '@/components/StateTransition.svelte';
     import { Button } from '@/components/ui/button';
     import ContenidoInforme from '@/components/ContenidoInforme.svelte';
+    import RangoBadge from '@/components/RangoBadge.svelte';
     import EstadoProgreso from '@/components/EstadoProgreso.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
     import {
@@ -83,7 +84,7 @@
     const auth = $derived(page.props.auth);
 
     let transitionOpen = $state(false);
-    let transitionAccion = $state<'asignar' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'pagar' | 'cerrar'>('validar');
+    let transitionAccion = $state<'asignar' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'reparacion' | 'cerrar'>('validar');
 
     function openTransition(accion: typeof transitionAccion) {
         transitionAccion = accion;
@@ -254,16 +255,16 @@
                                     Duplicado
                                 </Button>
                             {/if}
-                            {#if accionesDisponibles.pagar}
-                                <Button variant="outline" size="sm" onclick={() => openTransition('pagar')}>
-                                    <DollarSign class="mr-1 h-3 w-3" />
-                                    Pagar
+                            {#if accionesDisponibles.reparacion}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('reparacion')}>
+                                    <Wrench class="mr-1 h-3 w-3" />
+                                    En reparación
                                 </Button>
                             {/if}
                             {#if accionesDisponibles.cerrar}
                                 <Button variant="outline" size="sm" onclick={() => openTransition('cerrar')}>
                                     <Lock class="mr-1 h-3 w-3" />
-                                    Cerrar
+                                    Cerrar como resuelto
                                 </Button>
                             {/if}
                         </div>
@@ -325,15 +326,6 @@
                         </div>
                     {/if}
 
-                    {#if reporte.recompensa}
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">Recompensa</span>
-                            <span class="text-sm font-semibold text-primary">
-                                {reporte.recompensa.toLocaleString('es-ES', { minimumFractionDigits: 2 })} {reporte.moneda}
-                            </span>
-                        </div>
-                    {/if}
-
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-muted-foreground">Creado</span>
                         <span class="text-sm">{formatearFecha(reporte.created_at)}</span>
@@ -368,7 +360,10 @@
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-muted-foreground">Reputación</span>
-                            <span class="text-sm font-semibold text-primary">{historialInvestigador.reputation_score}</span>
+                            <span class="flex items-center gap-2 text-sm font-semibold text-primary">
+                                {historialInvestigador.reputation_score}
+                                <RangoBadge puntos={historialInvestigador.reputation_score} />
+                            </span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-muted-foreground">Informes enviados</span>

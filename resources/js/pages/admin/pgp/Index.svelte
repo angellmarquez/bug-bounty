@@ -41,7 +41,8 @@
             identidad: string | null;
             algoritmo: string | null;
             bits: number | null;
-            created_at: string;
+            creada_en: string | null;
+            expira_en: string | null;
         } | null;
         driver: string;
         available: boolean;
@@ -61,14 +62,16 @@
         });
     }
 
-    function formatearFecha(dateStr: string): string {
+    // El servidor envía fechas sin hora (creada_en) o con hora (expira_en); una fecha vacía o inválida no debe romper la página.
+    function formatearFecha(dateStr: string | null): string {
+        if (!dateStr) return 'N/A';
+        const fecha = new Date(dateStr);
+        if (Number.isNaN(fecha.getTime())) return 'N/A';
         return new Intl.DateTimeFormat('es-ES', {
             day: '2-digit',
             month: 'long',
             year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        }).format(new Date(dateStr));
+        }).format(fecha);
     }
 
     const isFallback = $derived(driver === 'fallback');
@@ -158,7 +161,11 @@
                     {/if}
                     <div class="space-y-1">
                         <p class="text-xs text-muted-foreground">Generada</p>
-                        <p class="text-sm">{formatearFecha(clave.created_at)}</p>
+                        <p class="text-sm">{formatearFecha(clave.creada_en)}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs text-muted-foreground">Expira</p>
+                        <p class="text-sm">{formatearFecha(clave.expira_en)}</p>
                     </div>
                 </div>
             </CardContent>

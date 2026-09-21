@@ -11,6 +11,8 @@ import type {
     TipoObjetivo,
 } from '@/types/enums';
 
+import type { NivelAcceso } from '@/lib/rangos';
+
 export type Rol = {
     id: number;
     nombre: string;
@@ -75,12 +77,9 @@ export type Programa = {
     descripcion: string;
     bugs_buscados: string | null;
     estado: EstadoPrograma;
-    moneda: string;
-    recompensa_min: number;
-    recompensa_max: number;
     requiere_poc: boolean;
     es_publico: boolean;
-    reputacion_minima: number;
+    nivel_acceso: NivelAcceso;
     poc_schema: PocSchemaField[] | null;
     creado_por: number | null;
     inicia_en: string | null;
@@ -107,8 +106,6 @@ export type Reporte = {
     severidad: Severidad | null;
     poc: Record<string, unknown> | null;
     estado: EstadoReporte;
-    recompensa: number | null;
-    moneda: string;
     es_duplicado_de: number | null;
     notas_internas: string | null;
     enviado_en: string | null;

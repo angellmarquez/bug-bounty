@@ -70,11 +70,11 @@ test('sincronizar reconcilia la columna con el ledger', function () {
 test('otorgarPuntosEvento premia con los puntos configurados', function () {
     $usuario = User::factory()->create();
 
-    $entrada = app(ReputationService::class)->otorgarPuntosEvento($usuario, 'reporte_pagado');
+    $entrada = app(ReputationService::class)->otorgarPuntosEvento($usuario, 'reporte_resuelto');
 
     expect($entrada)->not->toBeNull()
-        ->and($entrada->puntos)->toBe((int) config('reputacion.puntos.reporte_pagado'))
-        ->and($usuario->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_pagado'));
+        ->and($entrada->puntos)->toBe((int) config('reputacion.puntos.reporte_resuelto'))
+        ->and($usuario->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_resuelto'));
 });
 
 test('otorgarPuntosEvento no asienta cuando el evento no tiene puntos', function () {

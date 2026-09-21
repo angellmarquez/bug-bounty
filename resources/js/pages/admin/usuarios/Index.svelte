@@ -19,6 +19,7 @@
     import Users from '@lucide/svelte/icons/users';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
+    import RangoBadge from '@/components/RangoBadge.svelte';
     import EmptyState from '@/components/EmptyState.svelte';
     import { Input } from '@/components/ui/input';
     import { Button } from '@/components/ui/button';
@@ -164,9 +165,7 @@
                             <CardTitle class="text-sm font-semibold leading-tight">
                                 {usuario.name}
                             </CardTitle>
-                            <span class="inline-flex items-center rounded-md border border-transparent bg-chart-1 px-2 py-0.5 text-xs font-semibold text-white">
-                                {usuario.reputation_score} pts
-                            </span>
+                            <RangoBadge puntos={usuario.reputation_score} mostrarPuntos />
                         </div>
                         <p class="text-xs text-muted-foreground">
                             {usuario.email}

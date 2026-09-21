@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
+use App\Enums\NivelAcceso;
 use App\Models\Programa;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -37,12 +38,9 @@ class UpdateProgramaRequest extends FormRequest
             'nombre' => ['sometimes', 'required', 'string', 'max:255'],
             'descripcion' => ['sometimes', 'required', 'string', 'max:5000'],
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
-            'recompensa_min' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'recompensa_max' => ['sometimes', 'required', 'numeric', 'gte:recompensa_min'],
-            'moneda' => ['sometimes', 'required', 'string', 'size:3'],
             'requiere_poc' => ['boolean'],
             'es_publico' => ['boolean'],
-            'reputacion_minima' => ['sometimes', 'required', 'integer', 'min:0'],
+            'nivel_acceso' => ['sometimes', 'required', Rule::enum(NivelAcceso::class)],
             'poc_schema' => ['nullable', 'array'],
             'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
             'poc_schema.*.label' => ['required_with:poc_schema', 'string', 'max:255'],
@@ -70,9 +68,6 @@ class UpdateProgramaRequest extends FormRequest
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
             'descripcion.required' => 'La descripcion es obligatoria.',
             'descripcion.max' => 'La descripcion no puede exceder 5000 caracteres.',
-            'recompensa_min.min' => 'La recompensa minima debe ser mayor o igual a 0.',
-            'recompensa_max.gte' => 'La recompensa maxima debe ser mayor o igual a la minima.',
-            'moneda.size' => 'La moneda debe tener 3 caracteres (ej. USD).',
             'termina_en.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la de inicio.',
         ];
     }

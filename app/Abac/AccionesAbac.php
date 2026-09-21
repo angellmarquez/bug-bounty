@@ -28,7 +28,7 @@ final class AccionesAbac
 
     public const ReporteMarcarDuplicado = 'reportes.marcar_duplicado';
 
-    public const ReportePagar = 'reportes.pagar';
+    public const ReporteMarcarEnReparacion = 'reportes.marcar_en_reparacion';
 
     public const ReporteCerrar = 'reportes.cerrar';
 

@@ -121,6 +121,17 @@ function miembroDeEmpresa(Empresa $empresa): User
     return $usuario;
 }
 
+/**
+ * Moderador de un programa concreto: un moderador solo ve y revisa los programas que se le asignan.
+ */
+function moderadorDe(Programa|Reporte $alcance, array $atributos = []): User
+{
+    $moderador = moderador($atributos);
+    $moderador->programasModerados()->attach($alcance instanceof Reporte ? $alcance->programa_id : $alcance->id);
+
+    return $moderador;
+}
+
 function administrador(array $atributos = []): User
 {
     return conRol(User::factory()->create($atributos), 'administrador');
