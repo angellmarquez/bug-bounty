@@ -17,6 +17,11 @@ class EmpresaAccessMiddleware
             return $next($request);
         }
 
+        // Un administrador nunca queda limitado por su vínculo con una empresa.
+        if ($user->roles()->where('slug', 'administrador')->exists()) {
+            return $next($request);
+        }
+
         $empresa = $user->empresas()
             ->where('empresa_usuario.estado', 'activo')
             ->latest('empresas.created_at')

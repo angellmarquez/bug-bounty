@@ -5,6 +5,7 @@
     import LayoutGrid from '@lucide/svelte/icons/layout-grid';
     import Bug from '@lucide/svelte/icons/bug';
     import Shield from '@lucide/svelte/icons/shield';
+    import Award from '@lucide/svelte/icons/award';
     import Key from '@lucide/svelte/icons/key';
     import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
     import Settings from '@lucide/svelte/icons/settings';
@@ -91,6 +92,14 @@
             });
         }
         */
+
+        if (isInvestigador) {
+            items.push({
+                title: 'Mi reputación',
+                href: '/reputacion',
+                icon: Award,
+            });
+        }
 
         if (isGestion || isAdmin) {
             items.push({

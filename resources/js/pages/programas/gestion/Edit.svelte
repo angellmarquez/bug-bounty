@@ -259,6 +259,7 @@
                                     type="button"
                                     variant="ghost"
                                     size="icon"
+                                    aria-label="Quitar objetivo"
                                     onclick={() => eliminarObjetivo(i)}
                                 >
                                     <Trash2 class="h-4 w-4 text-destructive" />

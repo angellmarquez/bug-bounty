@@ -386,3 +386,35 @@ test('show page does not pass triaje for investigador', function () {
 
     $this->assertFalse($props['puedeTriar']);
 });
+
+test('validar suma al investigador los puntos de reputación del evento reporte_validado', function () {
+    $this->actingAs(moderador());
+    $investigador = investigador();
+    $reporte = reporteDe($investigador, null, ['estado' => 'enviado']);
+
+    $this->post(route('reportes.validar', $reporte))->assertRedirect();
+
+    expect($investigador->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_validado'));
+    $this->assertDatabaseHas('ledger_reputacion', [
+        'usuario_id' => $investigador->id,
+        'reporte_id' => $reporte->id,
+        'motivo' => 'reporte_validado',
+    ]);
+});
+
+test('pagar suma al investigador los puntos de reputación del evento reporte_pagado', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+    $investigador = investigador();
+    $reporte = reporteDe($investigador, $programa, ['estado' => 'validado']);
+
+    $this->post(route('reportes.pagar', $reporte), ['recompensa' => 500])->assertRedirect();
+
+    expect($investigador->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_pagado'));
+    $this->assertDatabaseHas('ledger_reputacion', [
+        'usuario_id' => $investigador->id,
+        'reporte_id' => $reporte->id,
+        'motivo' => 'reporte_pagado',
+    ]);
+});

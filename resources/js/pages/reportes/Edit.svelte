@@ -29,6 +29,7 @@
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
+    import AlertError from '@/components/AlertError.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -145,6 +146,9 @@
         onBefore={alEnviar}
     >
         {#snippet children({ errors: formErrors, processing: formProcessing })}
+            {#if formErrors.pgp}
+                <AlertError errors={[formErrors.pgp]} title="No se pudo guardar el reporte" />
+            {/if}
             {#if pasoActual === 1}
                 <Card>
                     <CardHeader>

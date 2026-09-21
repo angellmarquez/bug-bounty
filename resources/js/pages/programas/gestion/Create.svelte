@@ -32,6 +32,12 @@
     import { store as programaStore } from '@/routes/programas';
     import { TIPOS_OBJETIVO } from '@/lib/tipo-objetivo';
 
+    // Solo el administrador recibe la lista: puede crear el programa a nombre de una empresa.
+    let { empresas = [], empresaInicial = null }: {
+        empresas?: { id: number; razon_social: string; nombre_comercial: string | null }[];
+        empresaInicial?: number | null;
+    } = $props();
+
     // Se empieza con un objetivo vacío: el programa necesita al menos uno.
     let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>([
         { tipo: 'web', valor: '', descripcion: '' },
@@ -59,6 +65,27 @@
             {@const errorObjetivos = Object.entries(errors).find(([clave]) => clave === 'objetivos' || clave.startsWith('objetivos.'))?.[1]}
             <Card>
                 <CardContent class="pt-6 space-y-4">
+                    {#if empresas.length > 0}
+                        <div class="space-y-2">
+                            <Label for="empresa_id">Empresa</Label>
+                            <select
+                                id="empresa_id"
+                                name="empresa_id"
+                                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="" selected={empresaInicial === null}>Sin empresa (programa de la plataforma)</option>
+                                {#each empresas as empresa (empresa.id)}
+                                    <option value={empresa.id} selected={empresa.id === empresaInicial}>
+                                        {empresa.nombre_comercial ?? empresa.razon_social}
+                                    </option>
+                                {/each}
+                            </select>
+                            <p class="text-xs text-muted-foreground">
+                                Como administrador puedes crear el programa a nombre de una empresa aprobada.
+                            </p>
+                            <InputError message={errors.empresa_id} />
+                        </div>
+                    {/if}
                     <div class="space-y-2">
                         <Label for="nombre">Nombre *</Label>
                         <Input
@@ -243,6 +270,7 @@
                                     type="button"
                                     variant="ghost"
                                     size="icon"
+                                    aria-label="Quitar objetivo"
                                     onclick={() => eliminarObjetivo(i)}
                                 >
                                     <Trash2 class="h-4 w-4 text-destructive" />

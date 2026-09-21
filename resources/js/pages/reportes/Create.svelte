@@ -26,6 +26,7 @@
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
+    import AlertError from '@/components/AlertError.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -132,7 +133,7 @@
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex items-center gap-4">
-        <Button variant="ghost" size="icon" href={reportesIndex()}>
+        <Button variant="ghost" size="icon" href={reportesIndex()} aria-label="Volver a mis reportes">
             <ArrowLeft class="h-4 w-4" />
         </Button>
         <PageHeader
@@ -151,6 +152,9 @@
         onBefore={alEnviar}
     >
         {#snippet children({ errors: formErrors, processing: formProcessing })}
+            {#if formErrors.pgp}
+                <AlertError errors={[formErrors.pgp]} title="No se pudo guardar el reporte" />
+            {/if}
             {#if pasoActual === 1}
                 <Card>
                     <CardHeader>

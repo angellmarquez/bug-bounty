@@ -30,6 +30,8 @@ class StoreProgramaRequest extends FormRequest
             'requiere_poc' => ['boolean'],
             'es_publico' => ['boolean'],
             'reputacion_minima' => ['sometimes', 'integer', 'min:0'],
+            // Solo lo usa un administrador para crear el programa en nombre de una empresa aprobada.
+            'empresa_id' => ['nullable', 'integer', Rule::exists('empresas', 'id')->where('estado', 'aprobada')],
             'poc_schema' => ['nullable', 'array'],
             'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
             'poc_schema.*.label' => ['required_with:poc_schema', 'string', 'max:255'],
@@ -44,7 +46,7 @@ class StoreProgramaRequest extends FormRequest
             'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en'],
             // Una empresa no puede crear un programa sin alcance: necesita al menos un objetivo.
             'objetivos' => [
-                Rule::requiredIf(fn () => (bool) $this->user()?->roles()->where('slug', 'empresa')->exists()),
+                Rule::requiredIf(fn () => $this->filled('empresa_id') || (bool) $this->user()?->roles()->where('slug', 'empresa')->exists()),
                 'nullable',
                 'array',
                 'min:1',

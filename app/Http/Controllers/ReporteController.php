@@ -28,6 +28,8 @@ use Inertia\Response as InertiaResponse;
 
 class ReporteController extends Controller
 {
+    private const MENSAJE_CIFRADO_NO_DISPONIBLE = 'No se pudo cifrar el reporte porque el cifrado de la plataforma aún no está configurado. Avisa al administrador e inténtalo de nuevo; tu texto sigue en pantalla.';
+
     public function index(Request $request): InertiaResponse
     {
         $user = $request->user();
@@ -264,8 +266,10 @@ class ReporteController extends Controller
         try {
             $cifrado = app(PgpService::class)->cifrarReporte($validated['descripcion'], $poc);
         } catch (PgpException $e) {
+            report($e);
+
             return redirect()->back()
-                ->withErrors(['pgp' => $e->getMessage()])
+                ->withErrors(['pgp' => self::MENSAJE_CIFRADO_NO_DISPONIBLE])
                 ->withInput();
         }
 
@@ -356,8 +360,10 @@ class ReporteController extends Controller
         try {
             $cifrado = $pgpService->cifrarReporte($descripcion, $poc);
         } catch (PgpException $e) {
+            report($e);
+
             return redirect()->back()
-                ->withErrors(['pgp' => $e->getMessage()])
+                ->withErrors(['pgp' => self::MENSAJE_CIFRADO_NO_DISPONIBLE])
                 ->withInput();
         }
 
@@ -469,7 +475,9 @@ class ReporteController extends Controller
                 'clave_huella' => $descifrado['clave_huella'],
                 'indisponible' => false,
             ];
-        } catch (PgpException) {
+        } catch (PgpException $e) {
+            report($e);
+
             return ['descripcion' => null, 'poc' => null, 'clave_huella' => $reporte->clave_huella, 'indisponible' => true];
         }
     }
@@ -546,7 +554,7 @@ class ReporteController extends Controller
             ->with('success', 'Reporte asignado exitosamente.');
     }
 
-    public function validar(Reporte $reporte): RedirectResponse
+    public function validar(Reporte $reporte, ReputationService $reputacion): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
@@ -561,6 +569,8 @@ class ReporteController extends Controller
             'nota' => 'Reporte validado.',
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'validado'],
         ]);
+
+        $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_validado', $reporte);
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte validado exitosamente.');
@@ -635,7 +645,7 @@ class ReporteController extends Controller
             ->with('success', 'Reporte marcado como duplicado.');
     }
 
-    public function pagar(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
+    public function pagar(TransitionReporteRequest $request, Reporte $reporte, ReputationService $reputacion): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReportePagar, $reporte, $this->empresaContexto()]);
@@ -656,6 +666,8 @@ class ReporteController extends Controller
             'nota' => $validated['nota'] ?? "Recompensa de {$validated['recompensa']} {$reporte->moneda} pagada.",
             'datos' => ['recompensa' => $validated['recompensa'], 'moneda' => $reporte->moneda],
         ]);
+
+        $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_pagado', $reporte);
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Recompensa registrada exitosamente.');

@@ -63,6 +63,8 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('gestion/programas/{programa}/editar', [ProgramaController::class, 'edit'])->name('programas.edit');
 
     // Admin (Slice 5.6)
+    // Las migas de pan "Admin" apuntan a /admin: sin esta ruta daba 404.
+    Route::redirect('admin', '/admin/empresas')->name('admin.index');
     Route::get('admin/empresas', [AdminController::class, 'empresas'])->name('admin.empresas');
     Route::post('admin/empresas/{empresa}/aprobar', [AdminController::class, 'aprobarEmpresa'])->name('admin.empresas.aprobar');
     Route::post('admin/empresas/{empresa}/rechazar', [AdminController::class, 'rechazarEmpresa'])->name('admin.empresas.rechazar');

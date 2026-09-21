@@ -22,15 +22,29 @@ use Inertia\Response as InertiaResponse;
 
 class EmpresaController extends Controller
 {
-    public function dashboard(Request $request): InertiaResponse
+    public function dashboard(Request $request): InertiaResponse|RedirectResponse
     {
-        $empresa = $request->user()
-            ->empresas()
-            ->withPivot(['rol_interno', 'estado'])
-            ->latest('empresas.created_at')
-            ->first();
+        $esAdmin = $this->esAdministrador($request->user());
 
-        abort_if($empresa === null, 403, 'Tu usuario no pertenece a una empresa.');
+        if ($esAdmin) {
+            // El administrador no pertenece a ninguna empresa: entra al panel de la que elija.
+            $empresa = $this->empresaElegida($request, 'empresa');
+
+            if ($empresa === null) {
+                return redirect()->route('admin.empresas')->with('error', 'Elige una empresa para abrir su panel.');
+            }
+        } else {
+            $empresa = $request->user()
+                ->empresas()
+                ->withPivot(['rol_interno', 'estado'])
+                ->latest('empresas.created_at')
+                ->first();
+
+            abort_if($empresa === null, 403, 'Tu usuario no pertenece a una empresa.');
+        }
+
+        $rolInterno = $esAdmin ? 'administrador' : data_get($empresa->pivot, 'rol_interno');
+        $puedeGestionarMiembros = $empresa->estado === EstadoEmpresa::Aprobada && ($esAdmin || $rolInterno === 'propietario');
 
         // Los borradores del investigador no cuentan: la empresa solo ve informes enviados.
         $programas = $empresa->programas()
@@ -51,8 +65,10 @@ class EmpresaController extends Controller
                     'id', 'razon_social', 'nombre_comercial', 'identificador_fiscal', 'email', 'estado', 'motivo_estado',
                 ]),
                 'estado' => $empresa->estado->value,
-                'rol_interno' => data_get($empresa->pivot, 'rol_interno'),
+                'rol_interno' => $rolInterno,
+                'esAdmin' => $esAdmin,
                 'puedeOperar' => $empresa->estado === EstadoEmpresa::Aprobada,
+                'puedeGestionarMiembros' => $puedeGestionarMiembros,
                 'programas' => $programas,
                 'resumen' => [
                     'programas' => $programas->count(),
@@ -63,7 +79,16 @@ class EmpresaController extends Controller
                 ],
                 'reportes' => $this->reportesRecientes($empresa),
                 'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email']),
-                'invitaciones' => $empresa->invitaciones()->where('estado', 'pendiente')->latest()->get(['id', 'email', 'expira_en']),
+                // El enlace lleva el token de la invitación: solo lo ve quien puede gestionar miembros.
+                'invitaciones' => $puedeGestionarMiembros
+                    ? $empresa->invitaciones()->where('estado', 'pendiente')->where('expira_en', '>', now())->latest()->get(['id', 'email', 'expira_en', 'token'])
+                        ->map(fn (EmpresaInvitacion $invitacion): array => [
+                            'id' => $invitacion->id,
+                            'email' => $invitacion->email,
+                            'expira_en' => $invitacion->expira_en->toISOString(),
+                            'url' => route('empresa.invitacion', $invitacion->token),
+                        ])->values()->all()
+                    : [],
             ],
         ]);
     }
@@ -74,13 +99,16 @@ class EmpresaController extends Controller
      */
     public function reportes(Request $request): InertiaResponse
     {
-        $empresa = $request->user()
-            ->empresas()
-            ->where('empresa_usuario.estado', 'activo')
-            ->latest('empresas.created_at')
-            ->first();
+        $esAdmin = $this->esAdministrador($request->user());
+        $empresa = $esAdmin
+            ? $this->empresaElegida($request, 'empresa')
+            : $request->user()
+                ->empresas()
+                ->where('empresa_usuario.estado', 'activo')
+                ->latest('empresas.created_at')
+                ->first();
 
-        abort_if($empresa === null, 403, 'Tu usuario no pertenece a una empresa.');
+        abort_if($empresa === null, $esAdmin ? 404 : 403, $esAdmin ? 'Elige una empresa.' : 'Tu usuario no pertenece a una empresa.');
         abort_unless($empresa->estado === EstadoEmpresa::Aprobada, 403, 'Tu empresa todavía no tiene acceso operativo.');
 
         $filtro = in_array($request->input('filtro'), ['todos', 'pendientes', 'aprobados', 'rechazados', 'cerrados'], true)
@@ -109,7 +137,7 @@ class EmpresaController extends Controller
             ->through(fn (Reporte $reporte): array => $this->reporteCompacto($reporte));
 
         return Inertia::render('empresa/Reportes', [
-            'empresa' => ['id' => $empresa->id, 'nombre' => $empresa->nombre_comercial ?? $empresa->razon_social],
+            'empresa' => ['id' => $empresa->id, 'nombre' => $empresa->nombre_comercial ?? $empresa->razon_social, 'esAdmin' => $esAdmin],
             'programas' => $empresa->programas()->orderBy('nombre')->get(['id', 'nombre']),
             'filtros' => [
                 'filtro' => $filtro,
@@ -206,7 +234,9 @@ class EmpresaController extends Controller
 
         $this->auditarMiembro($usuarioActual, $usuarioActual, $empresa, 'empresa.invitacion.creada');
 
-        return redirect()->route('empresa.dashboard')->with('invitacion_url', route('empresa.invitacion', $invitacion->token));
+        return $this->volverAlPanel($request, $empresa)
+            ->with('success', 'Invitación creada. Envía el enlace a '.$invitacion->email.' (vale 7 días).')
+            ->with('invitacion_url', route('empresa.invitacion', $invitacion->token));
     }
 
     public function verInvitacion(string $token): Response
@@ -285,7 +315,7 @@ class EmpresaController extends Controller
 
         $this->auditarMiembro($usuarioActual, $miembro, $empresa, 'empresa.miembro.agregado');
 
-        return redirect()->route('empresa.dashboard')->with('success', 'Miembro agregado.');
+        return $this->volverAlPanel($request, $empresa)->with('success', 'Miembro agregado.');
     }
 
     public function eliminarMiembro(Request $request, User $user): RedirectResponse
@@ -300,13 +330,21 @@ class EmpresaController extends Controller
         $empresa->usuarios()->detach($user->id);
         $this->auditarMiembro($usuarioActual, $user, $empresa, 'empresa.miembro.eliminado');
 
-        return redirect()->route('empresa.dashboard')->with('success', 'Miembro retirado.');
+        return $this->volverAlPanel($request, $empresa)->with('success', 'Miembro retirado.');
     }
 
     /** @return array{0: Empresa, 1: User} */
     private function empresaActual(Request $request): array
     {
         $user = $request->user();
+
+        if ($this->esAdministrador($user)) {
+            $empresa = $this->empresaElegida($request, 'empresa_id');
+            abort_if($empresa === null, 422, 'Indica la empresa sobre la que actúas.');
+
+            return [$empresa, $user];
+        }
+
         $empresa = $user->empresas()
             ->where('empresa_usuario.estado', 'activo')
             ->latest('empresas.created_at')
@@ -317,10 +355,30 @@ class EmpresaController extends Controller
         return [$empresa, $user];
     }
 
+    private function esAdministrador(User $usuario): bool
+    {
+        return $usuario->roles()->where('slug', 'administrador')->exists();
+    }
+
+    /** Empresa indicada en la petición (solo la usa el administrador para operar cualquier empresa). */
+    private function empresaElegida(Request $request, string $campo): ?Empresa
+    {
+        return $request->filled($campo) ? Empresa::query()->find((int) $request->input($campo)) : null;
+    }
+
+    private function volverAlPanel(Request $request, Empresa $empresa): RedirectResponse
+    {
+        return redirect()->route('empresa.dashboard', $this->esAdministrador($request->user()) ? ['empresa' => $empresa->id] : []);
+    }
+
     private function autorizarMiembros(Empresa $empresa, User $usuario): void
     {
         abort_if($empresa->estado !== EstadoEmpresa::Aprobada, 403, 'La empresa debe estar aprobada.');
-        abort_if($empresa->usuarios()->whereKey($usuario->id)->wherePivot('rol_interno', 'propietario')->doesntExist(), 403, 'Solo el propietario puede gestionar miembros.');
+        abort_if(
+            ! $this->esAdministrador($usuario) && $empresa->usuarios()->whereKey($usuario->id)->wherePivot('rol_interno', 'propietario')->doesntExist(),
+            403,
+            'Solo el propietario puede gestionar miembros.',
+        );
 
         Gate::authorize('abac', [
             AccionesAbac::EmpresaGestionarMiembros,

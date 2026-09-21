@@ -64,9 +64,9 @@
                                 </span>
                             </span>
                         {/if}
-                        {#if apelacion.resolucion}
+                        {#if apelacion.nota_resolucion}
                             <span>
-                                Resolución: <span class="font-medium text-foreground">{apelacion.resolucion}</span>
+                                Resolución: <span class="font-medium text-foreground">{apelacion.nota_resolucion}</span>
                             </span>
                         {/if}
                     </div>

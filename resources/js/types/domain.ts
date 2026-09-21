@@ -210,7 +210,7 @@ export type Apelacion = {
     motivo: string;
     estado: EstadoApelacion;
     resuelta_por: number | null;
-    resolucion: string | null;
+    nota_resolucion: string | null;
     resuelta_en: string | null;
     created_at: string;
     updated_at: string;
@@ -226,8 +226,7 @@ export type EntradaReputacion = {
     sancion_id: number | null;
     apelacion_id: number | null;
     puntos: number;
-    saldo: number;
-    descripcion: string;
+    motivo: string;
     metadata: Record<string, unknown> | null;
     created_at: string;
     usuario?: User;

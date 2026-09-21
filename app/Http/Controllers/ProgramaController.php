@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Abac\AccionesAbac;
 use App\Http\Requests\StoreProgramaRequest;
 use App\Http\Requests\UpdateProgramaRequest;
+use App\Models\Empresa;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
@@ -116,11 +117,19 @@ class ProgramaController extends Controller
         ]);
     }
 
-    public function create(): InertiaResponse
+    public function create(Request $request): InertiaResponse
     {
         Gate::authorize('abac', [AccionesAbac::ProgramaCrear]);
 
-        return Inertia::render('programas/gestion/Create');
+        // El administrador puede crear el programa en nombre de cualquier empresa aprobada.
+        $esAdmin = $request->user()->roles()->where('slug', 'administrador')->exists();
+
+        return Inertia::render('programas/gestion/Create', [
+            'empresas' => $esAdmin
+                ? Empresa::query()->where('estado', 'aprobada')->orderBy('razon_social')->get(['id', 'razon_social', 'nombre_comercial'])
+                : [],
+            'empresaInicial' => $esAdmin && $request->filled('empresa') ? (int) $request->input('empresa') : null,
+        ]);
     }
 
     public function edit(Programa $programa): InertiaResponse
@@ -139,14 +148,20 @@ class ProgramaController extends Controller
         $user = $request->user();
         $validated['reputacion_minima'] ??= 0;
 
-        $programa = DB::transaction(function () use ($validated, $user) {
+        // Solo un administrador puede elegir la empresa; para el resto se ignora.
+        $empresaElegida = $user->roles()->where('slug', 'administrador')->exists() ? ($validated['empresa_id'] ?? null) : null;
+        unset($validated['empresa_id']);
+
+        $programa = DB::transaction(function () use ($validated, $user, $empresaElegida) {
             $objetivos = $validated['objetivos'] ?? [];
             unset($validated['objetivos']);
 
             $validated['creado_por'] = $user->id;
             $validated['estado'] = 'borrador';
 
-            if ($user->roles()->where('slug', 'empresa')->exists()) {
+            if ($empresaElegida !== null) {
+                $validated['empresa_id'] = $empresaElegida;
+            } elseif ($user->roles()->where('slug', 'empresa')->exists()) {
                 $empresa = $user->empresas()
                     ->where('empresas.estado', 'aprobada')
                     ->where('empresa_usuario.estado', 'activo')

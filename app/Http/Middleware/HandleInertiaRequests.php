@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,6 +36,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $this->mostrarMensajeFlashComoToast($request);
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -45,5 +48,27 @@ class HandleInertiaRequests extends Middleware
             'userRoles' => fn () => $request->user()?->roles()->pluck('slug')->all() ?? [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    /**
+     * Los controladores redirigen con ->with('success'|'error', ...); la interfaz solo
+     * escucha el flash "toast" de Inertia, así que se convierte aquí para que el
+     * usuario vea el resultado de cada acción.
+     */
+    private function mostrarMensajeFlashComoToast(Request $request): void
+    {
+        if (! $request->hasSession()) {
+            return;
+        }
+
+        foreach (['success', 'error'] as $tipo) {
+            $mensaje = $request->session()->pull($tipo);
+
+            if (is_string($mensaje) && $mensaje !== '') {
+                Inertia::flash('toast', ['type' => $tipo, 'message' => $mensaje]);
+
+                return;
+            }
+        }
     }
 }

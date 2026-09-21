@@ -128,15 +128,38 @@ class Programa extends Model
 
         static::creating(function (Programa $programa) {
             if (empty($programa->slug)) {
-                $programa->slug = Str::slug($programa->nombre);
+                $programa->slug = static::slugDisponible($programa->nombre);
             }
         });
 
         static::updating(function (Programa $programa) {
             if ($programa->isDirty('nombre') && ! $programa->isDirty('slug')) {
-                $programa->slug = Str::slug($programa->nombre);
+                $programa->slug = static::slugDisponible($programa->nombre, $programa->id);
             }
         });
+    }
+
+    /**
+     * Slug único a partir del nombre: añade un sufijo numérico si ya existe,
+     * contando también los programas eliminados (soft delete) porque conservan el slug.
+     */
+    protected static function slugDisponible(string $nombre, ?int $ignorarId = null): string
+    {
+        $base = Str::slug($nombre) ?: 'programa';
+        $slug = $base;
+        $sufijo = 2;
+
+        while (
+            static::withTrashed()
+                ->where('slug', $slug)
+                ->when($ignorarId, fn (Builder $query) => $query->where('id', '!=', $ignorarId))
+                ->exists()
+        ) {
+            $slug = "{$base}-{$sufijo}";
+            $sufijo++;
+        }
+
+        return $slug;
     }
 
     /**
