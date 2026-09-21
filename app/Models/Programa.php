@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
  * @property string $nombre
  * @property string $slug
  * @property string $descripcion
+ * @property string|null $bugs_buscados
  * @property EstadoPrograma $estado
  * @property string $moneda
  * @property int|float $recompensa_min
@@ -42,7 +43,7 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, User> $moderadores
  */
-#[Fillable(['nombre', 'slug', 'descripcion', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'reputacion_minima', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
+#[Fillable(['nombre', 'slug', 'descripcion', 'bugs_buscados', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'reputacion_minima', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
 class Programa extends Model
 {
     /** @use HasFactory<ProgramaFactory> */
@@ -127,15 +128,38 @@ class Programa extends Model
 
         static::creating(function (Programa $programa) {
             if (empty($programa->slug)) {
-                $programa->slug = Str::slug($programa->nombre);
+                $programa->slug = static::slugDisponible($programa->nombre);
             }
         });
 
         static::updating(function (Programa $programa) {
             if ($programa->isDirty('nombre') && ! $programa->isDirty('slug')) {
-                $programa->slug = Str::slug($programa->nombre);
+                $programa->slug = static::slugDisponible($programa->nombre, $programa->id);
             }
         });
+    }
+
+    /**
+     * Slug único a partir del nombre: añade un sufijo numérico si ya existe,
+     * contando también los programas eliminados (soft delete) porque conservan el slug.
+     */
+    protected static function slugDisponible(string $nombre, ?int $ignorarId = null): string
+    {
+        $base = Str::slug($nombre) ?: 'programa';
+        $slug = $base;
+        $sufijo = 2;
+
+        while (
+            static::withTrashed()
+                ->where('slug', $slug)
+                ->when($ignorarId, fn (Builder $query) => $query->where('id', '!=', $ignorarId))
+                ->exists()
+        ) {
+            $slug = "{$base}-{$sufijo}";
+            $sufijo++;
+        }
+
+        return $slug;
     }
 
     /**
@@ -172,7 +196,7 @@ class Programa extends Model
     {
         $roles = $user->roles->pluck('slug')->toArray();
 
-        if (in_array('administrador', $roles) || in_array('gestion', $roles)) {
+        if (in_array('administrador', $roles) || in_array('gestion', $roles) || in_array('moderador', $roles)) {
             return $query;
         }
 

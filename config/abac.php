@@ -204,6 +204,36 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
+        // Editar un programa es cosa de la empresa dueña. La única excepción es un programa
+        // heredado sin empresa, que edita quien lo creó con el rol de gestión.
+        [
+            'id' => 'gestion-editar-programa-propio-sin-empresa',
+            'prioridad' => 30,
+            'acciones' => ['programas.editar'],
+            'sujeto' => ['roles' => ['contains' => 'gestion']],
+            'objeto' => ['creado_por' => ['=' => '@sujeto.id'], 'empresa_id' => ['is_null']],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        // El deny gana sobre cualquier permiso, también sobre el bypass del administrador.
+        [
+            'id' => 'denegar-edicion-de-programas-al-administrador',
+            'prioridad' => 5,
+            'acciones' => ['programas.editar'],
+            'sujeto' => ['roles' => ['contains' => 'administrador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-edicion-de-programas-al-moderador',
+            'prioridad' => 5,
+            'acciones' => ['programas.editar'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
         [
             'id' => 'gestion-programa-propio',
             'prioridad' => 30,
@@ -237,9 +267,18 @@ return [
             'decision' => 'permitir',
         ],
         [
+            'id' => 'empresa-ver-programa-propio',
+            'prioridad' => 35,
+            'acciones' => ['programas.ver'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
             'id' => 'empresa-gestionar-programa-propio',
             'prioridad' => 35,
-            'acciones' => ['programas.gestionar', 'programas.cambiar_estado', 'programas.eliminar'],
+            'acciones' => ['programas.gestionar', 'programas.editar', 'programas.cambiar_estado', 'programas.eliminar'],
             'sujeto' => ['roles' => ['contains' => 'empresa']],
             'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
             'entorno' => ['empresa_id' => ['is_not_null']],
@@ -265,6 +304,36 @@ return [
             'decision' => 'permitir',
         ],
         [
+            'id' => 'empresa-pagar-y-cerrar-reportes-de-sus-programas',
+            'prioridad' => 35,
+            'acciones' => ['reportes.pagar', 'reportes.cerrar'],
+            'sujeto' => ['roles' => ['contains' => 'empresa']],
+            'objeto' => [
+                'estado' => ['in' => ['validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'programa.empresa_id' => ['=' => '@entorno.empresa_id'],
+            ],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-ver-programas',
+            'prioridad' => 35,
+            'acciones' => ['programas.ver'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-ver-cola-de-moderacion',
+            'prioridad' => 35,
+            'acciones' => ['moderacion.ver'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
             'id' => 'empresa-ver-reportes-de-sus-programas',
             'prioridad' => 35,
             'acciones' => ['reportes.ver'],
@@ -284,8 +353,6 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
-                'reportes.pagar',
-                'reportes.cerrar',
             ],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
@@ -298,7 +365,7 @@ return [
         [
             'id' => 'moderador-triaje-asignado',
             'prioridad' => 35,
-            'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado', 'reportes.pagar', 'reportes.cerrar'],
+            'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
                 'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],

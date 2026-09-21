@@ -16,16 +16,20 @@ use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
 class ReporteController extends Controller
 {
+    private const MENSAJE_CIFRADO_NO_DISPONIBLE = 'No se pudo cifrar el reporte porque el cifrado de la plataforma aún no está configurado. Avisa al administrador e inténtalo de nuevo; tu texto sigue en pantalla.';
+
     public function index(Request $request): InertiaResponse
     {
         $user = $request->user();
@@ -36,12 +40,13 @@ class ReporteController extends Controller
         $isGestion = in_array('gestion', $roles);
         $isModerador = in_array('moderador', $roles);
         $isEmpresa = in_array('empresa', $roles);
+        $esRevisor = $isModerador || $isAdmin;
 
         $query = Reporte::query()
             ->with(['programa', 'investigador', 'asignadoA']);
 
-        if ($isModerador) {
-            // Los moderadores pueden revisar también borradores sin exponerlos a otros roles.
+        if ($esRevisor) {
+            // Moderadores y administradores revisan los informes de todos los programas.
         } else {
             $query->where(function ($scope) use ($user) {
                 $scope->where('investigador_id', $user->id)
@@ -133,22 +138,11 @@ class ReporteController extends Controller
 
         // El contenido confidencial se descifra con la clave privada de la
         // plataforma y nunca se expone el ciphertext al frontend.
-        $cifradoIndisponible = false;
-        $claveHuella = $reporte->clave_huella;
-
-        try {
-            $descifrado = app(PgpService::class)->descifrarReporte(
-                (string) $reporte->descripcion,
-                $reporte->poc,
-            );
-            $descripcion = $descifrado['descripcion'];
-            $poc = $descifrado['poc'];
-            $claveHuella = $descifrado['clave_huella'];
-        } catch (PgpException $e) {
-            $cifradoIndisponible = true;
-            $descripcion = null;
-            $poc = null;
-        }
+        $contenido = $this->contenidoDescifrado($reporte);
+        $cifradoIndisponible = $contenido['indisponible'];
+        $claveHuella = $contenido['clave_huella'];
+        $descripcion = $contenido['descripcion'];
+        $poc = $contenido['poc'];
 
         $reporteArray = $reporte->toArray();
         $reporteArray['descripcion'] = $descripcion;
@@ -156,11 +150,32 @@ class ReporteController extends Controller
 
         // Permisos de triaje por ABAC
         $puedeAsignar = Gate::allows('abac', [AccionesAbac::ReporteAsignar, $reporte]);
-        $puedeValidar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]);
-        $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]);
-        $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]);
-        $puedePagar = Gate::allows('abac', [AccionesAbac::ReportePagar, $reporte]);
-        $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte]);
+        $puedeValidar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'validado');
+        $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
+        $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
+        $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
+        // Pagar y cerrar corresponden a la empresa dueña del programa (y al admin), por eso
+        // se evalúan con el contexto de la empresa.
+        $puedePagar = Gate::allows('abac', [AccionesAbac::ReportePagar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'pagado');
+        $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'cerrado');
+
+        // Originales posibles para marcar un duplicado: otros informes del mismo programa.
+        $candidatosDuplicado = $puedeMarcarDuplicado
+            ? Reporte::query()
+                ->where('programa_id', $reporte->programa_id)
+                ->where('id', '!=', $reporte->id)
+                ->where('estado', '!=', 'borrador')
+                ->orderBy('id')
+                ->limit(100)
+                ->get(['id', 'numero_reporte', 'titulo', 'estado'])
+                ->map(fn (Reporte $candidato) => [
+                    'id' => $candidato->id,
+                    'numero_reporte' => $candidato->numero_reporte,
+                    'titulo' => $candidato->titulo,
+                    'estado' => $candidato->estado->value,
+                ])
+                ->all()
+            : [];
 
         $usuariosGestion = [];
         if ($puedeAsignar) {
@@ -171,10 +186,27 @@ class ReporteController extends Controller
                 ->toArray();
         }
 
+        $puedeModerar = Gate::allows('abac', [AccionesAbac::ModeracionVer]);
+
+        // Historial del autor: ayuda a valorar cuánto confiar en el informe.
+        $historialInvestigador = $puedeModerar ? $this->historialInvestigador($reporte->investigador) : null;
+
         return Inertia::render('reportes/Show', [
+            'historialInvestigador' => $historialInvestigador,
             'reporte' => [
                 ...$reporteArray,
-                'programa' => $reporte->programa->only(['id', 'nombre', 'slug']),
+                'programa' => [
+                    ...$reporte->programa->only(['id', 'nombre', 'slug', 'poc_schema']),
+                    'estado' => $reporte->programa->estado->value,
+                    'empresa_nombre' => $reporte->programa->empresa === null
+                        ? null
+                        : ($reporte->programa->empresa->nombre_comercial ?? $reporte->programa->empresa->razon_social),
+                    // El alcance solo le hace falta a quien revisa: comprueba que el hallazgo esté en él.
+                    ...($puedeModerar ? [
+                        'bugs_buscados' => $reporte->programa->bugs_buscados,
+                        'objetivos' => $reporte->programa->objetivos()->get(['id', 'tipo', 'valor', 'descripcion'])->all(),
+                    ] : []),
+                ],
                 'investigador' => $reporte->investigador->only(['id', 'name']),
                 'asignadoA' => $reporte->asignadoA?->only(['id', 'name']),
                 'duplicadoDe' => $reporte->duplicadoDe?->only(['id', 'numero_reporte', 'titulo']),
@@ -183,9 +215,12 @@ class ReporteController extends Controller
             'cifradoIndisponible' => $cifradoIndisponible,
             'claveHuella' => $claveHuella,
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
-            'puedeTriar' => $puedeAsignar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedePagar || $puedeCerrar,
+            'puedeModerar' => $puedeModerar,
+            'candidatosDuplicado' => $candidatosDuplicado,
+            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedePagar || $puedeCerrar,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
+                'revisar' => $puedeRevisar,
                 'validar' => $puedeValidar,
                 'rechazar' => $puedeRechazar,
                 'marcar_duplicado' => $puedeMarcarDuplicado,
@@ -231,8 +266,10 @@ class ReporteController extends Controller
         try {
             $cifrado = app(PgpService::class)->cifrarReporte($validated['descripcion'], $poc);
         } catch (PgpException $e) {
+            report($e);
+
             return redirect()->back()
-                ->withErrors(['pgp' => $e->getMessage()])
+                ->withErrors(['pgp' => self::MENSAJE_CIFRADO_NO_DISPONIBLE])
                 ->withInput();
         }
 
@@ -265,8 +302,16 @@ class ReporteController extends Controller
             return $reporte;
         });
 
+        // "Guardar y enviar": un borrador no llega a la empresa ni a los moderadores.
+        if ($request->boolean('enviar')) {
+            $this->marcarEnviado($reporte, $user);
+
+            return redirect()->route('reportes.show', $reporte)
+                ->with('success', 'Reporte enviado exitosamente.');
+        }
+
         return redirect()->route('reportes.show', $reporte)
-            ->with('success', 'Reporte creado exitosamente.');
+            ->with('success', 'Reporte guardado como borrador. Envíalo para que lo revisen.');
     }
 
     public function edit(Reporte $reporte): InertiaResponse
@@ -315,8 +360,10 @@ class ReporteController extends Controller
         try {
             $cifrado = $pgpService->cifrarReporte($descripcion, $poc);
         } catch (PgpException $e) {
+            report($e);
+
             return redirect()->back()
-                ->withErrors(['pgp' => $e->getMessage()])
+                ->withErrors(['pgp' => self::MENSAJE_CIFRADO_NO_DISPONIBLE])
                 ->withInput();
         }
 
@@ -335,19 +382,24 @@ class ReporteController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ReporteEnviar, $reporte]);
 
+        $this->marcarEnviado($reporte, request()->user());
+
+        return redirect()->route('reportes.show', $reporte)
+            ->with('success', 'Reporte enviado exitosamente.');
+    }
+
+    private function marcarEnviado(Reporte $reporte, User $autor): void
+    {
         $reporte->update([
             'estado' => 'enviado',
             'enviado_en' => now(),
         ]);
 
         $reporte->eventos()->create([
-            'actor_id' => request()->user()->id,
+            'actor_id' => $autor->id,
             'tipo' => 'enviado',
             'nota' => 'Reporte enviado para revision.',
         ]);
-
-        return redirect()->route('reportes.show', $reporte)
-            ->with('success', 'Reporte enviado exitosamente.');
     }
 
     // ------------------------------------------------------------------
@@ -357,22 +409,121 @@ class ReporteController extends Controller
     private const TRANSICIONES_VALIDAS = [
         'enviado' => ['en_revision', 'validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
         'en_revision' => ['validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
-        'validado' => ['en_reparacion', 'rechazado', 'duplicado'],
-        'en_reparacion' => ['pago_pendiente', 'rechazado', 'cerrado'],
-        'pago_pendiente' => ['pagado', 'rechazado', 'cerrado'],
+        // Tras validar, el informe se puede pagar y cerrar sin pasar por los estados
+        // intermedios (en_reparacion / pago_pendiente), que no tienen una acción propia.
+        'validado' => ['en_reparacion', 'pago_pendiente', 'pagado', 'cerrado', 'rechazado', 'duplicado'],
+        'en_reparacion' => ['pago_pendiente', 'pagado', 'cerrado', 'rechazado'],
+        'pago_pendiente' => ['pagado', 'cerrado', 'rechazado'],
         'pagado' => ['cerrado'],
     ];
+
+    private function transicionPosible(Reporte $reporte, string $estadoDestino): bool
+    {
+        return in_array($estadoDestino, self::TRANSICIONES_VALIDAS[$reporte->estado->value] ?? [], true);
+    }
 
     private function validarTransicion(Reporte $reporte, string $estadoDestino): void
     {
         $estadoActual = $reporte->estado->value;
         $permitidos = self::TRANSICIONES_VALIDAS[$estadoActual] ?? [];
 
-        abort_if(
-            ! in_array($estadoDestino, $permitidos),
-            422,
-            "No se puede transitar de \"{$estadoActual}\" a \"{$estadoDestino}\"."
-        );
+        // Un error de validación (y no un abort) permite mostrar el mensaje en la
+        // misma página cuando otro revisor cambió el estado mientras se tenía abierta.
+        if (! in_array($estadoDestino, $permitidos, true)) {
+            throw ValidationException::withMessages([
+                'estado' => "El informe ya no puede pasar de \"{$estadoActual}\" a \"{$estadoDestino}\". Recarga la página para ver su estado actual.",
+            ]);
+        }
+    }
+
+    /**
+     * Contenido del informe en JSON, para leerlo dentro de una lista sin abrir su página.
+     */
+    public function vistaRapida(Reporte $reporte): JsonResponse
+    {
+        $reporte->load('programa.empresa');
+        $this->asegurarAcceso($reporte);
+        Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte, $this->empresaContexto()]);
+
+        $contenido = $this->contenidoDescifrado($reporte);
+
+        return response()->json([
+            'id' => $reporte->id,
+            'descripcion' => $contenido['descripcion'],
+            'poc' => $contenido['poc'],
+            'poc_schema' => $reporte->programa->poc_schema,
+            'cifrado_indisponible' => $contenido['indisponible'],
+            'categoria' => $reporte->categoria,
+            'vector_cvss' => $reporte->vector_cvss,
+            'puntuacion_cvss' => $reporte->puntuacion_cvss,
+            'puede_revisar' => Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte, $this->empresaContexto()])
+                && $this->transicionPosible($reporte, 'en_revision'),
+        ]);
+    }
+
+    /**
+     * @return array{descripcion: string|null, poc: array<int|string, mixed>|null, clave_huella: string|null, indisponible: bool}
+     */
+    private function contenidoDescifrado(Reporte $reporte): array
+    {
+        try {
+            $descifrado = app(PgpService::class)->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
+
+            return [
+                'descripcion' => $descifrado['descripcion'],
+                'poc' => $descifrado['poc'],
+                'clave_huella' => $descifrado['clave_huella'],
+                'indisponible' => false,
+            ];
+        } catch (PgpException $e) {
+            report($e);
+
+            return ['descripcion' => null, 'poc' => null, 'clave_huella' => $reporte->clave_huella, 'indisponible' => true];
+        }
+    }
+
+    /**
+     * @return array{reputation_score: int, informes: int, aprobados: int, descartados: int}
+     */
+    private function historialInvestigador(User $investigador): array
+    {
+        $enviados = fn () => Reporte::query()->where('investigador_id', $investigador->id)->where('estado', '!=', 'borrador');
+
+        return [
+            'reputation_score' => $investigador->reputation_score,
+            'informes' => $enviados()->count(),
+            'aprobados' => $enviados()->whereIn('estado', Reporte::ESTADOS_APROBADOS)->count(),
+            'descartados' => $enviados()->whereIn('estado', Reporte::ESTADOS_RECHAZADOS)->count(),
+        ];
+    }
+
+    /**
+     * El revisor toma el informe: pasa a "en revisión" y queda asignado a él
+     * (si nadie lo tenía), lo que se refleja en la línea de tiempo del investigador.
+     */
+    public function revisar(Reporte $reporte, Request $request): RedirectResponse
+    {
+        $this->asegurarAcceso($reporte);
+        Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
+
+        $this->validarTransicion($reporte, 'en_revision');
+        $revisor = $request->user();
+        $estadoAnterior = $reporte->estado->value;
+
+        $reporte->update([
+            'estado' => 'en_revision',
+            'asignado_a' => $reporte->asignado_a ?? $revisor->id,
+        ]);
+
+        $reporte->eventos()->create([
+            'actor_id' => $revisor->id,
+            'tipo' => 'cambio_estado',
+            'nota' => 'Un moderador comenzó a revisar tu informe.',
+            'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'en_revision'],
+        ]);
+
+        return redirect()->back(fallback: route('reportes.show', $reporte))
+            ->with('success', 'Revisión iniciada.');
     }
 
     public function asignar(Reporte $reporte, Request $request): RedirectResponse
@@ -403,7 +554,7 @@ class ReporteController extends Controller
             ->with('success', 'Reporte asignado exitosamente.');
     }
 
-    public function validar(Reporte $reporte): RedirectResponse
+    public function validar(Reporte $reporte, ReputationService $reputacion): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
@@ -418,6 +569,8 @@ class ReporteController extends Controller
             'nota' => 'Reporte validado.',
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'validado'],
         ]);
+
+        $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_validado', $reporte);
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte validado exitosamente.');
@@ -492,10 +645,10 @@ class ReporteController extends Controller
             ->with('success', 'Reporte marcado como duplicado.');
     }
 
-    public function pagar(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
+    public function pagar(TransitionReporteRequest $request, Reporte $reporte, ReputationService $reputacion): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReportePagar, $reporte]);
+        Gate::authorize('abac', [AccionesAbac::ReportePagar, $reporte, $this->empresaContexto()]);
 
         $validated = $request->validated();
 
@@ -514,6 +667,8 @@ class ReporteController extends Controller
             'datos' => ['recompensa' => $validated['recompensa'], 'moneda' => $reporte->moneda],
         ]);
 
+        $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_pagado', $reporte);
+
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Recompensa registrada exitosamente.');
     }
@@ -521,7 +676,7 @@ class ReporteController extends Controller
     public function cerrar(Reporte $reporte): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte]);
+        Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]);
 
         $this->validarTransicion($reporte, 'cerrado');
         $estadoAnterior = $reporte->estado->value;
@@ -578,7 +733,7 @@ class ReporteController extends Controller
             return false;
         }
 
-        if ($user->roles()->where('slug', 'moderador')->exists()) {
+        if ($user->roles()->whereIn('slug', ['moderador', 'administrador'])->exists()) {
             return true;
         }
 

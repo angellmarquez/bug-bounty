@@ -51,18 +51,27 @@ class DashboardController extends Controller
 
         $misReportes = (! $isAdmin && ! $isGestion)
             ? Reporte::where('investigador_id', $user->id)
-                ->with('programa:id,nombre')
+                ->with(['programa:id,nombre', 'eventos:id,reporte_id,tipo,nota,created_at'])
                 ->latest('created_at')
                 ->limit(30)
                 ->get(['id', 'numero_reporte', 'titulo', 'estado', 'programa_id', 'enviado_en', 'created_at'])
-                ->map(fn (Reporte $reporte) => [
-                    'id' => $reporte->id,
-                    'numero_reporte' => $reporte->numero_reporte,
-                    'titulo' => $reporte->titulo,
-                    'estado' => $reporte->estado,
-                    'fecha' => $reporte->enviado_en ?? $reporte->created_at,
-                    'programa' => ['nombre' => $reporte->programa->nombre],
-                ])
+                ->map(function (Reporte $reporte): array {
+                    $ultimo = $reporte->eventos->first();
+
+                    return [
+                        'id' => $reporte->id,
+                        'numero_reporte' => $reporte->numero_reporte,
+                        'titulo' => $reporte->titulo,
+                        'estado' => $reporte->estado,
+                        'fecha' => $reporte->enviado_en ?? $reporte->created_at,
+                        'programa' => ['id' => $reporte->programa_id, 'nombre' => $reporte->programa->nombre],
+                        'ultimo_evento' => $ultimo === null ? null : [
+                            'tipo' => $ultimo->tipo->value,
+                            'nota' => $ultimo->nota,
+                            'fecha' => $ultimo->created_at?->toISOString(),
+                        ],
+                    ];
+                })
             : [];
 
         $roleStats = [];
@@ -87,6 +96,7 @@ class DashboardController extends Controller
             $roleStats = [
                 'tipo' => 'moderador',
                 'pendientes_revision' => (clone $reportesModerador)->whereIn('estado', ['enviado', 'en_revision'])->count(),
+                'por_revisar' => (clone $reportesModerador)->where('estado', 'enviado')->count(),
                 'validados' => (clone $reportesModerador)->where('estado', 'validado')->count(),
                 'rechazados' => (clone $reportesModerador)->where('estado', 'rechazado')->count(),
                 'sanciones_aplicadas' => $user->auditorias()->where('accion', 'sancion.aplicada')->count(),
@@ -94,6 +104,8 @@ class DashboardController extends Controller
         } elseif ($isAdmin) {
             $roleStats = [
                 'tipo' => 'administrador',
+                'por_revisar' => Reporte::where('estado', 'enviado')->count(),
+                'pendientes_revision' => Reporte::whereIn('estado', ['enviado', 'en_revision'])->count(),
                 'empresas_pendientes' => Empresa::where('estado', 'pendiente')->count(),
                 'empresas_aprobadas' => Empresa::where('estado', 'aprobada')->count(),
                 'moderadores' => User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))->count(),

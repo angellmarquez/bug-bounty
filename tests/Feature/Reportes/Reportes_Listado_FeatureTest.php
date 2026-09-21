@@ -45,7 +45,7 @@ test('moderador sees all reportes including borradores', function () {
     $this->assertContains($borrador->id, $ids);
 });
 
-test('admin and gestion do not see reportes de otros', function (User $usuario) {
+test('gestion does not see reportes de otros', function (User $usuario) {
     $this->actingAs($usuario);
 
     $enviado = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -53,9 +53,17 @@ test('admin and gestion do not see reportes de otros', function (User $usuario) 
     $ids = collect($this->get(route('reportes.index'))->inertiaProps()['reportes']['data'])->pluck('id')->toArray();
     $this->assertNotContains($enviado->id, $ids);
 })->with([
-    'administrador' => fn () => administrador(),
     'gestion' => fn () => gestion(),
 ]);
+
+test('admin sees the reportes of all programas to review them', function () {
+    $this->actingAs(administrador());
+
+    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+
+    $ids = collect($this->get(route('reportes.index'))->inertiaProps()['reportes']['data'])->pluck('id')->toArray();
+    $this->assertContains($reporte->id, $ids);
+});
 
 test('empresa member sees only non-borrador reportes of its programas', function () {
     $empresa = Empresa::factory()->aprobada()->create();

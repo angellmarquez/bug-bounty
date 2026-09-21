@@ -32,6 +32,7 @@
         reporteId,
         estadoActual,
         usuariosGestion = [],
+        candidatosDuplicado = [],
         onsuccess,
     }: {
         open: boolean;
@@ -39,6 +40,7 @@
         reporteId: number;
         estadoActual: EstadoReporte;
         usuariosGestion?: { id: number; name: string }[];
+        candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
         onsuccess?: () => void;
     } = $props();
 
@@ -161,13 +163,25 @@
 
             {#if accion === 'marcar_duplicado'}
                 <div class="space-y-2">
-                    <Label for="reporte_duplicado_id">ID del reporte original</Label>
-                    <Input
-                        id="reporte_duplicado_id"
-                        type="number"
-                        bind:value={reporteDuplicadoId}
-                        placeholder="Ej: 42"
-                    />
+                    <Label for="reporte_duplicado_id">Informe original</Label>
+                    {#if candidatosDuplicado.length === 0}
+                        <p class="text-sm text-muted-foreground">
+                            No hay otros informes enviados en este programa con los que compararlo.
+                        </p>
+                    {:else}
+                        <select
+                            id="reporte_duplicado_id"
+                            bind:value={reporteDuplicadoId}
+                            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                            <option value="">Seleccionar el informe original...</option>
+                            {#each candidatosDuplicado as candidato (candidato.id)}
+                                <option value={String(candidato.id)}>
+                                    {candidato.numero_reporte} · {candidato.titulo}
+                                </option>
+                            {/each}
+                        </select>
+                    {/if}
                 </div>
             {/if}
 

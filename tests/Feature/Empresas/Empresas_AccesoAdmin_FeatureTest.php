@@ -1,0 +1,175 @@
+<?php
+
+use App\Models\Empresa;
+use App\Models\EmpresaInvitacion;
+use App\Models\Programa;
+use App\Models\User;
+
+function propietarioDe(Empresa $empresa): User
+{
+    $usuario = conRol(User::factory()->create(), 'empresa');
+    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'propietario', 'estado' => 'activo']);
+
+    return $usuario;
+}
+
+test('el administrador sin empresa que abre /empresa es enviado a elegir una', function () {
+    $this->actingAs(administrador())
+        ->get(route('empresa.dashboard'))
+        ->assertRedirect(route('admin.empresas'));
+});
+
+test('el administrador abre el panel de cualquier empresa con permisos completos', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    propietarioDe($empresa);
+
+    $this->actingAs(administrador())
+        ->get(route('empresa.dashboard', ['empresa' => $empresa->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('empresa/Dashboard')
+            ->where('empresa.id', $empresa->id)
+            ->where('empresa.esAdmin', true)
+            ->where('empresa.puedeGestionarMiembros', true));
+});
+
+test('un administrador que además tiene el rol empresa no queda bloqueado por su falta de empresa', function () {
+    $admin = conRol(User::factory()->create(), ['administrador', 'empresa']);
+
+    $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+    $this->get(route('empresa.reportes', ['empresa' => Empresa::factory()->aprobada()->create()->id]))->assertOk();
+});
+
+test('el administrador invita a un miembro y el enlace queda visible en el panel', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $this->actingAs(administrador());
+
+    $this->post(route('empresa.invitaciones.crear'), ['empresa_id' => $empresa->id, 'email' => 'nuevo@example.test'])
+        ->assertRedirect(route('empresa.dashboard', ['empresa' => $empresa->id]))
+        ->assertSessionHas('success');
+
+    $invitacion = EmpresaInvitacion::where('email', 'nuevo@example.test')->firstOrFail();
+
+    $this->get(route('empresa.dashboard', ['empresa' => $empresa->id]))
+        ->assertInertia(fn ($page) => $page
+            ->where('empresa.invitaciones.0.email', 'nuevo@example.test')
+            ->where('empresa.invitaciones.0.url', route('empresa.invitacion', $invitacion->token)));
+});
+
+test('el administrador agrega y retira miembros de una empresa', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $existente = User::factory()->create();
+    $this->actingAs(administrador());
+
+    $this->post(route('empresa.miembros.agregar'), ['empresa_id' => $empresa->id, 'email' => $existente->email])
+        ->assertRedirect();
+    expect($empresa->usuarios()->whereKey($existente->id)->exists())->toBeTrue();
+
+    $this->delete(route('empresa.miembros.eliminar', $existente).'?empresa_id='.$empresa->id)->assertRedirect();
+    expect($empresa->usuarios()->whereKey($existente->id)->exists())->toBeFalse();
+});
+
+test('sin indicar la empresa el administrador no puede gestionar miembros', function () {
+    $this->actingAs(administrador())
+        ->post(route('empresa.invitaciones.crear'), ['email' => 'nuevo@example.test'])
+        ->assertStatus(422);
+});
+
+test('un miembro que no es propietario no recibe los enlaces de invitación', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    EmpresaInvitacion::create([
+        'empresa_id' => $empresa->id,
+        'email' => 'pendiente@example.test',
+        'token' => 'token-secreto',
+        'rol_interno' => 'miembro',
+        'estado' => 'pendiente',
+        'invitado_por' => propietarioDe($empresa)->id,
+        'expira_en' => now()->addDays(7),
+    ]);
+
+    $this->actingAs(miembroDeEmpresa($empresa))
+        ->get(route('empresa.dashboard'))
+        ->assertInertia(fn ($page) => $page->where('empresa.puedeGestionarMiembros', false)->where('empresa.invitaciones', []));
+});
+
+test('el administrador crea un programa a nombre de una empresa aprobada', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $this->actingAs(administrador());
+
+    $this->post(route('programas.store'), [
+        'nombre' => 'Programa del admin',
+        'descripcion' => 'Creado por el administrador.',
+        'recompensa_min' => 10,
+        'recompensa_max' => 100,
+        'moneda' => 'USD',
+        'empresa_id' => $empresa->id,
+        'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
+    ])->assertRedirect();
+
+    $this->assertDatabaseHas('programas', ['nombre' => 'Programa del admin', 'empresa_id' => $empresa->id, 'estado' => 'borrador']);
+});
+
+test('el administrador no puede crear un programa para una empresa no aprobada', function () {
+    $empresa = Empresa::factory()->create(['estado' => 'pendiente']);
+    $this->actingAs(administrador());
+
+    $this->post(route('programas.store'), [
+        'nombre' => 'Programa inválido',
+        'descripcion' => 'x',
+        'recompensa_min' => 10,
+        'recompensa_max' => 100,
+        'moneda' => 'USD',
+        'empresa_id' => $empresa->id,
+        'objetivos' => [['tipo' => 'web', 'valor' => 'x.test']],
+    ])->assertSessionHasErrors('empresa_id');
+
+    expect(Programa::where('nombre', 'Programa inválido')->exists())->toBeFalse();
+});
+
+test('un usuario de gestión no puede asignar un programa a una empresa enviando empresa_id', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $this->actingAs(gestion());
+
+    $this->post(route('programas.store'), [
+        'nombre' => 'Programa de gestión',
+        'descripcion' => 'x',
+        'recompensa_min' => 10,
+        'recompensa_max' => 100,
+        'moneda' => 'USD',
+        'empresa_id' => $empresa->id,
+        'objetivos' => [['tipo' => 'web', 'valor' => 'x.test']],
+    ]);
+
+    expect(Programa::where('nombre', 'Programa de gestión')->value('empresa_id'))->toBeNull();
+});
+
+test('un administrador no puede quitarse su propio rol de administrador', function () {
+    $admin = administrador();
+    administrador();
+    rol('empresa');
+
+    $this->actingAs($admin)
+        ->put(route('admin.usuarios.update', $admin), ['rol' => 'empresa'])
+        ->assertRedirect(route('admin.usuarios'))
+        ->assertSessionHas('error');
+
+    expect($admin->fresh()->roles()->pluck('slug')->all())->toBe(['administrador']);
+});
+
+test('no se puede quitar el rol al último administrador', function () {
+    $ultimo = administrador();
+    $otro = administrador();
+    rol('investigador');
+    $this->actingAs($otro);
+
+    // Con dos administradores se puede degradar a uno...
+    $this->put(route('admin.usuarios.update', $ultimo), ['rol' => 'investigador'])->assertSessionHasNoErrors();
+    expect($ultimo->fresh()->roles()->pluck('slug')->all())->toBe(['investigador']);
+
+    // ...pero el que queda es el último y no puede ser degradado por nadie.
+    $tercero = administrador();
+    $this->actingAs($tercero);
+    $this->put(route('admin.usuarios.update', $otro), ['rol' => 'investigador'])->assertSessionHasNoErrors();
+    $this->put(route('admin.usuarios.update', $tercero), ['rol' => 'investigador'])->assertSessionHas('error');
+    expect($tercero->fresh()->roles()->pluck('slug')->all())->toBe(['administrador']);
+});

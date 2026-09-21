@@ -32,7 +32,16 @@
     import { store as programaStore } from '@/routes/programas';
     import { TIPOS_OBJETIVO } from '@/lib/tipo-objetivo';
 
-    let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>([]);
+    // Solo el administrador recibe la lista: puede crear el programa a nombre de una empresa.
+    let { empresas = [], empresaInicial = null }: {
+        empresas?: { id: number; razon_social: string; nombre_comercial: string | null }[];
+        empresaInicial?: number | null;
+    } = $props();
+
+    // Se empieza con un objetivo vacío: el programa necesita al menos uno.
+    let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>([
+        { tipo: 'web', valor: '', descripcion: '' },
+    ]);
 
     function agregarObjetivo() {
         objetivos = [...objetivos, { tipo: 'web', valor: '', descripcion: '' }];
@@ -53,8 +62,30 @@
 
     <Form method="post" action={programaStore()} class="space-y-6">
         {#snippet children({ errors, processing })}
+            {@const errorObjetivos = Object.entries(errors).find(([clave]) => clave === 'objetivos' || clave.startsWith('objetivos.'))?.[1]}
             <Card>
                 <CardContent class="pt-6 space-y-4">
+                    {#if empresas.length > 0}
+                        <div class="space-y-2">
+                            <Label for="empresa_id">Empresa</Label>
+                            <select
+                                id="empresa_id"
+                                name="empresa_id"
+                                class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="" selected={empresaInicial === null}>Sin empresa (programa de la plataforma)</option>
+                                {#each empresas as empresa (empresa.id)}
+                                    <option value={empresa.id} selected={empresa.id === empresaInicial}>
+                                        {empresa.nombre_comercial ?? empresa.razon_social}
+                                    </option>
+                                {/each}
+                            </select>
+                            <p class="text-xs text-muted-foreground">
+                                Como administrador puedes crear el programa a nombre de una empresa aprobada.
+                            </p>
+                            <InputError message={errors.empresa_id} />
+                        </div>
+                    {/if}
                     <div class="space-y-2">
                         <Label for="nombre">Nombre *</Label>
                         <Input
@@ -77,6 +108,21 @@
                             class="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         ></textarea>
                         <InputError message={errors.descripcion} />
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="bugs_buscados">Que bugs buscas</Label>
+                        <textarea
+                            id="bugs_buscados"
+                            name="bugs_buscados"
+                            placeholder="Ej: inyeccion SQL, XSS, fallos de autenticacion, exposicion de datos personales..."
+                            rows="3"
+                            class="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        ></textarea>
+                        <p class="text-xs text-muted-foreground">
+                            Los investigadores lo veran antes de enviarte un reporte.
+                        </p>
+                        <InputError message={errors.bugs_buscados} />
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-3">
@@ -175,8 +221,8 @@
                 <CardContent class="pt-6 space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-semibold">Objetivos</h3>
-                            <p class="text-xs text-muted-foreground">Define los objetivos del programa</p>
+                            <h3 class="text-sm font-semibold">Objetivos *</h3>
+                            <p class="text-xs text-muted-foreground">Obligatorio: indica al menos un sistema que los investigadores puedan investigar (un dominio, una API, una app).</p>
                         </div>
                         <Button type="button" variant="outline" size="sm" onclick={agregarObjetivo}>
                             <Plus class="mr-1 h-4 w-4" />
@@ -185,7 +231,7 @@
                     </div>
 
                     {#if objetivos.length === 0}
-                        <p class="text-xs text-muted-foreground">No hay objetivos definidos. Haz clic en "Agregar" para crear uno.</p>
+                        <p class="text-xs text-muted-foreground">Aún no hay objetivos. Sin al menos uno no se puede crear ni publicar el programa: haz clic en "Agregar".</p>
                     {:else}
                         {#each objetivos as _, i (i)}
                             <div class="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[140px_1fr_1fr_auto]">
@@ -224,6 +270,7 @@
                                     type="button"
                                     variant="ghost"
                                     size="icon"
+                                    aria-label="Quitar objetivo"
                                     onclick={() => eliminarObjetivo(i)}
                                 >
                                     <Trash2 class="h-4 w-4 text-destructive" />
@@ -232,8 +279,8 @@
                         {/each}
                     {/if}
 
-                    {#if errors.objetivos}
-                        <InputError message={errors.objetivos} />
+                    {#if errorObjetivos}
+                        <InputError message={errorObjetivos} />
                     {/if}
                 </CardContent>
             </Card>

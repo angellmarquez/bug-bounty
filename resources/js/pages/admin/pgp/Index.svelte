@@ -14,10 +14,11 @@
 </script>
 
 <script lang="ts">
-    import { router } from '@inertiajs/svelte';
+    import { page, router } from '@inertiajs/svelte';
     import Key from '@lucide/svelte/icons/key';
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+    import AlertError from '@/components/AlertError.svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import { Button } from '@/components/ui/button';
@@ -47,6 +48,8 @@
     } = $props();
 
     let generando = $state(false);
+
+    const errorPgp = $derived((page.props.errors as Record<string, string> | undefined)?.pgp);
 
     function generarClave() {
         generando = true;
@@ -78,6 +81,10 @@
         title="PGP Plataforma"
         description="Gestion del par de claves PGP de la plataforma para cifrado interno"
     />
+
+    {#if errorPgp}
+        <AlertError errors={[errorPgp]} title="No se pudo generar el par de claves" />
+    {/if}
 
     <Card>
         <CardHeader>

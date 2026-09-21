@@ -306,7 +306,7 @@ class GpgBinaryDriver implements PgpDriver
     {
         $this->ensureHomedir($homedir);
 
-        $process = new Process([...$this->baseArgs($homedir), ...$arguments]);
+        $process = $this->gpgProcess([...$this->baseArgs($homedir), ...$arguments]);
         $process->setTimeout($this->timeout);
         $process->setInput($input);
 
@@ -365,8 +365,26 @@ class GpgBinaryDriver implements PgpDriver
         ];
     }
 
+    /**
+     * Crea el proceso de gpg con la raíz del proyecto como directorio de trabajo.
+     *
+     * El homedir suele configurarse relativo (storage/app/pgp/gpg) y algunas builds de
+     * gpg en Windows (MSYS) no entienden rutas absolutas "C:\...". Fijar el cwd evita que
+     * el llavero cambie de sitio según cómo se sirva la app (`artisan serve`/nginx usan public/).
+     *
+     * @param  array<int, string>  $command
+     */
+    private function gpgProcess(array $command): Process
+    {
+        return new Process($command, function_exists('base_path') ? base_path() : null);
+    }
+
     private function ensureHomedir(string $dir): void
     {
+        if (! preg_match('#^(?:[A-Za-z]:)?[\\\\/]#', $dir) && function_exists('base_path')) {
+            $dir = base_path($dir);
+        }
+
         if (! is_dir($dir) && ! @mkdir($dir, 0700, true) && ! is_dir($dir)) {
             throw new RuntimeException("No se pudo crear el homedir de GnuPG [{$dir}].");
         }
@@ -376,7 +394,7 @@ class GpgBinaryDriver implements PgpDriver
     {
         $this->ensureHomedir($dir);
 
-        $process = new Process([...$this->baseArgs($dir), '--list-keys', $fingerprint]);
+        $process = $this->gpgProcess([...$this->baseArgs($dir), '--list-keys', $fingerprint]);
         $process->setTimeout($this->timeout);
 
         try {
@@ -394,7 +412,7 @@ class GpgBinaryDriver implements PgpDriver
     private function primaryKeyInfo(string $dir): ?PgpKeyInfo
     {
         try {
-            $process = new Process([...$this->baseArgs($dir), '--with-colons', '--with-fingerprint', '--list-keys']);
+            $process = $this->gpgProcess([...$this->baseArgs($dir), '--with-colons', '--with-fingerprint', '--list-keys']);
             $process->setTimeout($this->timeout);
             $process->run();
         } catch (Throwable) {

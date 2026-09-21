@@ -152,3 +152,36 @@ test('slug is auto-generated from name', function () {
     $response->assertRedirect();
     $this->assertDatabaseHas('programas', ['nombre' => 'Mi Programa de Prueba', 'slug' => 'mi-programa-de-prueba']);
 });
+
+test('programas con el mismo nombre reciben un slug distinto en lugar de fallar con error 500', function () {
+    $this->actingAs(gestion());
+    $datos = [
+        'nombre' => 'Programa Repetido',
+        'descripcion' => 'Description',
+        'recompensa_min' => 50,
+        'recompensa_max' => 500,
+        'moneda' => 'USD',
+    ];
+
+    $this->post(route('programas.store'), $datos)->assertRedirect();
+    $this->post(route('programas.store'), $datos)->assertRedirect();
+
+    $this->assertDatabaseHas('programas', ['slug' => 'programa-repetido']);
+    $this->assertDatabaseHas('programas', ['slug' => 'programa-repetido-2']);
+
+    // Un programa eliminado (soft delete) conserva su slug, así que también cuenta.
+    Programa::where('slug', 'programa-repetido-2')->firstOrFail()->delete();
+    $this->post(route('programas.store'), $datos)->assertRedirect();
+
+    $this->assertDatabaseHas('programas', ['slug' => 'programa-repetido-3']);
+});
+
+test('renombrar un programa a un nombre ya usado no rompe por slug duplicado', function () {
+    $this->actingAs(administrador());
+    Programa::factory()->create(['nombre' => 'Nombre Libre', 'slug' => 'nombre-libre']);
+    $otro = Programa::factory()->create(['nombre' => 'Otro Nombre']);
+
+    $otro->update(['nombre' => 'Nombre Libre']);
+
+    expect($otro->fresh()->slug)->toBe('nombre-libre-2');
+});

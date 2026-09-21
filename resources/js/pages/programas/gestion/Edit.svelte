@@ -41,8 +41,9 @@
         };
     } = $props();
 
-    let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>(
+    let objetivos = $state<{ id?: number; tipo: string; valor: string; descripcion: string }[]>(
         (programa.objetivos ?? []).map((o) => ({
+            id: o.id,
             tipo: o.tipo,
             valor: o.valor,
             descripcion: o.descripcion ?? '',
@@ -68,6 +69,7 @@
 
     <Form method="put" action={programaUpdate(programa.id)} class="space-y-6">
         {#snippet children({ errors, processing })}
+            {@const errorObjetivos = Object.entries(errors).find(([clave]) => clave === 'objetivos' || clave.startsWith('objetivos.'))?.[1]}
             <Card>
                 <CardContent class="pt-6 space-y-4">
                     <div class="space-y-2">
@@ -91,6 +93,21 @@
                             class="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         >{programa.descripcion}</textarea>
                         <InputError message={errors.descripcion} />
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label for="bugs_buscados">Que bugs buscas</Label>
+                        <textarea
+                            id="bugs_buscados"
+                            name="bugs_buscados"
+                            placeholder="Ej: inyeccion SQL, XSS, fallos de autenticacion, exposicion de datos personales..."
+                            rows="3"
+                            class="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >{programa.bugs_buscados ?? ''}</textarea>
+                        <p class="text-xs text-muted-foreground">
+                            Los investigadores lo veran antes de enviarte un reporte.
+                        </p>
+                        <InputError message={errors.bugs_buscados} />
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-3">
@@ -138,7 +155,7 @@
                                 id="inicia_en"
                                 name="inicia_en"
                                 type="date"
-                                value={programa.inicia_en ?? ''}
+                                value={programa.inicia_en?.slice(0, 10) ?? ''}
                             />
                             <InputError message={errors.inicia_en} />
                         </div>
@@ -149,7 +166,7 @@
                                 id="termina_en"
                                 name="termina_en"
                                 type="date"
-                                value={programa.termina_en ?? ''}
+                                value={programa.termina_en?.slice(0, 10) ?? ''}
                             />
                             <InputError message={errors.termina_en} />
                         </div>
@@ -190,8 +207,8 @@
                 <CardContent class="pt-6 space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-semibold">Objetivos</h3>
-                            <p class="text-xs text-muted-foreground">Define los objetivos del programa</p>
+                            <h3 class="text-sm font-semibold">Objetivos *</h3>
+                            <p class="text-xs text-muted-foreground">Obligatorio: indica al menos un sistema que los investigadores puedan investigar (un dominio, una API, una app).</p>
                         </div>
                         <Button type="button" variant="outline" size="sm" onclick={agregarObjetivo}>
                             <Plus class="mr-1 h-4 w-4" />
@@ -200,10 +217,13 @@
                     </div>
 
                     {#if objetivos.length === 0}
-                        <p class="text-xs text-muted-foreground">No hay objetivos definidos. Haz clic en "Agregar" para crear uno.</p>
+                        <p class="text-xs text-muted-foreground">Aún no hay objetivos. Sin al menos uno no se puede crear ni publicar el programa: haz clic en "Agregar".</p>
                     {:else}
                         {#each objetivos as _, i (i)}
                             <div class="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-[140px_1fr_1fr_auto]">
+                                {#if objetivos[i].id}
+                                    <input type="hidden" name={`objetivos[${i}][id]`} value={objetivos[i].id} />
+                                {/if}
                                 <input type="hidden" name={`objetivos[${i}][tipo]`} value={objetivos[i].tipo} />
                                 <input type="hidden" name={`objetivos[${i}][valor]`} value={objetivos[i].valor} />
                                 <input type="hidden" name={`objetivos[${i}][descripcion]`} value={objetivos[i].descripcion} />
@@ -239,6 +259,7 @@
                                     type="button"
                                     variant="ghost"
                                     size="icon"
+                                    aria-label="Quitar objetivo"
                                     onclick={() => eliminarObjetivo(i)}
                                 >
                                     <Trash2 class="h-4 w-4 text-destructive" />
@@ -247,14 +268,14 @@
                         {/each}
                     {/if}
 
-                    {#if errors.objetivos}
-                        <InputError message={errors.objetivos} />
+                    {#if errorObjetivos}
+                        <InputError message={errorObjetivos} />
                     {/if}
                 </CardContent>
             </Card>
 
             <div class="flex justify-end">
-                <Button type="submit" disabled={processing}>
+                <Button type="submit" disabled={processing || objetivos.length === 0}>
                     {#if processing}<Spinner />{/if}
                     Guardar Cambios
                 </Button>

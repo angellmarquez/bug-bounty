@@ -68,6 +68,21 @@ class Reporte extends Model
     ];
 
     /**
+     * Estados a la espera de una decisión del moderador.
+     */
+    public const ESTADOS_PENDIENTES = ['enviado', 'en_revision'];
+
+    /**
+     * Estados que indican que el moderador aprobó (validó) el informe.
+     */
+    public const ESTADOS_APROBADOS = ['validado', 'en_reparacion', 'pago_pendiente', 'pagado'];
+
+    /**
+     * Estados en los que el informe fue descartado.
+     */
+    public const ESTADOS_RECHAZADOS = ['rechazado', 'duplicado', 'fuera_de_alcance'];
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -122,7 +137,8 @@ class Reporte extends Model
      */
     public function eventos(): HasMany
     {
-        return $this->hasMany(EventoReporte::class)->latest();
+        // Desempate por id: varios eventos pueden crearse en el mismo segundo.
+        return $this->hasMany(EventoReporte::class)->latest()->orderByDesc('id');
     }
 
     /**

@@ -23,6 +23,7 @@ test('approved company owns programs created by its user', function () {
 
     $response = $this->post(route('programas.store'), [
         'nombre' => 'Programa Acme',
+        'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
         'descripcion' => 'Programa de seguridad de Acme.',
         'recompensa_min' => 100,
         'recompensa_max' => 1000,

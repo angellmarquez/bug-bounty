@@ -56,16 +56,25 @@ test('moderador can view notas internas', function () {
     $this->assertEquals('Nota confidencial de moderacion', $props['reporte']['notas_internas']);
 });
 
-test('admin and gestion cannot view reportes de otros', function (User $usuario) {
+test('gestion cannot view reportes de otros', function (User $usuario) {
     $this->actingAs($usuario);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
 
     $this->get(route('reportes.show', $reporte))->assertForbidden();
 })->with([
-    'administrador' => fn () => administrador(),
     'gestion' => fn () => gestion(),
 ]);
+
+test('admin can view reportes de otros to review them', function () {
+    $this->actingAs(administrador());
+
+    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado', 'notas_internas' => 'Nota de revision']);
+
+    $response = $this->get(route('reportes.show', $reporte));
+    $response->assertOk();
+    $this->assertTrue($response->inertiaProps()['puedeVerNotasInternas']);
+});
 
 test('empresa member can view non-borrador reportes of its programas', function () {
     $empresa = Empresa::factory()->aprobada()->create();
@@ -134,7 +143,9 @@ test('reporte show includes timeline eventos', function () {
     $props = $response->inertiaProps();
 
     $this->assertCount(2, $props['reporte']['eventos']);
-    $this->assertEquals('creado', $props['reporte']['eventos'][0]['tipo']);
+    // El timeline muestra primero lo más reciente.
+    $this->assertEquals('enviado', $props['reporte']['eventos'][0]['tipo']);
+    $this->assertEquals('creado', $props['reporte']['eventos'][1]['tipo']);
 });
 
 test('reporte show includes actor in eventos', function () {

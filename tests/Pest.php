@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Empresa;
+use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\Rol;
@@ -145,6 +146,16 @@ function pocDe(Reporte $reporte): ?array
 function pocCifrado(array $poc): ?string
 {
     return app(PgpService::class)->cifrarReporte('x', $poc)['poc'];
+}
+
+/**
+ * Un programa solo se puede publicar si define al menos un objetivo.
+ */
+function conObjetivo(Programa $programa): Programa
+{
+    ObjetivoPrograma::factory()->create(['programa_id' => $programa->id]);
+
+    return $programa;
 }
 
 function programaDe(User $usuario, array $atributos = []): Programa

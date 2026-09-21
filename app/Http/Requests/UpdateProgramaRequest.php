@@ -22,7 +22,7 @@ class UpdateProgramaRequest extends FormRequest
             ->first();
 
         return Gate::allows('abac', [
-            AccionesAbac::ProgramaGestionar,
+            AccionesAbac::ProgramaEditar,
             $programa,
             $empresa === null ? [] : ['empresa_id' => $empresa->id],
         ]);
@@ -36,6 +36,7 @@ class UpdateProgramaRequest extends FormRequest
         return [
             'nombre' => ['sometimes', 'required', 'string', 'max:255'],
             'descripcion' => ['sometimes', 'required', 'string', 'max:5000'],
+            'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'recompensa_min' => ['sometimes', 'required', 'numeric', 'min:0'],
             'recompensa_max' => ['sometimes', 'required', 'numeric', 'gte:recompensa_min'],
             'moneda' => ['sometimes', 'required', 'string', 'size:3'],
@@ -55,6 +56,7 @@ class UpdateProgramaRequest extends FormRequest
             'inicia_en' => ['nullable', 'date'],
             'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en'],
             'objetivos' => ['nullable', 'array'],
+            'objetivos.*.id' => ['nullable', 'integer'],
             'objetivos.*.tipo' => ['required_with:objetivos', Rule::in(['web', 'api', 'movil', 'otro'])],
             'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255'],
             'objetivos.*.descripcion' => ['nullable', 'string', 'max:500'],

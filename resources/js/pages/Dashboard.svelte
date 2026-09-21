@@ -31,7 +31,9 @@
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
+    import EstadoProgreso from '@/components/EstadoProgreso.svelte';
     import ReportesTimeline from '@/components/ReportesTimeline.svelte';
+    import StateBadge from '@/components/StateBadge.svelte';
     import type { DashboardRoleStats, DashboardStats } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
 
@@ -58,9 +60,37 @@
             titulo: string;
             estado: EstadoReporte;
             fecha: string;
-            programa?: { nombre: string } | null;
+            programa?: { id: number; nombre: string } | null;
+            ultimo_evento?: { tipo: string; nota: string | null; fecha: string | null } | null;
         }[]) ?? [],
     );
+
+    // Vista rápida: los últimos informes ya enviados (los borradores no cuentan).
+    const ultimosEnviados = $derived(
+        misReportes.filter((reporte) => reporte.estado !== 'borrador').slice(0, 10),
+    );
+
+    // Los informes agrupados por programa, para seguir el avance de cada uno.
+    const informesPorPrograma = $derived.by(() => {
+        const grupos = new Map<string, { nombre: string; informes: typeof misReportes }>();
+        for (const reporte of misReportes) {
+            const nombre = reporte.programa?.nombre ?? 'Sin programa';
+            const grupo = grupos.get(nombre) ?? { nombre, informes: [] };
+            grupo.informes.push(reporte);
+            grupos.set(nombre, grupo);
+        }
+        return [...grupos.values()];
+    });
+
+    function formatearMovimiento(fecha: string | null | undefined): string {
+        if (!fecha) return '';
+        return new Intl.DateTimeFormat('es-ES', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(new Date(fecha));
+    }
 
     const isAdmin = $derived(userRoles.includes('administrador'));
     const isGestion = $derived(userRoles.includes('gestion'));
@@ -189,25 +219,95 @@
             <CardHeader>
                 <CardTitle>Vista de Investigador</CardTitle>
                 <CardDescription>
-                    Presenta reportes de vulnerabilidades, gestiona tus claves
-                    PGP y revisa el estado de tus hallazgos.
+                    Elige un programa, presenta tus hallazgos con su formulario
+                    y sigue el estado de cada informe desde aquí.
                 </CardDescription>
             </CardHeader>
         </Card>
     {/if}
 
-    {#if !isAdmin && !isGestion}
+    {#if userRoles.includes('investigador')}
+        {#if ultimosEnviados.length > 0}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Últimos informes enviados</CardTitle>
+                    <CardDescription>
+                        Vista rápida: cada punto es uno de tus últimos informes y su color indica en qué
+                        estado se encuentra. Pasa el cursor o haz clic para ver el detalle.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ReportesTimeline reportes={ultimosEnviados} />
+                </CardContent>
+            </Card>
+        {/if}
+
         <Card>
             <CardHeader>
-                <CardTitle>Tu línea de tiempo de reportes</CardTitle>
+                <CardTitle>Estado de mis informes por programa</CardTitle>
                 <CardDescription>
-                    Cada punto es un reporte que enviaste; el color indica su
-                    estado actual. Pasa el cursor o haz clic para ver el
-                    detalle.
+                    El avance de cada informe: enviado, revisión del moderador, validación y pago.
+                    Cada decisión del moderador aparece aquí.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
-                <ReportesTimeline reportes={misReportes} />
+            <CardContent class="space-y-6">
+                {#if misReportes.length === 0}
+                    <div class="flex flex-col items-start gap-3">
+                        <p class="text-sm text-muted-foreground">
+                            Todavía no has enviado informes. Elige un programa y reporta tu primer hallazgo.
+                        </p>
+                        <Button href="/programas">Explorar programas</Button>
+                    </div>
+                {:else}
+                    {#each informesPorPrograma as grupo (grupo.nombre)}
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold">{grupo.nombre}</h3>
+                            {#each grupo.informes as informe (informe.id)}
+                                <div class="space-y-3 rounded-md border p-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <Link href={`/reportes/${informe.id}`} class="text-sm font-medium hover:underline">
+                                            {informe.numero_reporte} · {informe.titulo}
+                                        </Link>
+                                        <StateBadge estado={informe.estado} />
+                                    </div>
+                                    <EstadoProgreso estado={informe.estado} />
+                                    {#if informe.ultimo_evento}
+                                        <p class="text-xs text-muted-foreground">
+                                            Último movimiento ({formatearMovimiento(informe.ultimo_evento.fecha)}):
+                                            {informe.ultimo_evento.nota ?? informe.ultimo_evento.tipo}
+                                        </p>
+                                    {/if}
+                                    <Link href={`/reportes/${informe.id}`} class="text-xs text-primary hover:underline">
+                                        Ver línea de tiempo completa
+                                    </Link>
+                                </div>
+                            {/each}
+                        </div>
+                    {/each}
+                {/if}
+            </CardContent>
+        </Card>
+    {/if}
+
+    {#if userRoles.includes('moderador') || isAdmin}
+        <Card>
+            <CardHeader>
+                <CardTitle>Cola de moderación</CardTitle>
+                <CardDescription>
+                    Revisa los informes que los investigadores envían a los programas: valida, rechaza,
+                    penaliza o marca duplicados. Cada decisión queda en la línea de tiempo del investigador.
+                </CardDescription>
+            </CardHeader>
+            <CardContent class="flex flex-wrap items-center gap-4">
+                {#if roleStats.tipo === 'moderador' || roleStats.tipo === 'administrador'}
+                    <p class="text-sm">
+                        <span class="text-2xl font-bold text-chart-4">{roleStats.por_revisar}</span>
+                        <span class="ml-1 text-muted-foreground">informes por revisar</span>
+                    </p>
+                {/if}
+                <Button href="/moderacion">
+                    Revisar informes
+                </Button>
             </CardContent>
         </Card>
     {/if}

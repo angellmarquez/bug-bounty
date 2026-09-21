@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use InvalidArgumentException;
 
 class AdminController extends Controller
 {
@@ -301,6 +302,19 @@ class AdminController extends Controller
         $rol = Rol::where('slug', $request->input('rol'))->first();
         abort_if($rol === null, 422, 'Rol no encontrado.');
 
+        // Cambiar el rol reemplaza al anterior: sin estas guardas un administrador podía
+        // quitarse su propio rol de administrador (y dejar la plataforma sin ninguno).
+        if ($user->is($request->user()) && $rol->slug !== 'administrador') {
+            return redirect()->route('admin.usuarios')->with('error', 'No puedes cambiar tu propio rol: pídele a otro administrador que lo haga.');
+        }
+
+        $esAdministrador = $user->roles()->where('slug', 'administrador')->exists();
+        $quedanAdministradores = User::query()->whereHas('roles', fn ($query) => $query->where('slug', 'administrador'))->whereKeyNot($user->id)->exists();
+
+        if ($esAdministrador && $rol->slug !== 'administrador' && ! $quedanAdministradores) {
+            return redirect()->route('admin.usuarios')->with('error', 'Debe existir al menos un administrador en la plataforma.');
+        }
+
         $user->roles()->sync([$rol->id]);
 
         Auditoria::query()->create([
@@ -353,7 +367,11 @@ class AdminController extends Controller
             'nota' => ['required', 'string', 'max:2000'],
         ]);
 
-        $reputacion->revocarSancion($sancion, $request->input('nota'));
+        try {
+            $reputacion->revocarSancion($sancion, $request->input('nota'));
+        } catch (InvalidArgumentException $e) {
+            return redirect()->route('admin.sanciones')->with('error', $e->getMessage());
+        }
 
         return redirect()->route('admin.sanciones')
             ->with('success', 'Sancion revocada exitosamente. Puntos devueltos al ledger.');
@@ -390,12 +408,16 @@ class AdminController extends Controller
             'nota' => ['required', 'string', 'max:2000'],
         ]);
 
-        $reputacion->resolverApelacion(
-            $apelacion,
-            $validated['aprobada'],
-            $request->user(),
-            $validated['nota'],
-        );
+        try {
+            $reputacion->resolverApelacion(
+                $apelacion,
+                $validated['aprobada'],
+                $request->user(),
+                $validated['nota'],
+            );
+        } catch (InvalidArgumentException $e) {
+            return redirect()->route('admin.apelaciones')->with('error', $e->getMessage());
+        }
 
         $texto = $validated['aprobada'] ? 'aprobada' : 'rechazada';
 

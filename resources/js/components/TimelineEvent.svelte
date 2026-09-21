@@ -10,6 +10,9 @@
     import type { EventoReporte } from '@/types/domain';
     import { TipoEventoReporte } from '@/types/enums';
     import { tipoEventoLabel } from '@/lib/timeline-labels';
+    import StateBadge from '@/components/StateBadge.svelte';
+    import { estadoReporteDotColor } from '@/lib/status-colors';
+    import type { EstadoReporte } from '@/types/enums';
 
     let { evento }: { evento: EventoReporte } = $props();
 
@@ -36,7 +39,28 @@
     };
 
     const Icon = $derived(iconMap[evento.tipo] ?? FilePlus);
-    const dotColor = $derived(dotColorMap[evento.tipo] ?? 'bg-muted-foreground');
+
+    // El estado al que apunta el evento: en un cambio de estado, el nuevo estado; en el
+    // resto, el que implica el tipo (p. ej. un pago deja el informe en "pagado").
+    const estadoDelEvento = $derived.by((): EstadoReporte | null => {
+        const nuevo = evento.metadata?.estado_nuevo;
+        if (evento.tipo === TipoEventoReporte.CambioDeEstado && typeof nuevo === 'string') {
+            return nuevo as EstadoReporte;
+        }
+        const porTipo: Partial<Record<TipoEventoReporte, EstadoReporte>> = {
+            [TipoEventoReporte.Creado]: 'borrador',
+            [TipoEventoReporte.Enviado]: 'enviado',
+            [TipoEventoReporte.MarcadoDuplicado]: 'duplicado',
+            [TipoEventoReporte.Pago]: 'pagado',
+        };
+        return porTipo[evento.tipo] ?? null;
+    });
+
+    const dotColor = $derived(
+        estadoDelEvento
+            ? estadoReporteDotColor(estadoDelEvento)
+            : (dotColorMap[evento.tipo] ?? 'bg-muted-foreground'),
+    );
 
     function formatDate(dateStr: string): string {
         return new Intl.DateTimeFormat('es-ES', {
@@ -57,7 +81,12 @@
         <div class="w-px flex-1 bg-border"></div>
     </div>
     <div class="flex-1 pt-1">
-        <p class="text-sm font-medium">{tipoEventoLabel(evento.tipo)}</p>
+        <div class="flex flex-wrap items-center gap-2">
+            <p class="text-sm font-medium">{tipoEventoLabel(evento.tipo)}</p>
+            {#if evento.tipo === TipoEventoReporte.CambioDeEstado && estadoDelEvento}
+                <StateBadge estado={estadoDelEvento} />
+            {/if}
+        </div>
         {#if evento.actor}
             <p class="text-xs text-muted-foreground">
                 por {evento.actor.name}

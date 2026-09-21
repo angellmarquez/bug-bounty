@@ -73,6 +73,7 @@ export type Programa = {
     nombre: string;
     slug: string;
     descripcion: string;
+    bugs_buscados: string | null;
     estado: EstadoPrograma;
     moneda: string;
     recompensa_min: number;
@@ -133,6 +134,28 @@ export type EventoReporte = {
     actor?: User | null;
 };
 
+/**
+ * Informe en formato de lista: sin descripción ni PoC, con el investigador y su
+ * reputación. El contenido completo se lee en la página del informe.
+ */
+export type ReporteCompacto = {
+    id: number;
+    numero_reporte: string;
+    titulo: string;
+    estado: EstadoReporte;
+    severidad: Severidad | null;
+    programa_nombre?: string;
+    enviado_en: string | null;
+    es_duplicado_de?: number | null;
+    asignado_a?: { id: number; name: string } | null;
+    investigador: {
+        id: number;
+        name: string;
+        reputation_score: number;
+        reportes_descartados?: number;
+    };
+};
+
 export type ClavePgpResumen = {
     id: number;
     huella: string;
@@ -187,7 +210,7 @@ export type Apelacion = {
     motivo: string;
     estado: EstadoApelacion;
     resuelta_por: number | null;
-    resolucion: string | null;
+    nota_resolucion: string | null;
     resuelta_en: string | null;
     created_at: string;
     updated_at: string;
@@ -203,8 +226,7 @@ export type EntradaReputacion = {
     sancion_id: number | null;
     apelacion_id: number | null;
     puntos: number;
-    saldo: number;
-    descripcion: string;
+    motivo: string;
     metadata: Record<string, unknown> | null;
     created_at: string;
     usuario?: User;
@@ -245,12 +267,15 @@ export type DashboardRoleStats =
     | {
           tipo: 'moderador';
           pendientes_revision: number;
+          por_revisar: number;
           validados: number;
           rechazados: number;
           sanciones_aplicadas: number;
       }
     | {
           tipo: 'administrador';
+          por_revisar: number;
+          pendientes_revision: number;
           empresas_pendientes: number;
           empresas_aprobadas: number;
           moderadores: number;

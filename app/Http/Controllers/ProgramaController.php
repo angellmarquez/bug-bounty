@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Abac\AccionesAbac;
 use App\Http\Requests\StoreProgramaRequest;
 use App\Http\Requests\UpdateProgramaRequest;
+use App\Models\Empresa;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
+use App\Models\Reporte;
+use App\Services\Moderacion\ColaDeInformes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -64,46 +68,73 @@ class ProgramaController extends Controller
         ]);
     }
 
-    public function show(Programa $programa): InertiaResponse
+    public function show(Request $request, Programa $programa, ColaDeInformes $cola): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ProgramaVer, $programa]);
+        $this->authorizeProgramAction(AccionesAbac::ProgramaVer, $programa);
 
-        $programa->load(['creador', 'objetivos', 'reportes']);
+        // Nunca se envía la relación `reportes`: contendría informes de otros investigadores.
+        $programa->load(['creador', 'objetivos', 'empresa:id,razon_social,nombre_comercial,sitio_web']);
+        $programa->loadCount(['reportes' => fn ($query) => $query->where('estado', '!=', 'borrador')]);
 
         $puedeReportar = Gate::allows('abac', [AccionesAbac::ReporteCrear, $programa]);
-        $puedeGestionar = Gate::allows('abac', [AccionesAbac::ProgramaGestionar, $programa]);
-        $puedeCambiarEstado = Gate::allows('abac', [AccionesAbac::ProgramaCambiarEstado, $programa]);
-        $puedeEliminar = Gate::allows('abac', [AccionesAbac::ProgramaEliminar, $programa]);
+        $puedeGestionar = $this->puedeProgramAction(AccionesAbac::ProgramaGestionar, $programa);
+        $puedeEditar = $this->puedeProgramAction(AccionesAbac::ProgramaEditar, $programa);
+        $puedeCambiarEstado = $this->puedeProgramAction(AccionesAbac::ProgramaCambiarEstado, $programa);
+        $puedeEliminar = $this->puedeProgramAction(AccionesAbac::ProgramaEliminar, $programa);
 
         $transicionesPermitidas = $puedeCambiarEstado
             ? self::TRANSICIONES_VALIDAS[$programa->estado->value]
             : [];
 
+        // Los moderadores y admins ven ahí mismo los informes del programa para revisarlos.
+        $puedeModerar = Gate::allows('abac', [AccionesAbac::ModeracionVer]);
+        $filtroInformes = ColaDeInformes::filtro($request->input('filtro'));
+
         return Inertia::render('programas/Show', [
+            'puedeEditar' => $puedeEditar,
+            'puedeModerar' => $puedeModerar,
+            'filtroInformes' => $filtroInformes,
+            'conteosInformes' => $puedeModerar ? $cola->conteos($programa) : null,
+            'informes' => $puedeModerar
+                ? $cola->consulta($programa, $filtroInformes)->limit(10)->get()
+                    ->map(fn (Reporte $reporte): array => $cola->resumen($reporte))->all()
+                : [],
             'programa' => [
                 ...$programa->toArray(),
-                'creador' => $programa->creador?->only(['id', 'name']),
+                'empresa' => $programa->empresa === null ? null : [
+                    'nombre' => $programa->empresa->nombre_comercial ?? $programa->empresa->razon_social,
+                    'sitio_web' => $programa->empresa->sitio_web,
+                ],
+                // El autor solo es relevante para quien gestiona el programa.
+                'creador' => $puedeGestionar ? $programa->creador?->only(['id', 'name']) : null,
                 'objetivos' => $programa->objetivos->map(fn (ObjetivoPrograma $o) => $o->toArray()),
-                'reportes_count' => $programa->reportes->count(),
             ],
             'puedeReportar' => $puedeReportar,
             'puedeGestionar' => $puedeGestionar,
             'puedeCambiarEstado' => $puedeCambiarEstado,
-            'puedeEliminar' => $puedeEliminar,
+            'puedeEliminar' => $puedeEliminar && ! $programa->reportes()->exists(),
             'transicionesPermitidas' => $transicionesPermitidas,
         ]);
     }
 
-    public function create(): InertiaResponse
+    public function create(Request $request): InertiaResponse
     {
         Gate::authorize('abac', [AccionesAbac::ProgramaCrear]);
 
-        return Inertia::render('programas/gestion/Create');
+        // El administrador puede crear el programa en nombre de cualquier empresa aprobada.
+        $esAdmin = $request->user()->roles()->where('slug', 'administrador')->exists();
+
+        return Inertia::render('programas/gestion/Create', [
+            'empresas' => $esAdmin
+                ? Empresa::query()->where('estado', 'aprobada')->orderBy('razon_social')->get(['id', 'razon_social', 'nombre_comercial'])
+                : [],
+            'empresaInicial' => $esAdmin && $request->filled('empresa') ? (int) $request->input('empresa') : null,
+        ]);
     }
 
     public function edit(Programa $programa): InertiaResponse
     {
-        $this->authorizeProgramAction(AccionesAbac::ProgramaGestionar, $programa);
+        $this->authorizeProgramAction(AccionesAbac::ProgramaEditar, $programa);
         $programa->load(['objetivos']);
 
         return Inertia::render('programas/gestion/Edit', [
@@ -117,14 +148,20 @@ class ProgramaController extends Controller
         $user = $request->user();
         $validated['reputacion_minima'] ??= 0;
 
-        $programa = DB::transaction(function () use ($validated, $user) {
+        // Solo un administrador puede elegir la empresa; para el resto se ignora.
+        $empresaElegida = $user->roles()->where('slug', 'administrador')->exists() ? ($validated['empresa_id'] ?? null) : null;
+        unset($validated['empresa_id']);
+
+        $programa = DB::transaction(function () use ($validated, $user, $empresaElegida) {
             $objetivos = $validated['objetivos'] ?? [];
             unset($validated['objetivos']);
 
             $validated['creado_por'] = $user->id;
             $validated['estado'] = 'borrador';
 
-            if ($user->roles()->where('slug', 'empresa')->exists()) {
+            if ($empresaElegida !== null) {
+                $validated['empresa_id'] = $empresaElegida;
+            } elseif ($user->roles()->where('slug', 'empresa')->exists()) {
                 $empresa = $user->empresas()
                     ->where('empresas.estado', 'aprobada')
                     ->where('empresa_usuario.estado', 'activo')
@@ -157,10 +194,25 @@ class ProgramaController extends Controller
             $programa->update($validated);
 
             if ($objetivos !== null) {
-                $programa->objetivos()->delete();
-                foreach ($objetivos as $objetivo) {
-                    $programa->objetivos()->create($objetivo);
+                // Se conservan los objetivos que siguen en el formulario (por id), se crean los
+                // nuevos y solo se borran los que el usuario quitó.
+                $conservados = [];
+                foreach ($objetivos as $datos) {
+                    $id = $datos['id'] ?? null;
+                    unset($datos['id']);
+
+                    $objetivo = $id === null ? null : $programa->objetivos()->whereKey($id)->first();
+
+                    if ($objetivo !== null) {
+                        $objetivo->update($datos);
+                    } else {
+                        $objetivo = $programa->objetivos()->create($datos);
+                    }
+
+                    $conservados[] = $objetivo->id;
                 }
+
+                $programa->objetivos()->whereNotIn('id', $conservados)->delete();
             }
         });
 
@@ -172,9 +224,19 @@ class ProgramaController extends Controller
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaEliminar, $programa);
 
+        // Los informes dependen del programa (listados, cola de moderación, timeline):
+        // uno que ya recibió informes se archiva, no se elimina.
+        if ($programa->reportes()->exists()) {
+            throw ValidationException::withMessages([
+                'programa' => 'Este programa ya recibió informes y no se puede eliminar. Archívalo para que deje de aceptar nuevos reportes.',
+            ]);
+        }
+
         $programa->delete();
 
-        return redirect()->route('programas.index')
+        $esEmpresa = request()->user()?->roles()->where('slug', 'empresa')->exists() ?? false;
+
+        return redirect()->route($esEmpresa ? 'empresa.dashboard' : 'programas.index')
             ->with('success', 'Programa eliminado exitosamente.');
     }
 
@@ -196,25 +258,40 @@ class ProgramaController extends Controller
             "No se puede transitar de \"{$estadoActual}\" a \"{$estadoDestino}\"."
         );
 
+        // Sin objetivos no hay alcance definido: los investigadores no sabrían qué investigar.
+        if ($estadoDestino === 'activo' && ! $programa->objetivos()->exists()) {
+            throw ValidationException::withMessages([
+                'estado' => 'Define al menos un objetivo (qué sistemas se pueden investigar) antes de publicar el programa.',
+            ]);
+        }
+
         $programa->update(['estado' => $estadoDestino]);
 
-        return redirect()->route('programas.show', $programa)
+        return redirect()->back(fallback: route('programas.show', $programa))
             ->with('success', "Programa cambiado a \"{$estadoDestino}\" exitosamente.");
     }
 
     private function authorizeProgramAction(string $accion, Programa $programa): void
     {
-        $user = request()->user();
-        $empresa = $user?->empresas()
+        Gate::authorize('abac', $this->argumentosAbac($accion, $programa));
+    }
+
+    private function puedeProgramAction(string $accion, Programa $programa): bool
+    {
+        return Gate::allows('abac', $this->argumentosAbac($accion, $programa));
+    }
+
+    /**
+     * @return array{0: string, 1: Programa, 2: array{empresa_id?: int}}
+     */
+    private function argumentosAbac(string $accion, Programa $programa): array
+    {
+        $empresa = request()->user()?->empresas()
             ->where('empresas.estado', 'aprobada')
             ->where('empresa_usuario.estado', 'activo')
             ->first();
 
-        Gate::authorize('abac', [
-            $accion,
-            $programa,
-            $empresa === null ? [] : ['empresa_id' => $empresa->id],
-        ]);
+        return [$accion, $programa, $empresa === null ? [] : ['empresa_id' => $empresa->id]];
     }
 
     public function gestion(Request $request): InertiaResponse
@@ -241,6 +318,12 @@ class ProgramaController extends Controller
         }
 
         $programas = $query->withCount('reportes')->orderBy('nombre')->paginate(15)->withQueryString();
+        $programas->getCollection()->each(
+            fn (Programa $programa) => $programa->setAttribute(
+                'puede_editar',
+                $this->puedeProgramAction(AccionesAbac::ProgramaEditar, $programa),
+            ),
+        );
 
         return Inertia::render('programas/gestion/Index', [
             'programas' => $programas,

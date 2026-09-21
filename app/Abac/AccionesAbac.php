@@ -40,6 +40,8 @@ final class AccionesAbac
 
     public const ProgramaGestionar = 'programas.gestionar';
 
+    public const ProgramaEditar = 'programas.editar';
+
     public const ProgramaCambiarEstado = 'programas.cambiar_estado';
 
     public const ProgramaEliminar = 'programas.eliminar';
@@ -63,4 +65,6 @@ final class AccionesAbac
     public const ModeradorAsignar = 'moderadores.asignar';
 
     public const ModeradorRevocar = 'moderadores.revocar';
+
+    public const ModeracionVer = 'moderacion.ver';
 }

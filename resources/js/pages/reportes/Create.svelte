@@ -20,11 +20,13 @@
     import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ArrowRight from '@lucide/svelte/icons/arrow-right';
     import Save from '@lucide/svelte/icons/save';
+    import Send from '@lucide/svelte/icons/send';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
+    import AlertError from '@/components/AlertError.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -111,8 +113,11 @@
 
     // El payload sale del estado del wizard y no del DOM: los pasos anteriores
     // ya están desmontados cuando se llega al paso final.
+    // Qué botón del último paso se pulsó: guardar solo o guardar y enviar al programa.
+    let enviarAlGuardar = $state(false);
+
     function construirPayload() {
-        return $state.snapshot(formulario);
+        return { ...$state.snapshot(formulario), enviar: enviarAlGuardar };
     }
 
     // Enter en un campo de un paso intermedio avanza el wizard en lugar de enviar.
@@ -128,7 +133,7 @@
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex items-center gap-4">
-        <Button variant="ghost" size="icon" href={reportesIndex()}>
+        <Button variant="ghost" size="icon" href={reportesIndex()} aria-label="Volver a mis reportes">
             <ArrowLeft class="h-4 w-4" />
         </Button>
         <PageHeader
@@ -147,6 +152,9 @@
         onBefore={alEnviar}
     >
         {#snippet children({ errors: formErrors, processing: formProcessing })}
+            {#if formErrors.pgp}
+                <AlertError errors={[formErrors.pgp]} title="No se pudo guardar el reporte" />
+            {/if}
             {#if pasoActual === 1}
                 <Card>
                     <CardHeader>
@@ -306,10 +314,20 @@
                             type="submit"
                             disabled={formProcessing}
                             variant="outline"
+                            onclick={() => (enviarAlGuardar = false)}
                         >
-                            {#if formProcessing}<Spinner />{/if}
+                            {#if formProcessing && !enviarAlGuardar}<Spinner />{/if}
                             <Save class="mr-1 h-4 w-4" />
                             Guardar borrador
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={formProcessing}
+                            onclick={() => (enviarAlGuardar = true)}
+                        >
+                            {#if formProcessing && enviarAlGuardar}<Spinner />{/if}
+                            <Send class="mr-1 h-4 w-4" />
+                            Guardar y enviar
                         </Button>
                     {/if}
                 </div>

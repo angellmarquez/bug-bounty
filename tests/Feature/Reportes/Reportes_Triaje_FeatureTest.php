@@ -115,11 +115,12 @@ test('moderador can mark reporte as duplicado', function () {
     ]);
 });
 
-test('moderador can pay reporte with recompensa', function () {
-    $user = moderador();
-    $this->actingAs($user);
+test('empresa owner can pay reporte with recompensa', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'pago_pendiente', 'moneda' => 'USD']);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'pago_pendiente', 'moneda' => 'USD']);
 
     $response = $this->post(route('reportes.pagar', $reporte), [
         'recompensa' => 500.00,
@@ -138,11 +139,12 @@ test('moderador can pay reporte with recompensa', function () {
     ]);
 });
 
-test('moderador can cerrar reporte', function () {
-    $user = moderador();
-    $this->actingAs($user);
+test('empresa owner can cerrar reporte', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'pagado']);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'pagado']);
 
     $response = $this->post(route('reportes.cerrar', $reporte));
 
@@ -234,11 +236,97 @@ test('moderador cannot validate reporte already validado', function () {
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
 
-    $response = $this->post(route('reportes.validar', $reporte));
-    $response->assertUnprocessable();
+    $this->post(route('reportes.validar', $reporte))->assertSessionHasErrors('estado');
+    expect($reporte->fresh()->estado->value)->toBe('validado');
 });
 
-test('admin and gestion cannot triaje reportes they cannot access', function (User $usuario) {
+test('un informe validado se puede pagar y cerrar sin errores', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'validado']);
+
+    $this->post(route('reportes.pagar', $reporte), ['recompensa' => 500])->assertRedirect()->assertSessionHasNoErrors();
+    expect($reporte->fresh()->estado->value)->toBe('pagado');
+
+    $this->post(route('reportes.cerrar', $reporte))->assertRedirect()->assertSessionHasNoErrors();
+    expect($reporte->fresh()->estado->value)->toBe('cerrado');
+});
+
+test('un informe validado se puede cerrar directamente', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'validado']);
+
+    $this->post(route('reportes.cerrar', $reporte))->assertRedirect()->assertSessionHasNoErrors();
+    expect($reporte->fresh()->estado->value)->toBe('cerrado');
+});
+
+test('la pagina solo ofrece las acciones validas para el estado actual', function (string $estado, array $esperadas) {
+    $this->actingAs(moderador());
+    $reporte = reporteDe(investigador(), null, ['estado' => $estado]);
+
+    $acciones = $this->get(route('reportes.show', $reporte))->inertiaProps()['accionesDisponibles'];
+
+    foreach ($esperadas as $accion => $disponible) {
+        expect($acciones[$accion])->toBe($disponible, "{$estado}: {$accion}");
+    }
+})->with([
+    'enviado' => ['enviado', ['revisar' => true, 'validar' => true, 'rechazar' => true, 'pagar' => false, 'cerrar' => false]],
+    'en_revision' => ['en_revision', ['revisar' => false, 'validar' => true, 'rechazar' => true, 'pagar' => false, 'cerrar' => false]],
+    // El moderador solo decide si el informe es válido, duplicado o no válido: no paga ni cierra.
+    'validado' => ['validado', ['revisar' => false, 'validar' => false, 'rechazar' => true, 'pagar' => false, 'cerrar' => false]],
+    'pagado' => ['pagado', ['validar' => false, 'rechazar' => false, 'pagar' => false, 'cerrar' => false]],
+]);
+
+test('la empresa duena del programa solo puede pagar y cerrar', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'validado']);
+
+    $acciones = $this->get(route('reportes.show', $reporte))->inertiaProps()['accionesDisponibles'];
+
+    expect($acciones)->toMatchArray([
+        'revisar' => false,
+        'validar' => false,
+        'rechazar' => false,
+        'marcar_duplicado' => false,
+        'asignar' => false,
+        'pagar' => true,
+        'cerrar' => true,
+    ]);
+});
+
+test('el moderador no puede pagar ni cerrar informes', function () {
+    $this->actingAs(moderador());
+    $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
+
+    $this->post(route('reportes.pagar', $reporte), ['recompensa' => 100])->assertForbidden();
+    $this->post(route('reportes.cerrar', $reporte))->assertForbidden();
+    expect($reporte->fresh()->estado->value)->toBe('validado');
+});
+
+test('el administrador puede cerrar informes de cualquier programa', function () {
+    $this->actingAs(administrador());
+    $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
+
+    $this->post(route('reportes.cerrar', $reporte))->assertRedirect();
+    expect($reporte->fresh()->estado->value)->toBe('cerrado');
+});
+
+test('una empresa ajena no puede cerrar el informe', function () {
+    $duena = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $duena->id]);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'validado']);
+    $this->actingAs(miembroDeEmpresa(Empresa::factory()->aprobada()->create()));
+
+    $this->post(route('reportes.cerrar', $reporte))->assertForbidden();
+    expect($reporte->fresh()->estado->value)->toBe('validado');
+});
+
+test('gestion cannot triaje reportes it cannot access', function (User $usuario) {
     $this->actingAs($usuario);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -247,9 +335,17 @@ test('admin and gestion cannot triaje reportes they cannot access', function (Us
     $this->post(route('reportes.comentar', $reporte), ['nota' => 'hola'])->assertForbidden();
     $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'enviado']);
 })->with([
-    'administrador' => fn () => administrador(),
     'gestion' => fn () => gestion(),
 ]);
+
+test('admin can triaje reportes de cualquier programa', function () {
+    $this->actingAs(administrador());
+
+    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+
+    $this->post(route('reportes.validar', $reporte))->assertRedirect();
+    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'validado']);
+});
 
 test('empresa member can read but not triaje reportes of its programas', function () {
     $empresa = Empresa::factory()->aprobada()->create();
@@ -289,4 +385,36 @@ test('show page does not pass triaje for investigador', function () {
     $props = $response->inertiaProps();
 
     $this->assertFalse($props['puedeTriar']);
+});
+
+test('validar suma al investigador los puntos de reputación del evento reporte_validado', function () {
+    $this->actingAs(moderador());
+    $investigador = investigador();
+    $reporte = reporteDe($investigador, null, ['estado' => 'enviado']);
+
+    $this->post(route('reportes.validar', $reporte))->assertRedirect();
+
+    expect($investigador->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_validado'));
+    $this->assertDatabaseHas('ledger_reputacion', [
+        'usuario_id' => $investigador->id,
+        'reporte_id' => $reporte->id,
+        'motivo' => 'reporte_validado',
+    ]);
+});
+
+test('pagar suma al investigador los puntos de reputación del evento reporte_pagado', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
+    $this->actingAs(miembroDeEmpresa($empresa));
+    $investigador = investigador();
+    $reporte = reporteDe($investigador, $programa, ['estado' => 'validado']);
+
+    $this->post(route('reportes.pagar', $reporte), ['recompensa' => 500])->assertRedirect();
+
+    expect($investigador->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_pagado'));
+    $this->assertDatabaseHas('ledger_reputacion', [
+        'usuario_id' => $investigador->id,
+        'reporte_id' => $reporte->id,
+        'motivo' => 'reporte_pagado',
+    ]);
 });

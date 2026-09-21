@@ -8,12 +8,9 @@ use App\Mail\EmpresaInvitacionMail;
 use App\Models\Auditoria;
 use App\Models\Empresa;
 use App\Models\EmpresaInvitacion;
-use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\Rol;
 use App\Models\User;
-use App\Services\Pgp\Exceptions\PgpException;
-use App\Services\Pgp\PgpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -25,15 +22,42 @@ use Inertia\Response as InertiaResponse;
 
 class EmpresaController extends Controller
 {
-    public function dashboard(Request $request): InertiaResponse
+    public function dashboard(Request $request): InertiaResponse|RedirectResponse
     {
-        $empresa = $request->user()
-            ->empresas()
-            ->withPivot(['rol_interno', 'estado'])
-            ->latest('empresas.created_at')
-            ->first();
+        $esAdmin = $this->esAdministrador($request->user());
 
-        abort_if($empresa === null, 403, 'Tu usuario no pertenece a una empresa.');
+        if ($esAdmin) {
+            // El administrador no pertenece a ninguna empresa: entra al panel de la que elija.
+            $empresa = $this->empresaElegida($request, 'empresa');
+
+            if ($empresa === null) {
+                return redirect()->route('admin.empresas')->with('error', 'Elige una empresa para abrir su panel.');
+            }
+        } else {
+            $empresa = $request->user()
+                ->empresas()
+                ->withPivot(['rol_interno', 'estado'])
+                ->latest('empresas.created_at')
+                ->first();
+
+            abort_if($empresa === null, 403, 'Tu usuario no pertenece a una empresa.');
+        }
+
+        $rolInterno = $esAdmin ? 'administrador' : data_get($empresa->pivot, 'rol_interno');
+        $puedeGestionarMiembros = $empresa->estado === EstadoEmpresa::Aprobada && ($esAdmin || $rolInterno === 'propietario');
+
+        // Los borradores del investigador no cuentan: la empresa solo ve informes enviados.
+        $programas = $empresa->programas()
+            ->withCount([
+                'objetivos',
+                'reportes as reportes_todos',
+                'reportes as reportes_total' => fn ($query) => $query->where('estado', '!=', 'borrador'),
+                'reportes as reportes_pendientes' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_PENDIENTES),
+                'reportes as reportes_aprobados' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_APROBADOS),
+                'reportes as reportes_rechazados' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_RECHAZADOS),
+            ])
+            ->latest()
+            ->get(['id', 'nombre', 'estado', 'es_publico']);
 
         return Inertia::render('empresa/Dashboard', [
             'empresa' => [
@@ -41,47 +65,136 @@ class EmpresaController extends Controller
                     'id', 'razon_social', 'nombre_comercial', 'identificador_fiscal', 'email', 'estado', 'motivo_estado',
                 ]),
                 'estado' => $empresa->estado->value,
-                'rol_interno' => data_get($empresa->pivot, 'rol_interno'),
+                'rol_interno' => $rolInterno,
+                'esAdmin' => $esAdmin,
                 'puedeOperar' => $empresa->estado === EstadoEmpresa::Aprobada,
-                'programas' => $empresa->programas()->latest()->get(['id', 'nombre', 'estado']),
-                'reportes' => $empresa->programas()
-                    ->with(['reportes' => function ($query) {
-                        $query->where('estado', '!=', 'borrador')
-                            ->with('investigador:id,name')
-                            ->latest();
-                    }])
-                    ->get(['id', 'nombre'])
-                    ->flatMap(function (Programa $programa) {
-                        $pgpService = app(PgpService::class);
-
-                        return $programa->reportes->map(function (Reporte $reporte) use ($programa, $pgpService) {
-                            try {
-                                $poc = $reporte->poc !== null
-                                    ? $pgpService->descifrarReporte('', $reporte->poc)['poc']
-                                    : null;
-                            } catch (PgpException) {
-                                $poc = null;
-                            }
-
-                            return [
-                                'id' => $reporte->id,
-                                'numero_reporte' => $reporte->numero_reporte,
-                                'titulo' => $reporte->titulo,
-                                'estado' => $reporte->estado->value,
-                                'severidad' => $reporte->severidad?->value,
-                                'programa_id' => $programa->id,
-                                'programa_nombre' => $programa->nombre,
-                                'investigador' => $reporte->investigador->only(['id', 'name']),
-                                'poc' => $poc,
-                                'created_at' => $reporte->created_at?->toISOString(),
-                            ];
-                        });
-                    })
-                    ->values(),
+                'puedeGestionarMiembros' => $puedeGestionarMiembros,
+                'programas' => $programas,
+                'resumen' => [
+                    'programas' => $programas->count(),
+                    'reportes' => $programas->sum('reportes_total'),
+                    'pendientes' => $programas->sum('reportes_pendientes'),
+                    'aprobados' => $programas->sum('reportes_aprobados'),
+                    'rechazados' => $programas->sum('reportes_rechazados'),
+                ],
+                'reportes' => $this->reportesRecientes($empresa),
                 'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email']),
-                'invitaciones' => $empresa->invitaciones()->where('estado', 'pendiente')->latest()->get(['id', 'email', 'expira_en']),
+                // El enlace lleva el token de la invitación: solo lo ve quien puede gestionar miembros.
+                'invitaciones' => $puedeGestionarMiembros
+                    ? $empresa->invitaciones()->where('estado', 'pendiente')->where('expira_en', '>', now())->latest()->get(['id', 'email', 'expira_en', 'token'])
+                        ->map(fn (EmpresaInvitacion $invitacion): array => [
+                            'id' => $invitacion->id,
+                            'email' => $invitacion->email,
+                            'expira_en' => $invitacion->expira_en->toISOString(),
+                            'url' => route('empresa.invitacion', $invitacion->token),
+                        ])->values()->all()
+                    : [],
             ],
         ]);
+    }
+
+    /**
+     * Listado completo y paginado de informes recibidos, en formato compacto.
+     * El contenido (descripción y PoC) se lee en la página de cada informe.
+     */
+    public function reportes(Request $request): InertiaResponse
+    {
+        $esAdmin = $this->esAdministrador($request->user());
+        $empresa = $esAdmin
+            ? $this->empresaElegida($request, 'empresa')
+            : $request->user()
+                ->empresas()
+                ->where('empresa_usuario.estado', 'activo')
+                ->latest('empresas.created_at')
+                ->first();
+
+        abort_if($empresa === null, $esAdmin ? 404 : 403, $esAdmin ? 'Elige una empresa.' : 'Tu usuario no pertenece a una empresa.');
+        abort_unless($empresa->estado === EstadoEmpresa::Aprobada, 403, 'Tu empresa todavía no tiene acceso operativo.');
+
+        $filtro = in_array($request->input('filtro'), ['todos', 'pendientes', 'aprobados', 'rechazados', 'cerrados'], true)
+            ? (string) $request->input('filtro')
+            : 'todos';
+        $programaId = $request->filled('programa_id') ? (int) $request->input('programa_id') : null;
+
+        $recibidos = fn () => Reporte::query()
+            ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
+            ->where('estado', '!=', 'borrador');
+
+        $reportes = $recibidos()
+            ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
+            ->when($programaId !== null, fn ($query) => $query->where('programa_id', $programaId))
+            ->when($request->filled('busqueda'), function ($query) use ($request) {
+                $busqueda = (string) $request->input('busqueda');
+                $query->where(fn ($q) => $q->where('titulo', 'like', "%{$busqueda}%")->orWhere('numero_reporte', 'like', "%{$busqueda}%"));
+            })
+            ->when($filtro === 'pendientes', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_PENDIENTES))
+            ->when($filtro === 'aprobados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_APROBADOS))
+            ->when($filtro === 'rechazados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_RECHAZADOS))
+            ->when($filtro === 'cerrados', fn ($query) => $query->where('estado', 'cerrado'))
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (Reporte $reporte): array => $this->reporteCompacto($reporte));
+
+        return Inertia::render('empresa/Reportes', [
+            'empresa' => ['id' => $empresa->id, 'nombre' => $empresa->nombre_comercial ?? $empresa->razon_social, 'esAdmin' => $esAdmin],
+            'programas' => $empresa->programas()->orderBy('nombre')->get(['id', 'nombre']),
+            'filtros' => [
+                'filtro' => $filtro,
+                'programa_id' => $programaId,
+                'busqueda' => (string) $request->input('busqueda', ''),
+            ],
+            'conteos' => [
+                'todos' => $recibidos()->count(),
+                'pendientes' => $recibidos()->whereIn('estado', Reporte::ESTADOS_PENDIENTES)->count(),
+                'aprobados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_APROBADOS)->count(),
+                'rechazados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_RECHAZADOS)->count(),
+                'cerrados' => $recibidos()->where('estado', 'cerrado')->count(),
+            ],
+            'reportes' => $reportes,
+        ]);
+    }
+
+    /**
+     * Los últimos informes recibidos, para la vista rápida del panel.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function reportesRecientes(Empresa $empresa): array
+    {
+        return Reporte::query()
+            ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
+            ->where('estado', '!=', 'borrador')
+            ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
+            ->latest('id')
+            ->limit(8)
+            ->get()
+            ->map(fn (Reporte $reporte): array => $this->reporteCompacto($reporte))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Datos mínimos para las listas: sin descripción ni PoC.
+     *
+     * @return array<string, mixed>
+     */
+    private function reporteCompacto(Reporte $reporte): array
+    {
+        return [
+            'id' => $reporte->id,
+            'numero_reporte' => $reporte->numero_reporte,
+            'titulo' => $reporte->titulo,
+            'estado' => $reporte->estado->value,
+            'severidad' => $reporte->severidad?->value,
+            'programa_nombre' => $reporte->programa->nombre,
+            'enviado_en' => ($reporte->enviado_en ?? $reporte->created_at)?->toISOString(),
+            'investigador' => [
+                'id' => $reporte->investigador->id,
+                'name' => $reporte->investigador->name,
+                'reputation_score' => $reporte->investigador->reputation_score,
+            ],
+        ];
     }
 
     public function invitarMiembro(Request $request): RedirectResponse
@@ -121,7 +234,9 @@ class EmpresaController extends Controller
 
         $this->auditarMiembro($usuarioActual, $usuarioActual, $empresa, 'empresa.invitacion.creada');
 
-        return redirect()->route('empresa.dashboard')->with('invitacion_url', route('empresa.invitacion', $invitacion->token));
+        return $this->volverAlPanel($request, $empresa)
+            ->with('success', 'Invitación creada. Envía el enlace a '.$invitacion->email.' (vale 7 días).')
+            ->with('invitacion_url', route('empresa.invitacion', $invitacion->token));
     }
 
     public function verInvitacion(string $token): Response
@@ -200,7 +315,7 @@ class EmpresaController extends Controller
 
         $this->auditarMiembro($usuarioActual, $miembro, $empresa, 'empresa.miembro.agregado');
 
-        return redirect()->route('empresa.dashboard')->with('success', 'Miembro agregado.');
+        return $this->volverAlPanel($request, $empresa)->with('success', 'Miembro agregado.');
     }
 
     public function eliminarMiembro(Request $request, User $user): RedirectResponse
@@ -215,13 +330,21 @@ class EmpresaController extends Controller
         $empresa->usuarios()->detach($user->id);
         $this->auditarMiembro($usuarioActual, $user, $empresa, 'empresa.miembro.eliminado');
 
-        return redirect()->route('empresa.dashboard')->with('success', 'Miembro retirado.');
+        return $this->volverAlPanel($request, $empresa)->with('success', 'Miembro retirado.');
     }
 
     /** @return array{0: Empresa, 1: User} */
     private function empresaActual(Request $request): array
     {
         $user = $request->user();
+
+        if ($this->esAdministrador($user)) {
+            $empresa = $this->empresaElegida($request, 'empresa_id');
+            abort_if($empresa === null, 422, 'Indica la empresa sobre la que actúas.');
+
+            return [$empresa, $user];
+        }
+
         $empresa = $user->empresas()
             ->where('empresa_usuario.estado', 'activo')
             ->latest('empresas.created_at')
@@ -232,10 +355,30 @@ class EmpresaController extends Controller
         return [$empresa, $user];
     }
 
+    private function esAdministrador(User $usuario): bool
+    {
+        return $usuario->roles()->where('slug', 'administrador')->exists();
+    }
+
+    /** Empresa indicada en la petición (solo la usa el administrador para operar cualquier empresa). */
+    private function empresaElegida(Request $request, string $campo): ?Empresa
+    {
+        return $request->filled($campo) ? Empresa::query()->find((int) $request->input($campo)) : null;
+    }
+
+    private function volverAlPanel(Request $request, Empresa $empresa): RedirectResponse
+    {
+        return redirect()->route('empresa.dashboard', $this->esAdministrador($request->user()) ? ['empresa' => $empresa->id] : []);
+    }
+
     private function autorizarMiembros(Empresa $empresa, User $usuario): void
     {
         abort_if($empresa->estado !== EstadoEmpresa::Aprobada, 403, 'La empresa debe estar aprobada.');
-        abort_if($empresa->usuarios()->whereKey($usuario->id)->wherePivot('rol_interno', 'propietario')->doesntExist(), 403, 'Solo el propietario puede gestionar miembros.');
+        abort_if(
+            ! $this->esAdministrador($usuario) && $empresa->usuarios()->whereKey($usuario->id)->wherePivot('rol_interno', 'propietario')->doesntExist(),
+            403,
+            'Solo el propietario puede gestionar miembros.',
+        );
 
         Gate::authorize('abac', [
             AccionesAbac::EmpresaGestionarMiembros,

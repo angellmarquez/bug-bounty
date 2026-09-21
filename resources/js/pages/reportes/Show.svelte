@@ -27,6 +27,7 @@
     import Lock from '@lucide/svelte/icons/lock';
     import Edit from '@lucide/svelte/icons/edit';
     import Send from '@lucide/svelte/icons/send';
+    import Eye from '@lucide/svelte/icons/eye';
     import { page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
@@ -36,28 +37,45 @@
     import ComentarioForm from '@/components/ComentarioForm.svelte';
     import StateTransition from '@/components/StateTransition.svelte';
     import { Button } from '@/components/ui/button';
+    import ContenidoInforme from '@/components/ContenidoInforme.svelte';
+    import EstadoProgreso from '@/components/EstadoProgreso.svelte';
+    import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
     import {
         Card,
         CardContent,
+        CardDescription,
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
     import { index as reportesRoute } from '@/routes/reportes';
-    import type { Reporte } from '@/types/domain';
+    import type { Programa, Reporte } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
 
     let {
         reporte: initialReporte,
         puedeVerNotasInternas,
         puedeTriar = false,
+        puedeModerar = false,
+        cifradoIndisponible = false,
+        historialInvestigador = null,
         accionesDisponibles = {},
         usuariosGestion = [],
+        candidatosDuplicado = [],
     }: {
         reporte: Reporte;
         puedeVerNotasInternas: boolean;
         puedeTriar?: boolean;
+        puedeModerar?: boolean;
+        cifradoIndisponible?: boolean;
+        historialInvestigador?: {
+            reputation_score: number;
+            informes: number;
+            aprobados: number;
+            descartados: number;
+        } | null;
         accionesDisponibles?: Record<string, boolean>;
         usuariosGestion?: { id: number; name: string }[];
+        candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
     } = $props();
 
     // Derivado: tras cada acción de triaje Inertia entrega props nuevas a esta misma instancia.
@@ -70,6 +88,15 @@
     function openTransition(accion: typeof transitionAccion) {
         transitionAccion = accion;
         transitionOpen = true;
+    }
+
+    // Datos del programa al que se envió el informe (la empresa y su estado vienen del servidor).
+    const programaInforme = $derived(
+        reporte.programa as (Programa & { empresa_nombre?: string | null }) | undefined,
+    );
+
+    function iniciarRevision() {
+        router.post(`/reportes/${reporte.id}/revisar`, {}, { preserveScroll: true });
     }
 
     function enviarReporte() {
@@ -88,11 +115,6 @@
         }).format(new Date(dateStr));
     }
 
-    function formatJson(obj: Record<string, unknown> | null): string {
-        if (!obj) return '';
-        return JSON.stringify(obj, null, 2);
-    }
-
     function recargar() {
         router.reload({ only: ['reporte'] });
     }
@@ -103,7 +125,12 @@
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="flex items-center gap-4">
-            <Button variant="ghost" size="icon" href={reportesRoute()}>
+            <Button
+                variant="ghost"
+                size="icon"
+                href={puedeModerar && reporte.programa ? `/moderacion/programas/${reporte.programa.id}` : reportesRoute()}
+                aria-label={puedeModerar ? 'Volver a la cola de moderación' : 'Volver a reportes'}
+            >
                 <ArrowLeft class="h-4 w-4" />
             </Button>
             <PageHeader
@@ -125,27 +152,59 @@
         {/if}
     </div>
 
+    {#if programaInforme}
+        <Card>
+            <CardContent class="space-y-5 pt-6">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0 space-y-1">
+                        <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Programa</p>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <p class="text-lg font-semibold">{programaInforme.nombre}</p>
+                            <ProgramaStateBadge estado={programaInforme.estado} />
+                        </div>
+                        {#if programaInforme.empresa_nombre}
+                            <p class="text-sm text-muted-foreground">Empresa: {programaInforme.empresa_nombre}</p>
+                        {/if}
+                    </div>
+                    <Button variant="outline" href={programasShow(programaInforme.id)}>
+                        <ExternalLink class="mr-2 h-4 w-4" />
+                        Ver programa
+                    </Button>
+                </div>
+
+                <div class="space-y-2">
+                    <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado del informe</p>
+                    <EstadoProgreso estado={reporte.estado} />
+                </div>
+            </CardContent>
+        </Card>
+    {/if}
+
+    {#if page.props.errors?.estado}
+        <div role="alert" class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            {page.props.errors.estado}
+        </div>
+    {/if}
+
     <div class="grid gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
             <Card>
                 <CardHeader>
-                    <CardTitle>Descripcion</CardTitle>
+                    <CardTitle>Informe del investigador</CardTitle>
+                    <CardDescription>Todo lo que envió el investigador, tal cual.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p class="whitespace-pre-wrap text-sm">{reporte.descripcion}</p>
+                    <ContenidoInforme
+                        descripcion={reporte.descripcion}
+                        poc={reporte.poc}
+                        pocSchema={reporte.programa?.poc_schema}
+                        categoria={reporte.categoria}
+                        vectorCvss={reporte.vector_cvss}
+                        puntuacionCvss={reporte.puntuacion_cvss}
+                        {cifradoIndisponible}
+                    />
                 </CardContent>
             </Card>
-
-            {#if reporte.poc && Object.keys(reporte.poc).length > 0}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Prueba de concepto (PoC)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <pre class="overflow-x-auto rounded-lg bg-muted p-4 text-xs">{formatJson(reporte.poc)}</pre>
-                    </CardContent>
-                </Card>
-            {/if}
 
             {#if puedeVerNotasInternas && reporte.notas_internas}
                 <Card>
@@ -165,6 +224,12 @@
                     </CardHeader>
                     <CardContent>
                         <div class="flex flex-wrap gap-2">
+                            {#if accionesDisponibles.revisar}
+                                <Button size="sm" onclick={iniciarRevision}>
+                                    <Eye class="mr-1 h-3 w-3" />
+                                    Iniciar revisión
+                                </Button>
+                            {/if}
                             {#if accionesDisponibles.asignar}
                                 <Button variant="outline" size="sm" onclick={() => openTransition('asignar')}>
                                     <UserPlus class="mr-1 h-3 w-3" />
@@ -290,6 +355,68 @@
                 </CardContent>
             </Card>
 
+            {#if puedeModerar && historialInvestigador}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Investigador</CardTitle>
+                        <CardDescription>Su historial ayuda a valorar el informe.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Nombre</span>
+                            <span class="text-sm">{reporte.investigador?.name ?? 'Desconocido'}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Reputación</span>
+                            <span class="text-sm font-semibold text-primary">{historialInvestigador.reputation_score}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Informes enviados</span>
+                            <span class="text-sm">{historialInvestigador.informes}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Aprobados</span>
+                            <span class="text-sm text-chart-1">{historialInvestigador.aprobados}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Descartados</span>
+                            <span class="text-sm {historialInvestigador.descartados > 0 ? 'text-chart-4' : ''}">{historialInvestigador.descartados}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+            {/if}
+
+            {#if puedeModerar && reporte.programa}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Alcance del programa</CardTitle>
+                        <CardDescription>Comprueba que el hallazgo esté dentro de lo que la empresa quiere revisar.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        {#if reporte.programa.bugs_buscados}
+                            <div class="space-y-1">
+                                <p class="text-xs font-medium text-muted-foreground">Bugs que buscan</p>
+                                <p class="whitespace-pre-wrap text-sm">{reporte.programa.bugs_buscados}</p>
+                            </div>
+                        {/if}
+                        <div class="space-y-1">
+                            <p class="text-xs font-medium text-muted-foreground">Objetivos</p>
+                            {#if reporte.programa.objetivos && reporte.programa.objetivos.length > 0}
+                                {#each reporte.programa.objetivos as objetivo (objetivo.id)}
+                                    <p class="text-sm">
+                                        <span class="text-xs uppercase text-muted-foreground">{objetivo.tipo}</span>
+                                        {objetivo.valor}
+                                        {#if objetivo.descripcion}<span class="text-xs text-muted-foreground"> · {objetivo.descripcion}</span>{/if}
+                                    </p>
+                                {/each}
+                            {:else}
+                                <p class="text-sm text-muted-foreground">El programa no define objetivos.</p>
+                            {/if}
+                        </div>
+                    </CardContent>
+                </Card>
+            {/if}
+
             {#if reporte.duplicadoDe}
                 <Card>
                     <CardHeader>
@@ -327,5 +454,6 @@
     reporteId={reporte.id}
     estadoActual={reporte.estado}
     {usuariosGestion}
+    {candidatosDuplicado}
     onsuccess={recargar}
 />

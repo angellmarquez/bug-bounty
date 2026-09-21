@@ -23,12 +23,15 @@ class StoreProgramaRequest extends FormRequest
         return [
             'nombre' => ['required', 'string', 'max:255'],
             'descripcion' => ['required', 'string', 'max:5000'],
+            'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'recompensa_min' => ['required', 'numeric', 'min:0'],
             'recompensa_max' => ['required', 'numeric', 'gte:recompensa_min'],
             'moneda' => ['required', 'string', 'size:3'],
             'requiere_poc' => ['boolean'],
             'es_publico' => ['boolean'],
             'reputacion_minima' => ['sometimes', 'integer', 'min:0'],
+            // Solo lo usa un administrador para crear el programa en nombre de una empresa aprobada.
+            'empresa_id' => ['nullable', 'integer', Rule::exists('empresas', 'id')->where('estado', 'aprobada')],
             'poc_schema' => ['nullable', 'array'],
             'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
             'poc_schema.*.label' => ['required_with:poc_schema', 'string', 'max:255'],
@@ -41,7 +44,13 @@ class StoreProgramaRequest extends FormRequest
             'poc_schema.*.defaultValue' => ['nullable', 'string'],
             'inicia_en' => ['nullable', 'date'],
             'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en'],
-            'objetivos' => ['nullable', 'array'],
+            // Una empresa no puede crear un programa sin alcance: necesita al menos un objetivo.
+            'objetivos' => [
+                Rule::requiredIf(fn () => $this->filled('empresa_id') || (bool) $this->user()?->roles()->where('slug', 'empresa')->exists()),
+                'nullable',
+                'array',
+                'min:1',
+            ],
             'objetivos.*.tipo' => ['required_with:objetivos', Rule::in(['web', 'api', 'movil', 'otro'])],
             'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255'],
             'objetivos.*.descripcion' => ['nullable', 'string', 'max:500'],
@@ -51,6 +60,9 @@ class StoreProgramaRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'objetivos.required' => 'Agrega al menos un objetivo: define qué sistemas pueden investigar los investigadores.',
+            'objetivos.min' => 'Agrega al menos un objetivo: define qué sistemas pueden investigar los investigadores.',
+            'objetivos.*.valor.required' => 'Indica el objetivo (por ejemplo un dominio, una API o una aplicación).',
             'nombre.required' => 'El nombre es obligatorio.',
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
             'descripcion.required' => 'La descripcion es obligatoria.',
