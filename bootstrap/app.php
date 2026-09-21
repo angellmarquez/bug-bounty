@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\PaginasDeError;
 use App\Http\Middleware\AbacMiddleware;
 use App\Http\Middleware\EmpresaAccessMiddleware;
 use App\Http\Middleware\HandleAppearance;
@@ -34,4 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Los errores se muestran con una página de la aplicación, no con la pantalla blanca por defecto.
+        $exceptions->respond(new PaginasDeError);
     })->create();

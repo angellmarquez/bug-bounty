@@ -115,3 +115,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+// Una URL que no existe (con cualquier método) también pasa por el grupo web (sesión, menú):
+// la página 404 sabe quién eres y una ruta retirada sigue dando 404, no 405.
+Route::any('{fallbackPlaceholder}', fn () => abort(404))->where('fallbackPlaceholder', '.*')->fallback();
