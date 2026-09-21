@@ -64,11 +64,14 @@ class GpgBinaryDriver implements PgpDriver
             ? strtolower($algorithm)
             : 'ed25519';
 
+        // El llavero puede tener ya otras claves: la nueva es la que aparece después de generarla.
+        $antes = array_map(fn (PgpKeyInfo $clave) => $clave->fingerprint, $this->primaryKeys($this->homedir));
+
         $this->run([
             '--quick-generate-key', $identity, $algorithm, 'sign', $expiresIn,
         ], '', $this->homedir);
 
-        $generated = $this->primaryKeyInfo($this->homedir);
+        $generated = self::claveNueva($antes, $this->primaryKeys($this->homedir));
         if ($generated === null) {
             throw new PgpException('No se pudo generar el par de claves PGP.');
         }
@@ -411,54 +414,85 @@ class GpgBinaryDriver implements PgpDriver
      */
     private function primaryKeyInfo(string $dir): ?PgpKeyInfo
     {
+        return $this->primaryKeys($dir)[0] ?? null;
+    }
+
+    /**
+     * Todas las claves primarias del anillo, en el orden en que gpg las lista.
+     *
+     * @return list<PgpKeyInfo>
+     */
+    private function primaryKeys(string $dir): array
+    {
         try {
             $process = $this->gpgProcess([...$this->baseArgs($dir), '--with-colons', '--with-fingerprint', '--list-keys']);
             $process->setTimeout($this->timeout);
             $process->run();
         } catch (Throwable) {
-            return null;
+            return [];
         }
 
         if ($process->getExitCode() !== 0) {
-            return null;
+            return [];
         }
 
-        $lines = array_filter(explode("\n", $process->getOutput()), fn (string $line) => $line !== '');
-        $public = null;
-        $fingerprint = null;
+        return self::parsearListado($process->getOutput());
+    }
 
-        foreach ($lines as $line) {
-            $fields = explode(':', $line);
+    /**
+     * Interpreta la salida `--with-colons --list-keys`: cada línea `pub` va seguida de la `fpr`
+     * de su clave primaria (las subclaves llevan sus propias `sub`/`fpr`, que se ignoran).
+     *
+     * @return list<PgpKeyInfo>
+     */
+    public static function parsearListado(string $salida): array
+    {
+        $claves = [];
+        $publica = null;
 
-            if ($fields[0] === 'pub' && $public === null) {
-                $public = $fields;
+        foreach (array_filter(explode("\n", $salida), fn (string $linea) => $linea !== '') as $linea) {
+            $campos = explode(':', $linea);
+
+            if ($campos[0] === 'pub') {
+                $publica = $campos;
+
+                continue;
             }
 
-            if ($fields[0] === 'fpr' && $fingerprint === null) {
-                $fingerprint = $fields[9] ?? null;
-            }
+            if ($campos[0] === 'fpr' && $publica !== null && ($campos[9] ?? '') !== '') {
+                $claves[] = new PgpKeyInfo(
+                    fingerprint: strtoupper($campos[9]),
+                    idClave: strtoupper($publica[4] ?? ''),
+                    algoritmo: self::algoritmoDe($publica[3] ?? null),
+                    bits: isset($publica[2]) && is_numeric($publica[2]) ? (int) $publica[2] : null,
+                    creadaEn: isset($publica[5]) && is_numeric($publica[5])
+                        ? Carbon::createFromTimestamp((int) $publica[5])
+                        : null,
+                    expiraEn: isset($publica[6]) && is_numeric($publica[6]) && (int) $publica[6] > 0
+                        ? Carbon::createFromTimestamp((int) $publica[6])
+                        : null,
+                );
 
-            if ($public !== null && $fingerprint !== null) {
-                break;
+                // Las `fpr` que siguen son de subclaves, hasta la próxima `pub`.
+                $publica = null;
             }
         }
 
-        if ($public === null || $fingerprint === null) {
-            return null;
-        }
+        return $claves;
+    }
 
-        return new PgpKeyInfo(
-            fingerprint: strtoupper($fingerprint),
-            idClave: strtoupper($public[4] ?? ''),
-            algoritmo: self::algoritmoDe($public[3] ?? null),
-            bits: isset($public[2]) && is_numeric($public[2]) ? (int) $public[2] : null,
-            creadaEn: isset($public[5]) && is_numeric($public[5])
-                ? Carbon::createFromTimestamp((int) $public[5])
-                : null,
-            expiraEn: isset($public[6]) && is_numeric($public[6]) && (int) $public[6] > 0
-                ? Carbon::createFromTimestamp((int) $public[6])
-                : null,
-        );
+    /**
+     * La clave que apareció en el llavero respecto a `$antes` (huellas previas); null si no hay
+     * exactamente una nueva.
+     *
+     * @param  list<string>  $antes
+     * @param  list<PgpKeyInfo>  $despues
+     */
+    public static function claveNueva(array $antes, array $despues): ?PgpKeyInfo
+    {
+        $nuevas = array_values(array_filter($despues, fn (PgpKeyInfo $clave) => ! in_array($clave->fingerprint, $antes, true)));
+
+        return count($nuevas) === 1 ? $nuevas[0] : null;
     }
 
     private function normalizeArmored(string $raw): string
