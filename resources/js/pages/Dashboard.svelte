@@ -32,6 +32,7 @@
         CardTitle,
     } from '@/components/ui/card';
     import EstadoProgreso from '@/components/EstadoProgreso.svelte';
+    import RolesUsuario from '@/components/RolesUsuario.svelte';
     import ReportesTimeline from '@/components/ReportesTimeline.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import type { DashboardRoleStats, DashboardStats } from '@/types/domain';
@@ -144,6 +145,8 @@
         title="{greeting}, {user?.name ?? 'Usuario'}"
         description="Panel de control de la plataforma de divulgacion coordinada"
     />
+
+    <RolesUsuario />
 
     {#if user?.reputation_score !== undefined}
         <Card>

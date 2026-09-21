@@ -3,7 +3,6 @@
         breadcrumbs: [
             {
                 title: 'Admin',
-                href: '/admin',
             },
             {
                 title: 'PGP Plataforma',
@@ -40,7 +39,8 @@
             identidad: string | null;
             algoritmo: string | null;
             bits: number | null;
-            created_at: string;
+            creada_en: string | null;
+            expira_en: string | null;
         } | null;
         driver: string;
         available: boolean;
@@ -58,7 +58,9 @@
         });
     }
 
-    function formatearFecha(dateStr: string): string {
+    function formatearFecha(dateStr: string | null): string {
+        if (!dateStr || Number.isNaN(new Date(dateStr).getTime())) return 'Sin fecha';
+
         return new Intl.DateTimeFormat('es-ES', {
             day: '2-digit',
             month: 'long',
@@ -151,7 +153,7 @@
                     {/if}
                     <div class="space-y-1">
                         <p class="text-xs text-muted-foreground">Generada</p>
-                        <p class="text-sm">{formatearFecha(clave.created_at)}</p>
+                        <p class="text-sm">{formatearFecha(clave.creada_en)}</p>
                     </div>
                 </div>
             </CardContent>

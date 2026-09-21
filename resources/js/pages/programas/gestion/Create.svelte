@@ -10,10 +10,11 @@
 </script>
 
 <script lang="ts">
-    import { Form } from '@inertiajs/svelte';
+    import { Form, page } from '@inertiajs/svelte';
     import Plus from '@lucide/svelte/icons/plus';
     import Trash2 from '@lucide/svelte/icons/trash-2';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
@@ -32,6 +33,8 @@
     import { store as programaStore } from '@/routes/programas';
     import { TIPOS_OBJETIVO } from '@/lib/tipo-objetivo';
 
+    const esEmpresa = $derived(((page.props.userRoles as string[] | undefined) ?? []).includes('empresa'));
+
     // Se empieza con un objetivo vacío: el programa necesita al menos uno.
     let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>([
         { tipo: 'web', valor: '', descripcion: '' },
@@ -49,10 +52,16 @@
 <AppHead title="Crear Programa" />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-    <PageHeader
-        title="Crear Programa"
-        description="Define un nuevo programa de divulgacion de vulnerabilidades"
-    />
+    <div class="flex items-center gap-4">
+        <BotonVolver
+            href={esEmpresa ? '/empresa' : '/gestion/programas'}
+            etiqueta={esEmpresa ? 'Volver al panel de empresa' : 'Volver a programas'}
+        />
+        <PageHeader
+            title="Crear Programa"
+            description="Define un nuevo programa de divulgacion de vulnerabilidades"
+        />
+    </div>
 
     <Form method="post" action={programaStore()} class="space-y-6">
         {#snippet children({ errors, processing })}

@@ -20,6 +20,17 @@
     } = $props();
 
     const url = currentUrlState();
+
+    // Se marca la entrada cuya ruta es la más específica que contiene la página actual, para que
+    // /reportes/12 resalte "Reportes" y /empresa/reportes no resalte también "/empresa".
+    const rutaActiva = $derived.by(() => {
+        const actual = url.currentUrl;
+        const rutas = items
+            .map((item) => String(toUrl(item.href)).split('?')[0])
+            .filter((ruta) => actual === ruta || actual.startsWith(`${ruta}/`))
+            .sort((a, b) => b.length - a.length);
+        return rutas[0] ?? null;
+    });
 </script>
 
 <SidebarGroup class="px-2 py-0">
@@ -29,7 +40,7 @@
             <SidebarMenuItem>
                 <SidebarMenuButton
                     asChild
-                    isActive={url.isCurrentUrl(item.href, url.currentUrl)}
+                    isActive={String(toUrl(item.href)).split('?')[0] === rutaActiva}
                     tooltip={item.title}
                 >
                     {#snippet children(props)}

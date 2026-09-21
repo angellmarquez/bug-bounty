@@ -7,7 +7,8 @@ type NavIcon =
 
 export type BreadcrumbItem = {
     title: string;
-    href: NonNullable<LinkComponentBaseProps['href']>;
+    /** Sin href, la miga se muestra como texto (p. ej. una sección que no tiene página propia). */
+    href?: NonNullable<LinkComponentBaseProps['href']>;
 };
 
 export type NavItem = {

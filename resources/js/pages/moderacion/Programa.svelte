@@ -9,9 +9,9 @@
 
 <script lang="ts">
     import { Link } from '@inertiajs/svelte';
-    import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import Inbox from '@lucide/svelte/icons/inbox';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import EmptyState from '@/components/EmptyState.svelte';
     import ReportesCompactos from '@/components/ReportesCompactos.svelte';
@@ -51,9 +51,7 @@
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex items-center gap-4">
-        <Button variant="ghost" size="icon" href="/moderacion" aria-label="Volver a moderación">
-            <ArrowLeft class="h-4 w-4" />
-        </Button>
+        <BotonVolver href={'/moderacion'} etiqueta="Volver a moderación" />
         <PageHeader
             title={programa.nombre}
             description={`Informes enviados a ${programa.empresa ?? 'la empresa'}`}

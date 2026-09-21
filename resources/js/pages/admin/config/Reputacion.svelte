@@ -3,7 +3,6 @@
         breadcrumbs: [
             {
                 title: 'Admin',
-                href: '/admin',
             },
             {
                 title: 'Config Reputacion',
@@ -33,14 +32,14 @@
         config,
     }: {
         config: {
-            puntos_iniciales: number;
-            puntos_positivos: {
+            puntos_inicial: number;
+            puntos: {
                 reporte_validado: number;
                 reporte_pagado: number;
                 calidad_documentacion: number;
                 participacion: number;
             };
-            penalizacion_base: {
+            penalizacion: {
                 leve: number;
                 media: number;
                 grave: number;
@@ -55,14 +54,14 @@
     } = $props();
 
     let form = $state({
-        puntos_iniciales: config.puntos_iniciales,
-        reporte_validado: config.puntos_positivos.reporte_validado,
-        reporte_pagado: config.puntos_positivos.reporte_pagado,
-        calidad_documentacion: config.puntos_positivos.calidad_documentacion,
-        participacion: config.puntos_positivos.participacion,
-        penalizacion_leve: config.penalizacion_base.leve,
-        penalizacion_media: config.penalizacion_base.media,
-        penalizacion_grave: config.penalizacion_base.grave,
+        puntos_iniciales: config.puntos_inicial,
+        reporte_validado: config.puntos.reporte_validado,
+        reporte_pagado: config.puntos.reporte_pagado,
+        calidad_documentacion: config.puntos.calidad_documentacion,
+        participacion: config.puntos.participacion,
+        penalizacion_leve: config.penalizacion.leve,
+        penalizacion_media: config.penalizacion.media,
+        penalizacion_grave: config.penalizacion.grave,
         suspension_leve_dias: config.suspension.leve.dias,
         suspension_media_dias: config.suspension.media.dias,
         suspension_grave_dias: config.suspension.grave.dias,
@@ -72,14 +71,14 @@
     function guardar(e: SubmitEvent) {
         e.preventDefault();
         router.put('/admin/config/reputacion', {
-            puntos_iniciales: form.puntos_iniciales,
-            puntos_positivos: {
+            puntos_inicial: form.puntos_iniciales,
+            puntos: {
                 reporte_validado: form.reporte_validado,
                 reporte_pagado: form.reporte_pagado,
                 calidad_documentacion: form.calidad_documentacion,
                 participacion: form.participacion,
             },
-            penalizacion_base: {
+            penalizacion: {
                 leve: form.penalizacion_leve,
                 media: form.penalizacion_media,
                 grave: form.penalizacion_grave,

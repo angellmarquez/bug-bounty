@@ -17,7 +17,6 @@
 
 <script lang="ts">
     import { Link, router } from '@inertiajs/svelte';
-    import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ExternalLink from '@lucide/svelte/icons/external-link';
     import UserPlus from '@lucide/svelte/icons/user-plus';
     import CheckCircle from '@lucide/svelte/icons/check-circle';
@@ -30,6 +29,7 @@
     import Eye from '@lucide/svelte/icons/eye';
     import { page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import SeverityBadge from '@/components/SeverityBadge.svelte';
@@ -95,6 +95,16 @@
         reporte.programa as (Programa & { empresa_nombre?: string | null }) | undefined,
     );
 
+    // "Volver" lleva a la lista desde la que este rol suele llegar al informe.
+    const destinoVolver = $derived.by(() => {
+        const roles = (page.props.userRoles as string[] | undefined) ?? [];
+        if (puedeModerar && reporte.programa) {
+            return { href: `/moderacion/programas/${reporte.programa.id}`, etiqueta: 'Volver a la cola del programa' };
+        }
+        if (roles.includes('empresa')) return { href: '/empresa/reportes', etiqueta: 'Volver a informes recibidos' };
+        return { href: reportesRoute(), etiqueta: 'Volver a mis reportes' };
+    });
+
     function iniciarRevision() {
         router.post(`/reportes/${reporte.id}/revisar`, {}, { preserveScroll: true });
     }
@@ -125,14 +135,7 @@
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="flex items-center gap-4">
-            <Button
-                variant="ghost"
-                size="icon"
-                href={puedeModerar && reporte.programa ? `/moderacion/programas/${reporte.programa.id}` : reportesRoute()}
-                aria-label={puedeModerar ? 'Volver a la cola de moderación' : 'Volver a reportes'}
-            >
-                <ArrowLeft class="h-4 w-4" />
-            </Button>
+            <BotonVolver href={destinoVolver.href} etiqueta={destinoVolver.etiqueta} />
             <PageHeader
                 title="{reporte.numero_reporte}"
                 description={reporte.titulo}

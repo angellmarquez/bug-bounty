@@ -10,6 +10,7 @@ use App\Services\Pgp\PgpService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use RuntimeException;
@@ -59,6 +60,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        if (config('app.vite_hot_file')) {
+            Vite::useHotFile((string) config('app.vite_hot_file'));
+        }
+
+        if (config('app.vite_hot_file')) {
+            Vite::useHotFile((string) config('app.vite_hot_file'));
+        }
     }
 
     /**

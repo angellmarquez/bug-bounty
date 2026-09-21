@@ -14,6 +14,7 @@
     import Plus from '@lucide/svelte/icons/plus';
     import Trash2 from '@lucide/svelte/icons/trash-2';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
@@ -62,10 +63,13 @@
 <AppHead title={`Editar ${programa.nombre}`} />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-    <PageHeader
-        title="Editar Programa"
-        description={programa.nombre}
-    />
+    <div class="flex items-center gap-4">
+        <BotonVolver href={`/programas/${programa.id}`} etiqueta="Volver al programa" />
+        <PageHeader
+            title="Editar Programa"
+            description={programa.nombre}
+        />
+    </div>
 
     <Form method="put" action={programaUpdate(programa.id)} class="space-y-6">
         {#snippet children({ errors, processing })}

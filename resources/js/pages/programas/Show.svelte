@@ -21,6 +21,7 @@
     import Settings from '@lucide/svelte/icons/settings';
     import Edit from '@lucide/svelte/icons/edit';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
     import { Badge } from '@/components/ui/badge';
@@ -112,6 +113,15 @@
         return labels[type] ?? type;
     }
 
+    // Cada rol llega al programa desde un sitio distinto: "volver" respeta ese origen.
+    const destinoVolver = $derived(
+        puedeModerar
+            ? { href: '/moderacion', etiqueta: 'Volver a moderación' }
+            : puedeEditar
+              ? { href: '/empresa', etiqueta: 'Volver al panel de empresa' }
+              : { href: programasIndex(), etiqueta: 'Volver a programas' },
+    );
+
     const urlReportar = $derived(`/reportes/crear?programa=${programa.id}`);
     const enPausa = $derived(programa.estado === 'en_pausa');
 </script>
@@ -127,6 +137,7 @@
 
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex flex-wrap items-center gap-3">
+            <BotonVolver href={destinoVolver.href} etiqueta={destinoVolver.etiqueta} />
             <PageHeader
                 title={programa.nombre}
                 description={programa.empresa ? `Programa de ${programa.empresa.nombre}` : undefined}

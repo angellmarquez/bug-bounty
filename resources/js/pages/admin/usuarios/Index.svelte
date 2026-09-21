@@ -3,7 +3,6 @@
         breadcrumbs: [
             {
                 title: 'Admin',
-                href: '/admin',
             },
             {
                 title: 'Usuarios',

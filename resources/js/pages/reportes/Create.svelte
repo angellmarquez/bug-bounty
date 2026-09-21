@@ -22,6 +22,7 @@
     import Save from '@lucide/svelte/icons/save';
     import Send from '@lucide/svelte/icons/send';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
@@ -132,9 +133,7 @@
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex items-center gap-4">
-        <Button variant="ghost" size="icon" href={reportesIndex()}>
-            <ArrowLeft class="h-4 w-4" />
-        </Button>
+        <BotonVolver href={reportesIndex()} etiqueta="Volver a mis reportes" />
         <PageHeader
             title="Crear reporte"
             description="Complete los pasos para crear un nuevo reporte de vulnerabilidad"
