@@ -8,8 +8,11 @@ use App\Services\Pgp\Drivers\GpgBinaryDriver;
 use App\Services\Pgp\Exceptions\PgpDriverUnavailableException;
 use App\Services\Pgp\PgpService;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -60,6 +63,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        // Freno HTTP al guardar/enviar informes: frena scripts que disparan cientos de peticiones.
+        RateLimiter::for('reportes', fn (Request $request) => Limit::perMinute(
+            (int) config('reportes.limites_envio.peticiones_por_minuto', 20),
+        )->by('reportes|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         if (config('app.vite_hot_file')) {
             Vite::useHotFile((string) config('app.vite_hot_file'));

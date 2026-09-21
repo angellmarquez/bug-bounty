@@ -171,6 +171,13 @@
             {#if formErrors.pgp}
                 <AlertError errors={[formErrors.pgp]} title="No se pudo guardar el reporte" />
             {/if}
+            {#if formErrors.limite}
+                <div data-test="aviso-limite" class="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm" role="alert">
+                    <p class="font-medium">No se pudo enviar el informe</p>
+                    <p class="text-muted-foreground">{formErrors.limite}</p>
+                    <p class="mt-1 text-muted-foreground">Puedes guardarlo como borrador y enviarlo más tarde.</p>
+                </div>
+            {/if}
             {#if pasoActual === 1}
                 <Card>
                     <CardHeader>

@@ -30,10 +30,10 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
     Route::get('reportes/crear', [ReporteController::class, 'create'])->name('reportes.create');
-    Route::post('reportes', [ReporteController::class, 'store'])->name('reportes.store');
+    Route::post('reportes', [ReporteController::class, 'store'])->name('reportes.store')->middleware('throttle:reportes');
     Route::get('reportes/{reporte}/editar', [ReporteController::class, 'edit'])->name('reportes.edit');
     Route::put('reportes/{reporte}', [ReporteController::class, 'update'])->name('reportes.update');
-    Route::post('reportes/{reporte}/enviar', [ReporteController::class, 'enviar'])->name('reportes.enviar');
+    Route::post('reportes/{reporte}/enviar', [ReporteController::class, 'enviar'])->name('reportes.enviar')->middleware('throttle:reportes');
 
     // Acciones de triaje (Slice 5.4)
     Route::get('reportes/{reporte}/vista-rapida', [ReporteController::class, 'vistaRapida'])->name('reportes.vista-rapida');

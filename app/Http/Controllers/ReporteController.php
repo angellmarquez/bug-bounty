@@ -14,6 +14,7 @@ use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
+use App\Services\Reportes\LimiteDeEnvios;
 use App\Services\Reputacion\Rangos;
 use App\Services\Reputacion\ReputationService;
 use Illuminate\Database\Eloquent\Builder;
@@ -273,6 +274,18 @@ class ReporteController extends Controller
         $validated = $request->validated();
         $user = $request->user();
 
+        // "Guardar y enviar" cuenta como un envío: se frena el envío masivo antes de crear nada.
+        // Guardar solo un borrador no llega al programa, así que no tiene este límite.
+        if ($request->boolean('enviar')) {
+            $bloqueo = app(LimiteDeEnvios::class)->motivoDeBloqueo($user, (int) $validated['programa_id'], $validated['titulo']);
+
+            if ($bloqueo !== null) {
+                return redirect()->back()
+                    ->withErrors(['limite' => $bloqueo])
+                    ->with('error', $bloqueo);
+            }
+        }
+
         $poc = $validated['poc'] ?? [];
 
         if (! is_array($poc)) {
@@ -396,6 +409,12 @@ class ReporteController extends Controller
     public function enviar(Reporte $reporte): RedirectResponse
     {
         Gate::authorize('abac', [AccionesAbac::ReporteEnviar, $reporte]);
+
+        $bloqueo = app(LimiteDeEnvios::class)->motivoDeBloqueo(request()->user(), $reporte->programa_id, $reporte->titulo, $reporte->id);
+
+        if ($bloqueo !== null) {
+            return redirect()->route('reportes.show', $reporte)->with('error', $bloqueo);
+        }
 
         $this->marcarEnviado($reporte, request()->user());
 
