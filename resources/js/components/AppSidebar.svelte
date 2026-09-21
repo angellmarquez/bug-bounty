@@ -38,7 +38,6 @@
     );
 
     const isAdmin = $derived(userRoles.includes('administrador'));
-    const isGestion = $derived(userRoles.includes('gestion'));
     const isInvestigador = $derived(userRoles.includes('investigador'));
     const isEmpresa = $derived(userRoles.includes('empresa'));
     const isModerador = $derived(userRoles.includes('moderador'));
@@ -60,7 +59,7 @@
             });
         }
 
-        if (isInvestigador || isGestion || isAdmin || isEmpresa || isModerador) {
+        if (isInvestigador || isAdmin || isEmpresa || isModerador) {
             items.push({
                 title: isEmpresa
                     ? 'Reportes recibidos'
@@ -72,7 +71,7 @@
             });
         }
 
-        if (isInvestigador || isGestion || isAdmin) {
+        if (isInvestigador || isAdmin) {
             items.push({
                 title: 'Programas',
                 href: programasIndex(),
@@ -81,7 +80,7 @@
         }
 
         /*
-        if (isInvestigador || isGestion || isAdmin) {
+        if (isInvestigador || isAdmin) {
             items.push({
                 title: 'Mis Claves PGP',
                 href: '/claves-pgp',
@@ -98,7 +97,7 @@
             });
         }
 
-        if (isGestion || isAdmin) {
+        if (isAdmin) {
             items.push({
                 title: 'Gestión Programas',
                 href: gestionProgramas(),

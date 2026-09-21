@@ -90,7 +90,6 @@
     }
 
     const isAdmin = $derived(userRoles.includes('administrador'));
-    const isGestion = $derived(userRoles.includes('gestion'));
 
     const greeting = $derived.by(() => {
         const hour = new Date().getHours();
@@ -121,7 +120,7 @@
             },
         ];
 
-        if (isAdmin || isGestion) {
+        if (isAdmin) {
             cards.push({
                 title: 'Programas Activos',
                 value: stats.programas_activos,
@@ -193,16 +192,6 @@
                     {/snippet}
                 </Button>
             </CardContent>
-        </Card>
-    {:else if isGestion}
-        <Card>
-            <CardHeader>
-                <CardTitle>Vista de Gestion</CardTitle>
-                <CardDescription>
-                    Puedes triar reportes, asignar analistas y gestionar
-                    programas de bug bounty.
-                </CardDescription>
-            </CardHeader>
         </Card>
     {:else}
         <Card>

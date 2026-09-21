@@ -139,82 +139,9 @@ return [
         ],
 
         // ------------------------------------------------------------------
-        // 3. Gestión: triaje de reportes y operación de programas.
+        // 3. Programas: quién NO edita. (El antiguo rol "Gestión" lo absorbió el moderador.)
         // ------------------------------------------------------------------
-        [
-            'id' => 'gestion-ver-reportes-no-borrador',
-            'prioridad' => 30,
-            'acciones' => ['reportes.ver', 'reportes.ver_notas_internas'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => ['estado' => ['!=' => 'borrador']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-asignar-reportes',
-            'prioridad' => 30,
-            'acciones' => ['reportes.asignar'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => ['estado' => ['in' => ['enviado', 'en_revision']]],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-triaje-propio',
-            'prioridad' => 30,
-            'acciones' => [
-                'reportes.validar',
-                'reportes.rechazar',
-                'reportes.marcar_duplicado',
-                'reportes.marcar_en_reparacion',
-                'reportes.cerrar',
-            ],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion']],
-                'asignado_a' => ['=' => '@sujeto.id'],
-            ],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-triaje-sin-asignar',
-            'prioridad' => 30,
-            'acciones' => [
-                'reportes.validar',
-                'reportes.rechazar',
-                'reportes.marcar_duplicado',
-                'reportes.marcar_en_reparacion',
-                'reportes.cerrar',
-            ],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion']],
-                'asignado_a' => ['is_null'],
-            ],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-crear-programa',
-            'prioridad' => 30,
-            'acciones' => ['programas.crear'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        // Editar un programa es cosa de la empresa dueña. La única excepción es un programa
-        // heredado sin empresa, que edita quien lo creó con el rol de gestión.
-        [
-            'id' => 'gestion-editar-programa-propio-sin-empresa',
-            'prioridad' => 30,
-            'acciones' => ['programas.editar'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => ['creado_por' => ['=' => '@sujeto.id'], 'empresa_id' => ['is_null']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
+        // Editar un programa es cosa de la empresa dueña (y de sus publicadores).
         // El deny gana sobre cualquier permiso, también sobre el bypass del administrador.
         [
             'id' => 'denegar-edicion-de-programas-al-administrador',
@@ -233,24 +160,6 @@ return [
             'objeto' => [],
             'entorno' => [],
             'decision' => 'denegar',
-        ],
-        [
-            'id' => 'gestion-programa-propio',
-            'prioridad' => 30,
-            'acciones' => ['programas.gestionar', 'programas.cambiar_estado'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => ['creado_por' => ['=' => '@sujeto.id']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-resolver-apelaciones',
-            'prioridad' => 30,
-            'acciones' => ['apelaciones.resolver'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [],
-            'entorno' => [],
-            'decision' => 'permitir',
         ],
 
         // ------------------------------------------------------------------
@@ -324,6 +233,15 @@ return [
             'acciones' => ['programas.ver'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => ['id' => ['in' => '@sujeto.programas_moderados']],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-resolver-apelaciones',
+            'prioridad' => 30,
+            'acciones' => ['apelaciones.resolver'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [],
             'entorno' => [],
             'decision' => 'permitir',
         ],

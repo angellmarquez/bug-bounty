@@ -35,14 +35,12 @@ class ProgramaController extends Controller
 
         $roles = $user->roles->pluck('slug')->toArray();
         $isAdmin = in_array('administrador', $roles);
-        $isGestion = in_array('gestion', $roles);
+        $isEmpresa = in_array('empresa', $roles);
 
         $query = Programa::query()->with(['creador', 'empresa', 'objetivos']);
 
         if ($isAdmin) {
             // Admin ve todos
-        } elseif ($isGestion) {
-            $query->gestionablesPor($user);
         } else {
             $query->visiblesPara($user);
         }
@@ -64,7 +62,8 @@ class ProgramaController extends Controller
         return Inertia::render('programas/Index', [
             'programas' => $programas,
             'filtros' => $request->only(['estado', 'busqueda']),
-            'esGestion' => $isGestion || $isAdmin,
+            // Quien administra programas (admin o empresa) también ve y filtra borradores y archivados.
+            'veTodosLosEstados' => $isAdmin || $isEmpresa,
             'esAdmin' => $isAdmin,
         ]);
     }

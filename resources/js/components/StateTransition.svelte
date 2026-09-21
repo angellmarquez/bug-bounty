@@ -31,7 +31,7 @@
         accion,
         reporteId,
         estadoActual,
-        usuariosGestion = [],
+        moderadoresAsignables = [],
         candidatosDuplicado = [],
         onsuccess,
     }: {
@@ -39,7 +39,7 @@
         accion: TransicionAccion;
         reporteId: number;
         estadoActual: EstadoReporte;
-        usuariosGestion?: { id: number; name: string }[];
+        moderadoresAsignables?: { id: number; name: string }[];
         candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
         onsuccess?: () => void;
     } = $props();
@@ -144,11 +144,11 @@
                     <Select type="single" bind:value={asignadoA}>
                         <SelectTrigger class="w-full">
                             {#snippet children()}
-                                {usuariosGestion.find((u) => String(u.id) === asignadoA)?.name ?? 'Seleccionar analista...'}
+                                {moderadoresAsignables.find((u) => String(u.id) === asignadoA)?.name ?? 'Seleccionar analista...'}
                             {/snippet}
                         </SelectTrigger>
                         <SelectContent>
-                            {#each usuariosGestion as usuario (usuario.id)}
+                            {#each moderadoresAsignables as usuario (usuario.id)}
                                 <SelectItem value={String(usuario.id)}>
                                     {usuario.name}
                                 </SelectItem>

@@ -323,7 +323,7 @@ test('una empresa ajena no puede cerrar el informe', function () {
     expect($reporte->fresh()->estado->value)->toBe('validado');
 });
 
-test('gestion cannot triaje reportes it cannot access', function (User $usuario) {
+test('un moderador no triaja informes de programas que no modera', function (User $usuario) {
     $this->actingAs($usuario);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -332,7 +332,7 @@ test('gestion cannot triaje reportes it cannot access', function (User $usuario)
     $this->post(route('reportes.comentar', $reporte), ['nota' => 'hola'])->assertForbidden();
     $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'enviado']);
 })->with([
-    'gestion' => fn () => gestion(),
+    'moderador de otro programa' => fn () => moderador(),
 ]);
 
 test('admin can triaje reportes de cualquier programa', function () {

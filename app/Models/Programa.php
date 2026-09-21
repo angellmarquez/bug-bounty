@@ -184,7 +184,7 @@ class Programa extends Model
     /**
      * Programas visibles segun el rol del usuario.
      * - Investigador: solo activos y publicos.
-     * - Gestion/Admin: todos (sin filtro de visibilidad).
+     * - Admin: todos (sin filtro de visibilidad).
      *
      * @param  Builder<self>  $query
      * @return Builder<self>
@@ -193,7 +193,7 @@ class Programa extends Model
     {
         $roles = $user->roles->pluck('slug')->toArray();
 
-        if (in_array('administrador', $roles) || in_array('gestion', $roles)) {
+        if (in_array('administrador', $roles)) {
             return $query;
         }
 

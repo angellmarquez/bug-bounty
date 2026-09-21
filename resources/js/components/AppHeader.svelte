@@ -60,7 +60,6 @@
         (page.props.userRoles as string[]) ?? (auth?.user?.roles as string[]) ?? [],
     );
     const isAdmin = $derived(userRoles.includes('administrador'));
-    const isGestion = $derived(userRoles.includes('gestion'));
     const isInvestigador = $derived(userRoles.includes('investigador'));
     const isEmpresa = $derived(userRoles.includes('empresa'));
 
@@ -78,7 +77,7 @@
             },
         ];
 
-        if (isInvestigador || isGestion || isAdmin) {
+        if (isInvestigador || isAdmin) {
             items.push({
                 title: 'Mis Reportes',
                 href: reportesIndex(),
@@ -86,7 +85,7 @@
             });
         }
 
-        if (isInvestigador || isGestion || isAdmin) {
+        if (isInvestigador || isAdmin) {
             items.push({
                 title: 'Programas',
                 href: programasIndex(),
@@ -94,7 +93,7 @@
             });
         }
 
-        if (isGestion || isAdmin) {
+        if (isAdmin) {
             items.push({
                 title: 'Gestión Programas',
                 href: gestionProgramas(),

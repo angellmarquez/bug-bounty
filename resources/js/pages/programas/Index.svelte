@@ -41,7 +41,7 @@
     let {
         programas: programasData,
         filtros,
-        esGestion,
+        veTodosLosEstados,
         esAdmin,
     }: {
         programas: {
@@ -56,7 +56,7 @@
             estado?: string;
             busqueda?: string;
         };
-        esGestion: boolean;
+        veTodosLosEstados: boolean;
         esAdmin: boolean;
     } = $props();
 
@@ -66,7 +66,7 @@
         { value: 'todos', label: 'Todos los estados' },
         { value: 'activo', label: 'Activo' },
         { value: 'en_pausa', label: 'En pausa' },
-        ...(esGestion || esAdmin
+        ...(veTodosLosEstados || esAdmin
             ? [
                   { value: 'borrador', label: 'Borrador' },
                   { value: 'archivado', label: 'Archivado' },

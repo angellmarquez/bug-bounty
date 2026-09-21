@@ -25,7 +25,7 @@ if (! str_contains((string) config('database.connections.sqlite.database'), 'e2e
 }
 
 $roles = [];
-foreach (['administrador', 'gestion', 'investigador', 'empresa', 'moderador'] as $slug) {
+foreach (['administrador', 'investigador', 'empresa', 'moderador'] as $slug) {
     $roles[$slug] = Rol::firstOrCreate(['slug' => $slug], ['nombre' => ucfirst($slug), 'descripcion' => 'E2E']);
 }
 

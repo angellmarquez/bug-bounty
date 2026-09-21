@@ -39,7 +39,6 @@ class ReporteController extends Controller
 
         $roles = $user->roles->pluck('slug')->toArray();
         $isAdmin = in_array('administrador', $roles);
-        $isGestion = in_array('gestion', $roles);
         $isModerador = in_array('moderador', $roles);
         $isEmpresa = in_array('empresa', $roles);
 
@@ -92,10 +91,10 @@ class ReporteController extends Controller
         $reportes = $query->latest()->paginate(15)->withQueryString();
 
         $programas = Programa::select('id', 'nombre')
-            ->when(! $isAdmin && ! $isGestion && ! $isModerador && ! $isEmpresa, function ($q) {
+            ->when(! $isAdmin && ! $isModerador && ! $isEmpresa, function ($q) {
                 $q->where('estado', 'activo')->where('es_publico', true);
             })
-            ->when($isModerador && ! $isAdmin && ! $isGestion, function ($q) use ($idsModerados) {
+            ->when($isModerador && ! $isAdmin, function ($q) use ($idsModerados) {
                 $q->where(fn ($alcance) => $alcance->whereIn('id', $idsModerados)->orWhere(fn ($abiertos) => $abiertos->where('estado', 'activo')->where('es_publico', true)));
             })
             ->when($isEmpresa, function ($q) use ($user) {
@@ -189,10 +188,10 @@ class ReporteController extends Controller
                 ->all()
             : [];
 
-        $usuariosGestion = [];
+        $moderadoresAsignables = [];
         if ($puedeAsignar) {
             // Solo pueden revisar el informe los moderadores de su programa (y no su propio autor).
-            $usuariosGestion = User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))
+            $moderadoresAsignables = User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))
                 ->whereHas('programasModerados', fn ($q) => $q->whereKey($reporte->programa_id))
                 ->whereKeyNot($reporte->investigador_id)
                 ->select('id', 'name')
@@ -242,7 +241,7 @@ class ReporteController extends Controller
                 'reparacion' => $puedeMarcarEnReparacion,
                 'cerrar' => $puedeCerrar,
             ],
-            'usuariosGestion' => $usuariosGestion,
+            'moderadoresAsignables' => $moderadoresAsignables,
         ]);
     }
 

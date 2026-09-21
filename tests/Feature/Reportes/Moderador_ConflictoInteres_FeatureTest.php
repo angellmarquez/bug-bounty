@@ -125,7 +125,7 @@ test('la lista de candidatos a revisar solo incluye moderadores del programa', f
     moderadorDe(programaAbierto(), ['name' => 'Ajeno']);
     $this->actingAs($suyo);
 
-    $nombres = collect($this->get(route('reportes.show', $reporte))->inertiaProps()['usuariosGestion'])->pluck('name')->all();
+    $nombres = collect($this->get(route('reportes.show', $reporte))->inertiaProps()['moderadoresAsignables'])->pluck('name')->all();
 
     expect($nombres)->toBe(['Suyo']);
 });

@@ -20,7 +20,7 @@ test('administrator can approve a pending company', function () {
 });
 
 test('non administrator cannot approve a company', function () {
-    $user = gestion();
+    $user = moderador();
     $empresa = Empresa::factory()->create();
     $this->actingAs($user);
 

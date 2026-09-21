@@ -50,14 +50,14 @@ test('investigador cannot edit reporte of another', function () {
     $response->assertForbidden();
 });
 
-test('gestion cannot edit reportes', function () {
-    $user = gestion();
+test('moderador cannot edit reportes', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
 
     $response = $this->put(route('reportes.update', $reporte), [
-        'titulo' => 'Modificado por gestion',
+        'titulo' => 'Modificado por un moderador',
     ]);
 
     $response->assertForbidden();

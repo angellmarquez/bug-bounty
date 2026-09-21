@@ -29,11 +29,6 @@
             descripcion: 'Publicas y gestionas los programas de tu empresa y lees los informes que recibe.',
             clase: 'border-chart-5/40 bg-chart-5/10 text-chart-5',
         },
-        gestion: {
-            etiqueta: 'Gestión',
-            descripcion: 'Gestionas programas heredados de la plataforma.',
-            clase: 'border-chart-4/40 bg-chart-4/10 text-chart-4',
-        },
         investigador: {
             etiqueta: 'Investigador',
             descripcion: 'Buscas vulnerabilidades en los programas publicados y envías informes.',
@@ -41,7 +36,7 @@
         },
     };
 
-    const ORDEN = ['administrador', 'moderador', 'empresa', 'gestion', 'investigador'];
+    const ORDEN = ['administrador', 'moderador', 'empresa', 'investigador'];
 
     const roles = $derived(
         ORDEN.filter((rol) => ((page.props.userRoles as string[] | undefined) ?? []).includes(rol)),

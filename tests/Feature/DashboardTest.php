@@ -56,14 +56,14 @@ test('admin user has administrador role in dashboard props', function () {
     $this->assertContains('administrador', $props['userRoles']);
 });
 
-test('gestion user has gestion role in dashboard props', function () {
-    $user = gestion();
+test('moderador user has moderador role in dashboard props', function () {
+    $user = moderador();
     $this->actingAs($user);
 
     $response = $this->get(route('dashboard'));
     $response->assertOk();
     $props = $response->inertiaProps();
-    $this->assertContains('gestion', $props['userRoles']);
+    $this->assertContains('moderador', $props['userRoles']);
 });
 
 test('investigador sees only own reportes in stats', function () {

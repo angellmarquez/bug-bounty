@@ -120,18 +120,21 @@ test('el administrador no puede crear un programa para una empresa no aprobada',
     expect(Programa::where('nombre', 'Programa inválido')->exists())->toBeFalse();
 });
 
-test('un usuario de gestión no puede asignar un programa a una empresa enviando empresa_id', function () {
-    $empresa = Empresa::factory()->aprobada()->create();
-    $this->actingAs(gestion());
+test('una empresa no puede asignar su programa a otra empresa enviando empresa_id', function () {
+    $otra = Empresa::factory()->aprobada()->create();
+    $propietario = propietarioDeEmpresa();
+    $this->actingAs($propietario);
 
     $this->post(route('programas.store'), [
-        'nombre' => 'Programa de gestión',
+        'nombre' => 'Programa de mi empresa',
         'descripcion' => 'x',
-        'empresa_id' => $empresa->id,
+        'empresa_id' => $otra->id,
         'objetivos' => [['tipo' => 'web', 'valor' => 'x.test']],
     ]);
 
-    expect(Programa::where('nombre', 'Programa de gestión')->value('empresa_id'))->toBeNull();
+    expect(Programa::where('nombre', 'Programa de mi empresa')->value('empresa_id'))
+        ->toBe($propietario->empresas()->firstOrFail()->id)
+        ->not->toBe($otra->id);
 });
 
 test('un administrador no puede quitarse su propio rol de administrador', function () {

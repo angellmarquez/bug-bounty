@@ -60,7 +60,7 @@
         cifradoIndisponible = false,
         historialInvestigador = null,
         accionesDisponibles = {},
-        usuariosGestion = [],
+        moderadoresAsignables = [],
         candidatosDuplicado = [],
     }: {
         reporte: Reporte;
@@ -75,7 +75,7 @@
             descartados: number;
         } | null;
         accionesDisponibles?: Record<string, boolean>;
-        usuariosGestion?: { id: number; name: string }[];
+        moderadoresAsignables?: { id: number; name: string }[];
         candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
     } = $props();
 
@@ -451,7 +451,7 @@
     accion={transitionAccion}
     reporteId={reporte.id}
     estadoActual={reporte.estado}
-    {usuariosGestion}
+    {moderadoresAsignables}
     {candidatosDuplicado}
     onsuccess={recargar}
 />

@@ -77,7 +77,6 @@ function rol(string $slug): Rol
         [
             'nombre' => match ($slug) {
                 'administrador' => 'Administrador',
-                'gestion' => 'Gestión',
                 'investigador' => 'Investigador',
                 default => ucfirst($slug),
             },
@@ -100,14 +99,36 @@ function investigador(array $atributos = []): User
     return conRol(User::factory()->create($atributos), 'investigador');
 }
 
-function gestion(array $atributos = []): User
-{
-    return conRol(User::factory()->create($atributos), 'gestion');
-}
-
 function moderador(array $atributos = []): User
 {
     return conRol(User::factory()->create($atributos), 'moderador');
+}
+
+/**
+ * Propietario (quien creó la empresa) de una empresa aprobada nueva: puede crear, editar,
+ * publicar y borrar sus programas y ve los informes que reciben.
+ */
+function propietarioDeEmpresa(array $atributos = []): User
+{
+    $empresa = Empresa::factory()->aprobada()->create();
+    $usuario = conRol(User::factory()->create($atributos), 'empresa');
+    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'propietario', 'estado' => 'activo']);
+
+    return $usuario;
+}
+
+/**
+ * Programa de la empresa del propietario indicado, creado por él.
+ */
+function programaDeEmpresa(User $propietario, array $atributos = []): Programa
+{
+    $empresa = $propietario->empresas()->firstOrFail();
+
+    return Programa::factory()->create([
+        'creado_por' => $propietario->id,
+        'empresa_id' => $empresa->id,
+        ...$atributos,
+    ]);
 }
 
 /**

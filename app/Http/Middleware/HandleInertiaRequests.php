@@ -89,7 +89,7 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
-        $orden = ['administrador', 'moderador', 'gestion', 'empresa', 'investigador'];
+        $orden = ['administrador', 'moderador', 'empresa', 'investigador'];
         $roles = $usuario->roles()->get(['slug', 'nombre'])
             ->sortBy(fn ($rol): int => (int) array_search($rol->slug, $orden, true))
             ->map(fn ($rol): array => ['slug' => $rol->slug, 'nombre' => $rol->nombre])

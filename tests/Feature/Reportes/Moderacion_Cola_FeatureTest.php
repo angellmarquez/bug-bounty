@@ -97,7 +97,6 @@ test('otros roles no acceden a la cola de moderacion', function (User $usuario) 
     $this->get(route('moderacion.programa', $programa))->assertForbidden();
 })->with([
     'investigador' => fn () => investigador(),
-    'gestion' => fn () => gestion(),
     'empresa' => fn () => miembroDeEmpresa(Empresa::factory()->aprobada()->create()),
 ]);
 
@@ -276,12 +275,12 @@ test('la vista rapida no se entrega a quien no puede ver el informe', function (
 
     $usuario = match ($lector) {
         'otro investigador' => investigador(),
-        'gestion' => gestion(),
+        'moderador de otro programa' => moderador(),
         'otra empresa' => miembroDeEmpresa(Empresa::factory()->aprobada()->create()),
     };
 
     $this->actingAs($usuario)->getJson(route('reportes.vista-rapida', $reporte))->assertForbidden();
-})->with(['otro investigador', 'gestion', 'otra empresa']);
+})->with(['otro investigador', 'moderador de otro programa', 'otra empresa']);
 
 test('la vista rapida indica si el revisor puede iniciar la revision', function () {
     $programa = programaConEmpresa();

@@ -48,7 +48,7 @@ test('moderador sees the reportes of its programas but not borradores nor other 
     $this->assertNotContains($ajeno->id, $ids);
 });
 
-test('gestion does not see reportes de otros', function (User $usuario) {
+test('un moderador sin programas asignados no ve reportes de otros', function (User $usuario) {
     $this->actingAs($usuario);
 
     $enviado = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -56,7 +56,7 @@ test('gestion does not see reportes de otros', function (User $usuario) {
     $ids = collect($this->get(route('reportes.index'))->inertiaProps()['reportes']['data'])->pluck('id')->toArray();
     $this->assertNotContains($enviado->id, $ids);
 })->with([
-    'gestion' => fn () => gestion(),
+    'moderador sin programas' => fn () => moderador(),
 ]);
 
 test('admin sees the reportes of all programas to review them', function () {

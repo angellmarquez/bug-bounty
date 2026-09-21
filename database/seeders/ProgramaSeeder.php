@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Empresa;
 use App\Models\Programa;
-use App\Models\Rol;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -11,14 +11,9 @@ class ProgramaSeeder extends Seeder
 {
     public function run(): void
     {
-        $gestion = User::whereHas('roles', fn ($q) => $q->where('slug', 'gestion'))->first();
-
-        if (! $gestion) {
-            $gestion = User::factory()->create(['name' => 'Gestor Demo']);
-            $gestion->roles()->attach(
-                Rol::where('slug', 'gestion')->first()
-            );
-        }
+        // Los programas de demostración son de la empresa demo (los crea EmpresaDemoSeeder antes).
+        $empresa = Empresa::where('slug', 'empresa-demo')->firstOrFail();
+        $propietario = User::where('email', 'empresa@bugbounty.local')->firstOrFail();
 
         // Programa 1: BugBounty Corp — activo, publico, con poc_schema
         $bugbounty = Programa::create([
@@ -28,7 +23,8 @@ class ProgramaSeeder extends Seeder
             'estado' => 'activo',
             'requiere_poc' => true,
             'es_publico' => true,
-            'creado_por' => $gestion->id,
+            'creado_por' => $propietario->id,
+            'empresa_id' => $empresa->id,
             'inicia_en' => now()->subMonth(),
             'termina_en' => now()->addMonths(6),
             'poc_schema' => [
@@ -50,7 +46,8 @@ class ProgramaSeeder extends Seeder
             'estado' => 'activo',
             'requiere_poc' => true,
             'es_publico' => true,
-            'creado_por' => $gestion->id,
+            'creado_por' => $propietario->id,
+            'empresa_id' => $empresa->id,
             'inicia_en' => now()->subWeeks(2),
             'termina_en' => now()->addMonths(12),
         ]);
@@ -66,7 +63,8 @@ class ProgramaSeeder extends Seeder
             'estado' => 'en_pausa',
             'requiere_poc' => false,
             'es_publico' => true,
-            'creado_por' => $gestion->id,
+            'creado_por' => $propietario->id,
+            'empresa_id' => $empresa->id,
             'inicia_en' => now()->subMonths(3),
             'termina_en' => now()->addMonth(),
         ]);

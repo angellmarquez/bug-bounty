@@ -83,7 +83,8 @@ export type EstadoClavePgp =
 
 export const RolSlug = {
     Administrador: 'administrador',
-    Gestion: 'gestion',
+    Moderador: 'moderador',
+    Empresa: 'empresa',
     Investigador: 'investigador',
 } as const;
 export type RolSlug = (typeof RolSlug)[keyof typeof RolSlug];
