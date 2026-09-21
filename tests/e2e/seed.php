@@ -49,6 +49,7 @@ $moderador = $crear('Moderador E2E', 'moderador@e2e.test', ['moderador']);
 $investigador = $crear('Investigador E2E', 'investigador@e2e.test', ['investigador'], 40);
 $dobleRol = $crear('Investigador Moderador E2E', 'doble@e2e.test', ['investigador', 'moderador'], 25);
 $sancionado = $crear('Investigador Sancionado E2E', 'sancionado@e2e.test', ['investigador']);
+$invitado = $crear('Investigador Invitado E2E', 'invitado@e2e.test', ['investigador']);
 
 // Una sanción leve (sin suspensión) aplicada por el moderador: sirve para probar el ciclo de apelación.
 app(ReputationService::class)->aplicarSancion($sancionado, 'falso_positivo', GravedadSancion::Leve, null, [], null, $moderador);

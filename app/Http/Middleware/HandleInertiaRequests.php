@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\Controllers\NotificacionController;
+use App\Models\EmpresaInvitacion;
 use App\Models\User;
 use App\Services\Reputacion\Rangos;
 use Illuminate\Http\Request;
@@ -100,9 +101,7 @@ class HandleInertiaRequests extends Middleware
         $slugs = array_column($roles, 'slug');
 
         $suspension = $usuario->suspensionActiva();
-        $empresa = in_array('empresa', $slugs, true)
-            ? $usuario->empresas()->withPivot(['rol_interno', 'estado'])->latest('empresas.created_at')->first()
-            : null;
+        $empresa = $usuario->empresas()->wherePivot('estado', 'activo')->latest('empresas.created_at')->first();
 
         return [
             'roles' => $roles,
@@ -124,6 +123,11 @@ class HandleInertiaRequests extends Middleware
                 'motivo' => $empresa->motivo_estado,
                 'rol_interno' => data_get($empresa->pivot, 'rol_interno'),
             ],
+            'invitaciones_pendientes' => EmpresaInvitacion::query()
+                ->where('usuario_id', $usuario->id)
+                ->where('estado', 'pendiente')
+                ->where('expira_en', '>', now())
+                ->count(),
         ];
     }
 

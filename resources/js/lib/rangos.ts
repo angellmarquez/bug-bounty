@@ -42,6 +42,8 @@ export type CuentaEstado = {
         motivo: string | null;
         rol_interno: string | null;
     } | null;
+    /** Invitaciones a empresas que esperan su respuesta. */
+    invitaciones_pendientes?: number;
 };
 
 /**

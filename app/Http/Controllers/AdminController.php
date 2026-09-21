@@ -12,6 +12,7 @@ use App\Models\Programa;
 use App\Models\Rol;
 use App\Models\Sancion;
 use App\Models\User;
+use App\Services\Empresas\MembresiaEmpresa;
 use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
@@ -171,6 +172,7 @@ class AdminController extends Controller
         $usuariosDisponibles = User::query()
             ->whereHas('roles', fn ($query) => $query->where('slug', 'investigador'))
             ->whereDoesntHave('roles', fn ($query) => $query->whereIn('slug', ['administrador', 'moderador']))
+            ->whereDoesntHave('empresas', fn ($query) => $query->where('empresa_usuario.estado', 'activo'))
             ->with('roles')
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
@@ -197,6 +199,11 @@ class AdminController extends Controller
         Gate::authorize('abac', [AccionesAbac::ModeradorAsignar]);
 
         abort_if($user->roles()->where('slug', 'administrador')->exists(), 422, 'Un administrador no puede asignarse como moderador.');
+
+        if (app(MembresiaEmpresa::class)->pertenece($user)) {
+            return redirect()->route('admin.moderadores')
+                ->with('error', "{$user->name} forma parte de una empresa: un moderador no puede pertenecer a una empresa (conflicto de interés).");
+        }
 
         $rol = Rol::firstOrCreate(
             ['slug' => 'moderador'],
@@ -317,6 +324,11 @@ class AdminController extends Controller
 
         $rol = Rol::where('slug', $request->input('rol'))->first();
         abort_if($rol === null, 422, 'Rol no encontrado.');
+
+        if ($rol->slug === 'moderador' && app(MembresiaEmpresa::class)->pertenece($user)) {
+            return redirect()->route('admin.usuarios')
+                ->with('error', "{$user->name} forma parte de una empresa: un moderador no puede pertenecer a una empresa (conflicto de interés).");
+        }
 
         // Cambiar el rol reemplaza al anterior: sin estas guardas un administrador podía
         // quitarse su propio rol de administrador (y dejar la plataforma sin ninguno).

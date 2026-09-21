@@ -17,6 +17,7 @@
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import EstadoCuentaCard from '@/components/EstadoCuentaCard.svelte';
+    import type { CuentaEstado } from '@/lib/rangos';
     import { Button } from '@/components/ui/button';
     import Building2 from '@lucide/svelte/icons/building-2';
     import UserCog from '@lucide/svelte/icons/user-cog';
@@ -90,6 +91,9 @@
     }
 
     const isAdmin = $derived(userRoles.includes('administrador'));
+    const cuenta = $derived(page.props.cuenta as CuentaEstado | null | undefined);
+    const esPublicador = $derived(cuenta?.empresa?.rol_interno === 'publicador');
+    const invitacionesPendientes = $derived(cuenta?.invitaciones_pendientes ?? 0);
 
     const greeting = $derived.by(() => {
         const hour = new Date().getHours();
@@ -144,6 +148,37 @@
     <RolesUsuario />
 
     <EstadoCuentaCard />
+
+    {#if invitacionesPendientes > 0}
+        <div data-test="tarjeta-invitaciones"><Card class="border-indigo-500/40">
+            <CardHeader>
+                <CardTitle>
+                    Tienes {invitacionesPendientes} invitación{invitacionesPendientes === 1 ? '' : 'es'} a una empresa
+                </CardTitle>
+                <CardDescription>
+                    Una empresa quiere que publiques sus programas. Revisa qué implica antes de aceptar.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button href="/invitaciones">Ver invitaciones</Button>
+            </CardContent>
+        </Card></div>
+    {/if}
+
+    {#if esPublicador && cuenta?.empresa}
+        <div data-test="tarjeta-publicador"><Card class="border-sky-500/40">
+            <CardHeader>
+                <CardTitle>Publicas para {cuenta.empresa.nombre}</CardTitle>
+                <CardDescription>
+                    Puedes crear y gestionar los programas de la empresa. No ves sus informes y no puedes reportar a sus programas.
+                </CardDescription>
+            </CardHeader>
+            <CardContent class="flex flex-wrap gap-3">
+                <Button href="/gestion/programas/crear" data-test="publicar-programa">Publicar un programa</Button>
+                <Button variant="outline" href="/gestion/programas">Programas de mi empresa</Button>
+            </CardContent>
+        </Card></div>
+    {/if}
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {#each statCards as card (card.title)}

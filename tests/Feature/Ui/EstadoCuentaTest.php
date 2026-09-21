@@ -49,7 +49,7 @@ test('una empresa ve el estado de su solicitud y su rol interno', function () {
 
     $cuenta = cuentaDe($usuario, 'empresa.dashboard');
 
-    expect($cuenta['empresa'])->toMatchArray(['id' => $empresa->id, 'nombre' => 'Acme SA', 'estado' => 'pendiente', 'rol_interno' => 'miembro']);
+    expect($cuenta['empresa'])->toMatchArray(['id' => $empresa->id, 'nombre' => 'Acme SA', 'estado' => 'pendiente', 'rol_interno' => 'propietario']);
 });
 
 test('las páginas comparten los rangos y niveles para mostrar insignias', function () {

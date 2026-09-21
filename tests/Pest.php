@@ -132,12 +132,24 @@ function programaDeEmpresa(User $propietario, array $atributos = []): Programa
 }
 
 /**
- * Usuario con rol empresa, miembro activo de la empresa indicada.
+ * El propietario (rol empresa) de la empresa indicada: quien ve sus informes y gestiona sus programas.
+ * Los demás miembros son publicadores (ver publicadorDeEmpresa) y no ven los informes.
  */
 function miembroDeEmpresa(Empresa $empresa): User
 {
     $usuario = conRol(User::factory()->create(), 'empresa');
-    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'miembro', 'estado' => 'activo']);
+    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'propietario', 'estado' => 'activo']);
+
+    return $usuario;
+}
+
+/**
+ * Un investigador invitado que ya forma parte de la empresa como publicador.
+ */
+function publicadorDeEmpresa(Empresa $empresa, array $atributos = []): User
+{
+    $usuario = investigador($atributos);
+    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'publicador', 'estado' => 'activo', 'aceptado_en' => now()]);
 
     return $usuario;
 }

@@ -222,10 +222,18 @@ class Programa extends Model
             });
         }
 
-        return $query
-            ->activos()
-            ->publicos()
-            ->whereIn('nivel_acceso', app(Rangos::class)->nivelesAccesibles((int) ($user->reputation_score ?? 0)));
+        $niveles = app(Rangos::class)->nivelesAccesibles((int) ($user->reputation_score ?? 0));
+        $empresaId = $user->idEmpresaActiva();
+
+        // Un investigador ve los programas abiertos a su rango; si es publicador de una empresa,
+        // además los de su empresa (también borradores) para poder publicarlos.
+        return $query->where(function (Builder $alcance) use ($niveles, $empresaId) {
+            $alcance->where(fn (Builder $abiertos) => $abiertos->activos()->publicos()->whereIn('nivel_acceso', $niveles));
+
+            if ($empresaId !== null) {
+                $alcance->orWhere('empresa_id', $empresaId);
+            }
+        });
     }
 
     /**
@@ -249,6 +257,13 @@ class Programa extends Model
                         ->where('empresa_usuario.estado', 'activo');
                 });
             });
+        }
+
+        // Un publicador gestiona los programas de su empresa.
+        $empresaId = $user->idEmpresaActiva();
+
+        if ($empresaId !== null) {
+            return $query->where('empresa_id', $empresaId);
         }
 
         return $query->where('creado_por', $user->id);

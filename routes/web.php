@@ -5,6 +5,7 @@ use App\Http\Controllers\ApelacionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\InvitacionController;
 use App\Http\Controllers\ModeracionController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProgramaController;
@@ -17,8 +18,6 @@ Route::inertia('/', 'Welcome')->name('home');
 Route::get('empresa/login', [EmpresaAuthController::class, 'login'])->name('empresa.login');
 Route::get('empresa/registro', [EmpresaAuthController::class, 'create'])->name('empresa.register');
 Route::post('empresa/registro', [EmpresaAuthController::class, 'store'])->name('empresa.register.store');
-Route::middleware('auth')->get('empresa/invitacion/{token}', [EmpresaController::class, 'verInvitacion'])->name('empresa.invitacion');
-Route::middleware('auth')->post('empresa/invitacion/{token}/aceptar', [EmpresaController::class, 'aceptarInvitacion'])->name('empresa.invitacion.aceptar');
 
 Route::middleware('auth')->group(function () {
     // La campana de avisos: la ven todos los roles, también una empresa aún pendiente de aprobación.
@@ -29,9 +28,15 @@ Route::middleware('auth')->group(function () {
 
     Route::get('empresa', [EmpresaController::class, 'dashboard'])->name('empresa.dashboard');
     Route::get('empresa/reportes', [EmpresaController::class, 'reportes'])->name('empresa.reportes');
-    Route::post('empresa/miembros', [EmpresaController::class, 'agregarMiembro'])->name('empresa.miembros.agregar');
-    Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarMiembro'])->name('empresa.invitaciones.crear');
-    Route::delete('empresa/miembros/{user}', [EmpresaController::class, 'eliminarMiembro'])->name('empresa.miembros.eliminar');
+    // El propietario invita a investigadores registrados (por su correo) y los retira.
+    Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarInvestigador'])->name('empresa.invitaciones.crear');
+    Route::delete('empresa/invitaciones/{invitacion}', [EmpresaController::class, 'cancelarInvitacion'])->name('empresa.invitaciones.cancelar');
+    Route::delete('empresa/miembros/{user}', [EmpresaController::class, 'retirarMiembro'])->name('empresa.miembros.eliminar');
+
+    // El invitado decide desde la plataforma (le llega un aviso en la campana).
+    Route::get('invitaciones', [InvitacionController::class, 'index'])->name('invitaciones.index');
+    Route::post('invitaciones/{invitacion}/aceptar', [InvitacionController::class, 'aceptar'])->name('invitaciones.aceptar');
+    Route::post('invitaciones/{invitacion}/rechazar', [InvitacionController::class, 'rechazar'])->name('invitaciones.rechazar');
 });
 
 Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {

@@ -9,6 +9,8 @@
     import Settings from '@lucide/svelte/icons/settings';
     import Users from '@lucide/svelte/icons/users';
     import MessageSquare from '@lucide/svelte/icons/message-square';
+    import Building2 from '@lucide/svelte/icons/building-2';
+    import Mail from '@lucide/svelte/icons/mail';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavMain from '@/components/NavMain.svelte';
@@ -27,6 +29,7 @@
     import { index as reportesIndex } from '@/routes/reportes';
     import { index as programasIndex, gestion as gestionProgramas } from '@/routes/programas';
     import type { NavItem } from '@/types';
+    import type { CuentaEstado } from '@/lib/rangos';
 
     let {
         children,
@@ -42,6 +45,9 @@
     const isInvestigador = $derived(userRoles.includes('investigador'));
     const isEmpresa = $derived(userRoles.includes('empresa'));
     const isModerador = $derived(userRoles.includes('moderador'));
+    const cuenta = $derived(page.props.cuenta as CuentaEstado | null | undefined);
+    const esPublicador = $derived(cuenta?.empresa?.rol_interno === 'publicador');
+    const invitacionesPendientes = $derived(cuenta?.invitaciones_pendientes ?? 0);
 
     const mainNavItems = $derived.by(() => {
         const items: NavItem[] = [
@@ -105,6 +111,23 @@
                 title: 'Mis apelaciones',
                 href: '/reputacion/apelaciones',
                 icon: MessageSquare,
+            });
+        }
+
+        // Un investigador invitado por una empresa publica sus programas desde aquí.
+        if (esPublicador) {
+            items.push({
+                title: 'Mi empresa',
+                href: '/gestion/programas',
+                icon: Building2,
+            });
+        }
+
+        if (invitacionesPendientes > 0) {
+            items.push({
+                title: 'Invitaciones',
+                href: '/invitaciones',
+                icon: Mail,
             });
         }
 

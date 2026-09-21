@@ -106,6 +106,12 @@
                             <span class="font-medium capitalize">{cuenta.empresa.rol_interno}</span>
                         </div>
                     {/if}
+                    {#if cuenta.empresa.rol_interno === 'publicador'}
+                        <p class="text-xs text-muted-foreground" data-test="aviso-conflicto-empresa">
+                            Para evitar conflictos de interés no puedes enviar informes a los programas de {cuenta.empresa.nombre} mientras seas
+                            miembro; en los demás puedes reportar con normalidad y sigues viendo tus informes anteriores.
+                        </p>
+                    {/if}
                     {#if cuenta.empresa.motivo}
                         <p class="text-xs text-muted-foreground">Motivo: {cuenta.empresa.motivo}</p>
                     {/if}

@@ -57,7 +57,8 @@ class ReporteController extends Controller
                         $empresa->where('estado', '!=', 'borrador')
                             ->whereHas('programa.empresa.usuarios', function ($usuarios) use ($user) {
                                 $usuarios->whereKey($user->id)
-                                    ->where('empresa_usuario.estado', 'activo');
+                                    ->where('empresa_usuario.estado', 'activo')
+                                    ->where('empresa_usuario.rol_interno', 'propietario');
                             });
                     });
 
@@ -254,6 +255,8 @@ class ReporteController extends Controller
             ->whereIn('nivel_acceso', app(Rangos::class)->nivelesAccesibles((int) ($user->reputation_score ?? 0)))
             // Quien modera un programa no puede reportar en él: vería la vulnerabilidad de los demás.
             ->when($user->tieneRol('moderador'), fn ($query) => $query->whereNotIn('id', $user->idsProgramasModerados()))
+            // Quien pertenece a una empresa no reporta a sus programas: conoce su interior.
+            ->when($user->idEmpresaActiva(), fn ($query, $empresaId) => $query->where(fn ($programas) => $programas->whereNull('empresa_id')->orWhere('empresa_id', '!=', $empresaId)))
             ->orderBy('nombre')
             ->get();
 
@@ -782,9 +785,11 @@ class ReporteController extends Controller
             return true;
         }
 
+        // Los informes de una empresa solo los ve su propietario (no los publicadores).
         return $reporte->programa->empresa?->usuarios()
             ->whereKey($user->id)
             ->where('empresa_usuario.estado', 'activo')
+            ->where('empresa_usuario.rol_interno', 'propietario')
             ->exists() ?? false;
     }
 

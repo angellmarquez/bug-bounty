@@ -52,6 +52,7 @@
         transicionesPermitidas = [],
         puedeModerar = false,
         moderaEstePrograma = false,
+        esDeMiEmpresa = false,
         filtroInformes = 'por_revisar',
         conteosInformes = null,
         informes = [],
@@ -70,6 +71,7 @@
         transicionesPermitidas?: string[];
         puedeModerar?: boolean;
         moderaEstePrograma?: boolean;
+        esDeMiEmpresa?: boolean;
         filtroInformes?: 'por_revisar' | 'en_revision' | 'aprobados' | 'rechazados' | 'todos';
         conteosInformes?: Record<'por_revisar' | 'en_revision' | 'aprobados' | 'rechazados' | 'todos', number> | null;
         informes?: ReporteCompacto[];
@@ -302,6 +304,16 @@
                         </CardDescription>
                     </CardHeader>
                 </Card>
+            {:else if esDeMiEmpresa}
+                <div data-test="aviso-mi-empresa"><Card class="border-sky-500/40">
+                    <CardHeader>
+                        <CardTitle>Este programa es de tu empresa</CardTitle>
+                        <CardDescription>
+                            Como miembro no puedes enviarle informes: sería un conflicto de interés. Sigues viendo el estado de los que ya
+                            presentaste antes de unirte y puedes reportar a los programas de otras empresas.
+                        </CardDescription>
+                    </CardHeader>
+                </Card></div>
             {:else if enPausa && !puedeGestionar}
                 <Card>
                     <CardContent class="pt-6 text-sm text-muted-foreground">

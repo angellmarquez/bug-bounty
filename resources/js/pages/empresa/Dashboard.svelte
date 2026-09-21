@@ -35,8 +35,8 @@
             esAdmin: boolean;
             puedeOperar: boolean;
             puedeGestionarMiembros: boolean;
-            usuarios: { id: number; name: string; email: string }[];
-            invitaciones: { id: number; email: string; expira_en: string; url: string }[];
+            usuarios: { id: number; name: string; email: string; rol_interno: string; desde: string | null }[];
+            invitaciones: { id: number; email: string; nombre: string | null; expira_en: string }[];
             programas: {
                 id: number;
                 nombre: string;
@@ -74,31 +74,19 @@
     // Errores del servidor al publicar o eliminar un programa.
     const errorPrograma = $derived(page.props.errors?.estado ?? page.props.errors?.programa);
 
-    let emailMiembro = $state('');
     let emailInvitacion = $state('');
-
-    async function copiarEnlace(url: string) {
-        try {
-            await navigator.clipboard.writeText(url);
-            toast.success('Enlace copiado.');
-        } catch {
-            toast.error('No se pudo copiar; selecciónalo y cópialo a mano.');
-        }
-    }
 
     // Un administrador opera cualquier empresa: hay que decir sobre cuál.
     const contexto = $derived(empresa.esAdmin ? { empresa_id: empresa.id } : {});
     const sufijoAdmin = $derived(empresa.esAdmin ? `?empresa=${empresa.id}` : '');
 
-    function agregarMiembro() {
-        router.post('/empresa/miembros', { email: emailMiembro, ...contexto }, {
-            preserveState: true,
-            onSuccess: () => { emailMiembro = ''; },
-        });
+    function eliminarMiembro(userId: number, nombre: string) {
+        if (!confirm(`¿Retirar a ${nombre} de la empresa? Dejará de poder publicar sus programas.`)) return;
+        router.delete(`/empresa/miembros/${userId}${empresa.esAdmin ? `?empresa_id=${empresa.id}` : ''}`, { preserveState: true });
     }
 
-    function eliminarMiembro(userId: number) {
-        router.delete(`/empresa/miembros/${userId}${empresa.esAdmin ? `?empresa_id=${empresa.id}` : ''}`, { preserveState: true });
+    function cancelarInvitacion(id: number) {
+        router.delete(`/empresa/invitaciones/${id}${empresa.esAdmin ? `?empresa_id=${empresa.id}` : ''}`, { preserveState: true });
     }
 
     function invitarMiembro() {
@@ -148,46 +136,65 @@
         </CardContent>
     </Card>
 
-    {#if empresa.puedeGestionarMiembros}
-        <Card>
-            <CardHeader><CardTitle>Miembros</CardTitle></CardHeader>
-            <CardContent class="space-y-4">
-                <form class="flex gap-2" onsubmit={(event) => { event.preventDefault(); agregarMiembro(); }}>
-                    <Input type="email" bind:value={emailMiembro} placeholder="correo@empresa.com" required />
-                    <Button type="submit">Agregar</Button>
-                </form>
+    <div data-test="equipo"><Card>
+        <CardHeader>
+            <CardTitle>Investigadores de la empresa</CardTitle>
+            <CardDescription>
+                Los investigadores que invitas publican y gestionan tus programas, pero no ven los informes: eso es solo tuyo. Mientras sean
+                miembros no pueden reportar a tus programas.
+            </CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-4">
+            {#if empresa.puedeGestionarMiembros}
                 <form class="flex gap-2" onsubmit={(event) => { event.preventDefault(); invitarMiembro(); }}>
-                    <Input type="email" bind:value={emailInvitacion} placeholder="Invitar por correo" required />
-                    <Button type="submit" variant="outline">Invitar</Button>
+                    <Input
+                        type="email"
+                        bind:value={emailInvitacion}
+                        placeholder="Correo con el que se registró el investigador"
+                        aria-label="Correo del investigador"
+                        required
+                        data-test="correo-invitacion"
+                    />
+                    <Button type="submit" data-test="invitar-investigador">Invitar</Button>
                 </form>
+                <p class="text-xs text-muted-foreground">
+                    Debe estar registrado como investigador. Le llegará un aviso y decidirá si acepta; no se le añade sin su permiso.
+                </p>
                 {#if empresa.invitaciones.length > 0}
                     <div class="space-y-2">
                         <p class="text-sm font-medium">Invitaciones pendientes</p>
-                        <p class="text-xs text-muted-foreground">
-                            La persona debe iniciar sesión (o registrarse) con ese mismo correo y abrir el enlace para unirse.
-                        </p>
                         {#each empresa.invitaciones as invitacion (invitacion.id)}
-                            <div class="flex flex-col gap-2 rounded-md bg-muted p-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex items-center justify-between gap-2 rounded-md bg-muted p-2 text-xs" data-test="invitacion-pendiente">
                                 <div class="min-w-0">
-                                    <p class="font-medium">{invitacion.email}</p>
-                                    <p class="break-all text-muted-foreground">{invitacion.url}</p>
+                                    <p class="font-medium">{invitacion.nombre ?? invitacion.email}</p>
+                                    <p class="text-muted-foreground">{invitacion.email} · vence el {new Date(invitacion.expira_en).toLocaleDateString('es-ES')}</p>
                                 </div>
-                                <Button size="sm" variant="outline" type="button" onclick={() => copiarEnlace(invitacion.url)}>Copiar enlace</Button>
+                                <Button size="sm" variant="outline" type="button" onclick={() => cancelarInvitacion(invitacion.id)}>Cancelar</Button>
                             </div>
                         {/each}
                     </div>
                 {/if}
-                <div class="space-y-2">
-                    {#each empresa.usuarios as usuario (usuario.id)}
-                        <div class="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0">
-                            <div><p class="text-sm font-medium">{usuario.name}</p><p class="text-xs text-muted-foreground">{usuario.email}</p></div>
-                            {#if usuario.email !== empresa.email}<Button size="sm" variant="destructive" onclick={() => eliminarMiembro(usuario.id)}>Retirar</Button>{/if}
+            {/if}
+            <div class="space-y-2">
+                {#each empresa.usuarios as usuario (usuario.id)}
+                    <div class="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0" data-test="miembro">
+                        <div>
+                            <p class="text-sm font-medium">
+                                {usuario.name}
+                                <span class="ml-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal capitalize text-muted-foreground">
+                                    {usuario.rol_interno}
+                                </span>
+                            </p>
+                            <p class="text-xs text-muted-foreground">{usuario.email}</p>
                         </div>
-                    {/each}
-                </div>
-            </CardContent>
-        </Card>
-    {/if}
+                        {#if empresa.puedeGestionarMiembros && usuario.rol_interno !== 'propietario'}
+                            <Button size="sm" variant="destructive" onclick={() => eliminarMiembro(usuario.id, usuario.name)}>Retirar</Button>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+        </CardContent>
+    </Card></div>
 
     {#if empresa.puedeOperar}
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

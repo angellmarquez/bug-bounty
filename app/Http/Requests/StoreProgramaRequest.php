@@ -44,7 +44,7 @@ class StoreProgramaRequest extends FormRequest
             'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en'],
             // Una empresa no puede crear un programa sin alcance: necesita al menos un objetivo.
             'objetivos' => [
-                Rule::requiredIf(fn () => $this->filled('empresa_id') || (bool) $this->user()?->roles()->where('slug', 'empresa')->exists()),
+                Rule::requiredIf(fn () => $this->filled('empresa_id') || (bool) $this->user()?->empresas()->wherePivot('estado', 'activo')->exists()),
                 'nullable',
                 'array',
                 'min:1',

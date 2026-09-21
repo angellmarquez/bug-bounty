@@ -321,6 +321,40 @@ return [
         ],
 
         // ------------------------------------------------------------------
+        // 5b. Publicador: un investigador que el propietario invitó a su empresa. Publica y gestiona
+        //     los programas de la empresa, pero NO ve sus informes ni gestiona miembros (eso es solo
+        //     del propietario, que tiene el rol empresa). La empresa debe estar aprobada: el contexto
+        //     `empresa_id` solo se entrega para empresas aprobadas.
+        // ------------------------------------------------------------------
+        [
+            'id' => 'publicador-crear-programa',
+            'prioridad' => 30,
+            'acciones' => ['programas.crear'],
+            'sujeto' => ['rol_empresa' => ['=' => 'publicador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'publicador-ver-programa-de-su-empresa',
+            'prioridad' => 30,
+            'acciones' => ['programas.ver'],
+            'sujeto' => ['rol_empresa' => ['=' => 'publicador']],
+            'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'publicador-gestionar-programa-de-su-empresa',
+            'prioridad' => 30,
+            'acciones' => ['programas.gestionar', 'programas.editar', 'programas.cambiar_estado'],
+            'sujeto' => ['rol_empresa' => ['=' => 'publicador']],
+            'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+
+        // ------------------------------------------------------------------
         // 6. Conflicto de interés y suspensiones (el deny gana siempre).
         // ------------------------------------------------------------------
 
@@ -362,6 +396,27 @@ return [
             'decision' => 'denegar',
         ],
         // Una suspensión vigente impide presentar informes nuevos hasta que termine.
+        // Quien forma parte de una empresa no reporta a los programas de esa empresa mientras lo sea
+        // (sigue viendo el estado de los informes que ya presentó).
+        [
+            'id' => 'denegar-reportar-en-programa-de-mi-empresa',
+            'prioridad' => 5,
+            'acciones' => ['reportes.crear'],
+            'sujeto' => ['empresa_id' => ['is_not_null']],
+            'objeto' => ['empresa_id' => ['=' => '@sujeto.empresa_id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-enviar-o-editar-informe-de-programa-de-mi-empresa',
+            'prioridad' => 5,
+            'acciones' => ['reportes.enviar', 'reportes.editar'],
+            'sujeto' => ['empresa_id' => ['is_not_null']],
+            'objeto' => ['programa.empresa_id' => ['=' => '@sujeto.empresa_id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+
         // Juez y parte: quien aplicó la sanción no resuelve su apelación (la resuelve otro moderador o un
         // administrador) y nadie resuelve la apelación que él mismo presentó.
         [

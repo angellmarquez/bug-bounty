@@ -86,6 +86,23 @@ class User extends Authenticatable implements PasskeyUser
             ->withTimestamps();
     }
 
+    /** La empresa a la que pertenece ahora (una sola por usuario), con su rol interno en `pivot`. */
+    public function empresaActiva(): ?Empresa
+    {
+        return $this->empresas()->wherePivot('estado', 'activo')->first();
+    }
+
+    public function idEmpresaActiva(): ?int
+    {
+        return $this->empresaActiva()?->id;
+    }
+
+    /** `propietario`, `publicador` o null si no pertenece a ninguna empresa. */
+    public function rolEnEmpresa(): ?string
+    {
+        return $this->empresaActiva()?->pivot->rol_interno;
+    }
+
     /**
      * Los programas que el usuario gestiona.
      *

@@ -18,7 +18,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $expira_en
  * @property Carbon|null $aceptado_en
  */
-#[Fillable(['empresa_id', 'email', 'token', 'rol_interno', 'estado', 'invitado_por', 'expira_en', 'aceptado_en'])]
+#[Fillable(['empresa_id', 'usuario_id', 'email', 'token', 'rol_interno', 'estado', 'invitado_por', 'expira_en', 'aceptado_en', 'respondida_en'])]
 class EmpresaInvitacion extends Model
 {
     protected $table = 'empresa_invitaciones';
@@ -35,11 +35,18 @@ class EmpresaInvitacion extends Model
         return $this->belongsTo(User::class, 'invitado_por');
     }
 
+    /** @return BelongsTo<User, $this> El usuario invitado. */
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'usuario_id');
+    }
+
     protected function casts(): array
     {
         return [
             'expira_en' => 'datetime',
             'aceptado_en' => 'datetime',
+            'respondida_en' => 'datetime',
         ];
     }
 }

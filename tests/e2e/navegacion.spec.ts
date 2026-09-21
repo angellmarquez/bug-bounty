@@ -22,6 +22,7 @@ const menuEsperado: Record<Rol, string[]> = {
     moderador: ['Dashboard', 'Moderación', 'Apelaciones', 'Todos los reportes'],
     investigador: ['Dashboard', 'Mis Reportes', 'Programas', 'Mi reputación', 'Mis apelaciones'],
     sancionado: ['Dashboard', 'Mis Reportes', 'Programas', 'Mi reputación', 'Mis apelaciones'],
+    invitado: ['Dashboard', 'Mis Reportes', 'Programas', 'Mi reputación', 'Mis apelaciones'],
     empresa: ['Dashboard', 'Reportes recibidos', 'Panel empresa'],
     doble: ['Dashboard', 'Moderación', 'Apelaciones', 'Todos los reportes', 'Programas'],
 };
@@ -55,6 +56,7 @@ const recorrido: Record<Rol, string[]> = {
         '/reportes/1',
         '/programas/1',
     ],
+    invitado: ['/dashboard', '/reportes', '/programas', '/invitaciones', '/reputacion'],
     sancionado: [
         '/dashboard',
         '/reputacion',

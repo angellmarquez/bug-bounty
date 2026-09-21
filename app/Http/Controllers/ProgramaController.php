@@ -131,6 +131,8 @@ class ProgramaController extends Controller
             'puedeReportar' => $puedeReportar,
             // Un moderador no puede reportar en el programa que modera: se le explica en lugar de ocultar el botón sin más.
             'moderaEstePrograma' => $request->user()->tieneRol('moderador') && in_array($programa->id, $request->user()->idsProgramasModerados(), true),
+            // Pertenece a la empresa dueña del programa: no puede reportarle mientras sea miembro.
+            'esDeMiEmpresa' => $programa->empresa_id !== null && $programa->empresa_id === $request->user()->idEmpresaActiva(),
             'puedeGestionar' => $puedeGestionar,
             'puedeCambiarEstado' => $puedeCambiarEstado,
             'puedeEliminar' => $puedeEliminar && ! $programa->reportes()->exists(),
@@ -182,7 +184,7 @@ class ProgramaController extends Controller
 
             if ($empresaElegida !== null) {
                 $validated['empresa_id'] = $empresaElegida;
-            } elseif ($user->roles()->where('slug', 'empresa')->exists()) {
+            } elseif ($user->empresas()->wherePivot('estado', 'activo')->exists()) {
                 $empresa = $user->empresas()
                     ->where('empresas.estado', 'aprobada')
                     ->where('empresa_usuario.estado', 'activo')
@@ -323,7 +325,7 @@ class ProgramaController extends Controller
         $roles = $user->roles->pluck('slug')->toArray();
         $isAdmin = in_array('administrador', $roles);
 
-        $query = Programa::query()->with(['creador', 'objetivos', 'reportes'])
+        $query = Programa::query()->with(['creador', 'objetivos'])
             ->gestionablesPor($user);
 
         if ($request->filled('estado')) {
@@ -345,6 +347,11 @@ class ProgramaController extends Controller
                 $this->puedeProgramAction(AccionesAbac::ProgramaEditar, $programa),
             ),
         );
+
+        // Solo el propietario y el administrador ven cuántos informes reciben los programas.
+        if (! $isAdmin && $user->rolEnEmpresa() === 'publicador') {
+            $programas->getCollection()->each(fn (Programa $programa) => $programa->setAttribute('reportes_count', null));
+        }
 
         return Inertia::render('programas/gestion/Index', [
             'programas' => $programas,

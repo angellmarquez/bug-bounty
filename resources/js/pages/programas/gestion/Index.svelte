@@ -45,7 +45,7 @@
         esAdmin,
     }: {
         programas: {
-            data: (Programa & { objetivos?: ObjetivoPrograma[]; reportes_count?: number; puede_editar?: boolean })[];
+            data: (Programa & { objetivos?: ObjetivoPrograma[]; reportes_count?: number | null; puede_editar?: boolean })[];
             links: { url: string | null; label: string; active: boolean }[];
             current_page: number;
             last_page: number;
@@ -220,7 +220,9 @@
                                 <span>
                                     {formatearFecha(programa.inicia_en)} - {formatearFecha(programa.termina_en)}
                                 </span>
-                                <span>{programa.reportes_count ?? 0} reportes</span>
+                                {#if typeof programa.reportes_count === 'number'}
+                                    <span>{programa.reportes_count} reportes</span>
+                                {/if}
                             </div>
                             {#if programa.puede_editar}
                                 <div class="mt-4 flex justify-end">
