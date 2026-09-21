@@ -104,7 +104,6 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::put('admin/config/reputacion', [AdminController::class, 'updateConfigReputacion'])->name('admin.config.reputacion.update');
 
     // PGP plataforma
-    Route::post('admin/pgp/setup', [AdminController::class, 'pgpSetup'])->name('admin.pgp.setup');
     Route::get('admin/pgp', [AdminController::class, 'pgpEstado'])->name('admin.pgp');
 
     // Reputacion (investigador)

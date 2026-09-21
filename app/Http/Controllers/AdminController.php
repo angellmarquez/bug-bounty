@@ -506,27 +506,4 @@ class AdminController extends Controller
             'available' => $pgpService->available(),
         ]);
     }
-
-    public function pgpSetup(Request $request, PgpService $pgpService): RedirectResponse
-    {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
-
-        try {
-            $clave = $pgpService->generatePlatformKeyPair();
-
-            Auditoria::query()->create([
-                'usuario_id' => $request->user()->id,
-                'accion' => 'admin.pgp.clave_generada',
-                'entidad_type' => 'clave_pgp_plataforma',
-                'entidad_id' => $clave->id,
-                'detalle' => ['huella' => $clave->huella],
-            ]);
-
-            return redirect()->route('admin.pgp')
-                ->with('success', "Par de claves PGP generado. Huella: {$clave->huella}");
-        } catch (\Throwable $e) {
-            return redirect()->route('admin.pgp')
-                ->withErrors(['pgp' => 'Error generando claves: '.$e->getMessage()]);
-        }
-    }
 }
