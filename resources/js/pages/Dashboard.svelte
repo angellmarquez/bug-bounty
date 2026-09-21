@@ -12,16 +12,11 @@
 </script>
 
 <script lang="ts">
-    import { index as reportesIndex, create as reportesCreate } from '@/routes/reportes';
-    import { index as programasIndex, gestion as gestionProgramas } from '@/routes/programas';
+    import { index as reportesIndex } from '@/routes/reportes';
     import { Link, page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import { Button } from '@/components/ui/button';
-    import Plus from '@lucide/svelte/icons/plus';
-    import Bug from '@lucide/svelte/icons/bug';
-    import Shield from '@lucide/svelte/icons/shield';
-    import Settings from '@lucide/svelte/icons/settings';
     import Building2 from '@lucide/svelte/icons/building-2';
     import UserCog from '@lucide/svelte/icons/user-cog';
     import {
@@ -346,36 +341,4 @@
             </CardContent>
         </Card>
     {/if}
-
-    <div class="space-y-4">
-        <h3 class="text-lg font-medium">Acciones rapidas</h3>
-        <div class="flex flex-wrap gap-4">
-            <Button asChild>
-                {#snippet children(props)}
-                    <Link href={reportesCreate()} {...props}>
-                        <Plus class="mr-2 h-4 w-4" />
-                        Crear Reporte
-                    </Link>
-                {/snippet}
-            </Button>
-            <Button asChild variant="outline">
-                {#snippet children(props)}
-                    <Link href={programasIndex()} {...props}>
-                        <Shield class="mr-2 h-4 w-4" />
-                        Ver Programas
-                    </Link>
-                {/snippet}
-            </Button>
-            {#if isGestion || isAdmin}
-                <Button asChild variant="outline">
-                    {#snippet children(props)}
-                        <Link href={gestionProgramas()} {...props}>
-                            <Settings class="mr-2 h-4 w-4" />
-                            Gestionar Programas
-                        </Link>
-                    {/snippet}
-                </Button>
-            {/if}
-        </div>
-    </div>
 </div>

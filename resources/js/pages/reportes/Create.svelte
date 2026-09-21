@@ -136,7 +136,9 @@
         <BotonVolver href={reportesIndex()} etiqueta="Volver a mis reportes" />
         <PageHeader
             title="Crear reporte"
-            description="Complete los pasos para crear un nuevo reporte de vulnerabilidad"
+            description={programaInicial
+                ? `Reporte de vulnerabilidad para el programa ${programaInicial.nombre}`
+                : 'Complete los pasos para crear un nuevo reporte de vulnerabilidad'}
         />
     </div>
 
@@ -156,28 +158,39 @@
                         <CardTitle>Detalles del reporte</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
-                        <div class="space-y-2">
-                            <Label for="programa_id">Programa *</Label>
-                            <Select
-                                value={formulario.programa_id}
-                                onValueChange={seleccionarPrograma}
-                                items={programas.map((p) => ({ value: String(p.id), label: p.nombre }))}
-                            >
-                                <SelectTrigger class="w-full">
-                                    <SelectValue placeholder="Seleccionar programa..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {#each programas as prog (prog.id)}
-                                        <SelectItem value={String(prog.id)} label={prog.nombre}>
-                                            {prog.nombre}
-                                        </SelectItem>
-                                    {/each}
-                                </SelectContent>
-                            </Select>
-                            {#if erroresPaso.programa_id || formErrors.programa_id}
-                                <InputError message={erroresPaso.programa_id ?? formErrors.programa_id} />
-                            {/if}
-                        </div>
+                        {#if programaInicial}
+                            <!-- Se llegó desde un programa: el reporte es sobre ese programa, no se elige. -->
+                            <div class="space-y-1" data-test="programa-fijo">
+                                <p class="text-sm font-medium">Programa</p>
+                                <p class="rounded-md border bg-muted/40 px-3 py-2 text-sm">{programaInicial.nombre}</p>
+                                {#if formErrors.programa_id}
+                                    <InputError message={formErrors.programa_id} />
+                                {/if}
+                            </div>
+                        {:else}
+                            <div class="space-y-2">
+                                <Label for="programa_id">Programa *</Label>
+                                <Select
+                                    value={formulario.programa_id}
+                                    onValueChange={seleccionarPrograma}
+                                    items={programas.map((p) => ({ value: String(p.id), label: p.nombre }))}
+                                >
+                                    <SelectTrigger class="w-full">
+                                        <SelectValue placeholder="Seleccionar programa..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {#each programas as prog (prog.id)}
+                                            <SelectItem value={String(prog.id)} label={prog.nombre}>
+                                                {prog.nombre}
+                                            </SelectItem>
+                                        {/each}
+                                    </SelectContent>
+                                </Select>
+                                {#if erroresPaso.programa_id || formErrors.programa_id}
+                                    <InputError message={erroresPaso.programa_id ?? formErrors.programa_id} />
+                                {/if}
+                            </div>
+                        {/if}
 
                         <div class="space-y-2">
                             <Label for="titulo">Titulo *</Label>
