@@ -53,11 +53,11 @@ test('investigador cannot see borrador program', function () {
     $response->assertForbidden();
 });
 
-test('gestion can see own borrador program', function () {
-    $user = gestion();
+test('la empresa ve su propio programa en borrador', function () {
+    $user = propietarioDeEmpresa();
     $this->actingAs($user);
 
-    $programa = programaDe($user, ['estado' => 'borrador']);
+    $programa = programaDeEmpresa($user, ['estado' => 'borrador']);
 
     $response = $this->get(route('programas.gestion'));
     $response->assertOk();

@@ -19,6 +19,7 @@
     import PageHeader from '@/components/PageHeader.svelte';
     import EmptyState from '@/components/EmptyState.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
+    import NivelAccesoBadge from '@/components/NivelAccesoBadge.svelte';
     import { Input } from '@/components/ui/input';
     import {
         Select,
@@ -40,7 +41,7 @@
     let {
         programas: programasData,
         filtros,
-        esGestion,
+        veTodosLosEstados,
         esAdmin,
     }: {
         programas: {
@@ -55,7 +56,7 @@
             estado?: string;
             busqueda?: string;
         };
-        esGestion: boolean;
+        veTodosLosEstados: boolean;
         esAdmin: boolean;
     } = $props();
 
@@ -65,7 +66,7 @@
         { value: 'todos', label: 'Todos los estados' },
         { value: 'activo', label: 'Activo' },
         { value: 'en_pausa', label: 'En pausa' },
-        ...(esGestion || esAdmin
+        ...(veTodosLosEstados || esAdmin
             ? [
                   { value: 'borrador', label: 'Borrador' },
                   { value: 'archivado', label: 'Archivado' },
@@ -192,13 +193,8 @@
                                 {programa.descripcion}
                             </p>
 
-                            <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span class="font-medium text-foreground">
-                                    {new Intl.NumberFormat('es-ES').format(programa.recompensa_min)}
-                                    {' - '}
-                                    {new Intl.NumberFormat('es-ES').format(programa.recompensa_max)}
-                                    {' '}{programa.moneda}
-                                </span>
+                            <div class="flex items-center gap-2">
+                                <NivelAccesoBadge nivel={programa.nivel_acceso} />
                             </div>
 
                             {#if programa.objetivos && programa.objetivos.length > 0}

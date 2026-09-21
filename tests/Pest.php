@@ -77,7 +77,6 @@ function rol(string $slug): Rol
         [
             'nombre' => match ($slug) {
                 'administrador' => 'Administrador',
-                'gestion' => 'Gestión',
                 'investigador' => 'Investigador',
                 default => ucfirst($slug),
             },
@@ -100,25 +99,70 @@ function investigador(array $atributos = []): User
     return conRol(User::factory()->create($atributos), 'investigador');
 }
 
-function gestion(array $atributos = []): User
-{
-    return conRol(User::factory()->create($atributos), 'gestion');
-}
-
 function moderador(array $atributos = []): User
 {
     return conRol(User::factory()->create($atributos), 'moderador');
 }
 
 /**
- * Usuario con rol empresa, miembro activo de la empresa indicada.
+ * Propietario (quien creó la empresa) de una empresa aprobada nueva: puede crear, editar,
+ * publicar y borrar sus programas y ve los informes que reciben.
+ */
+function propietarioDeEmpresa(array $atributos = []): User
+{
+    $empresa = Empresa::factory()->aprobada()->create();
+    $usuario = conRol(User::factory()->create($atributos), 'empresa');
+    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'propietario', 'estado' => 'activo']);
+
+    return $usuario;
+}
+
+/**
+ * Programa de la empresa del propietario indicado, creado por él.
+ */
+function programaDeEmpresa(User $propietario, array $atributos = []): Programa
+{
+    $empresa = $propietario->empresas()->firstOrFail();
+
+    return Programa::factory()->create([
+        'creado_por' => $propietario->id,
+        'empresa_id' => $empresa->id,
+        ...$atributos,
+    ]);
+}
+
+/**
+ * El propietario (rol empresa) de la empresa indicada: quien ve sus informes y gestiona sus programas.
+ * Los demás miembros son publicadores (ver publicadorDeEmpresa) y no ven los informes.
  */
 function miembroDeEmpresa(Empresa $empresa): User
 {
     $usuario = conRol(User::factory()->create(), 'empresa');
-    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'miembro', 'estado' => 'activo']);
+    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'propietario', 'estado' => 'activo']);
 
     return $usuario;
+}
+
+/**
+ * Un investigador invitado que ya forma parte de la empresa como publicador.
+ */
+function publicadorDeEmpresa(Empresa $empresa, array $atributos = []): User
+{
+    $usuario = investigador($atributos);
+    $empresa->usuarios()->attach($usuario, ['rol_interno' => 'publicador', 'estado' => 'activo', 'aceptado_en' => now()]);
+
+    return $usuario;
+}
+
+/**
+ * Moderador de un programa concreto: un moderador solo ve y revisa los programas que se le asignan.
+ */
+function moderadorDe(Programa|Reporte $alcance, array $atributos = []): User
+{
+    $moderador = moderador($atributos);
+    $moderador->programasModerados()->attach($alcance instanceof Reporte ? $alcance->programa_id : $alcance->id);
+
+    return $moderador;
 }
 
 function administrador(array $atributos = []): User

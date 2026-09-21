@@ -20,13 +20,12 @@ class DashboardController extends Controller
 
         $roles = $user->roles->pluck('slug')->toArray();
         $isAdmin = in_array('administrador', $roles);
-        $isGestion = in_array('gestion', $roles);
         $isModerador = in_array('moderador', $roles);
         $isEmpresa = in_array('empresa', $roles);
 
         $query = Reporte::query();
 
-        if (! $isAdmin && ! $isGestion) {
+        if (! $isAdmin) {
             $query->where('investigador_id', $user->id);
         }
 
@@ -41,7 +40,7 @@ class DashboardController extends Controller
             'reportes_borrador' => (clone $query)
                 ->where('estado', 'borrador')
                 ->count(),
-            'programas_activos' => $isAdmin || $isGestion
+            'programas_activos' => $isAdmin
                 ? Programa::where('estado', 'activo')->count()
                 : Programa::where('estado', 'activo')
                     ->where('es_publico', true)
@@ -49,7 +48,7 @@ class DashboardController extends Controller
             'reputacion' => $user->reputation_score,
         ];
 
-        $misReportes = (! $isAdmin && ! $isGestion)
+        $misReportes = (! $isAdmin)
             ? Reporte::where('investigador_id', $user->id)
                 ->with(['programa:id,nombre', 'eventos:id,reporte_id,tipo,nota,created_at'])
                 ->latest('created_at')
@@ -92,7 +91,9 @@ class DashboardController extends Controller
                 'reportes_recibidos' => $reportesEmpresa->count(),
             ];
         } elseif ($isModerador) {
-            $reportesModerador = Reporte::query()->where('estado', '!=', 'borrador');
+            $reportesModerador = Reporte::query()
+                ->where('estado', '!=', 'borrador')
+                ->whereIn('programa_id', $user->idsProgramasModerados());
             $roleStats = [
                 'tipo' => 'moderador',
                 'pendientes_revision' => (clone $reportesModerador)->whereIn('estado', ['enviado', 'en_revision'])->count(),

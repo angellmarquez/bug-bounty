@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Empresa;
 use App\Models\Rol;
 use App\Models\User;
+use App\Services\Notificaciones\Notificador;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -82,6 +83,8 @@ class EmpresaAuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        app(Notificador::class)->empresaPendiente($user->empresas()->firstOrFail());
 
         return redirect()->route('empresa.dashboard')
             ->with('success', 'Solicitud registrada. Tu empresa queda pendiente de aprobación.');

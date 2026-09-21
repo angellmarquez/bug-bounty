@@ -10,10 +10,11 @@
 </script>
 
 <script lang="ts">
-    import { Form } from '@inertiajs/svelte';
+    import { Form, page } from '@inertiajs/svelte';
     import Plus from '@lucide/svelte/icons/plus';
     import Trash2 from '@lucide/svelte/icons/trash-2';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@
     } from '@/components/ui/select';
     import { update as programaUpdate } from '@/routes/programas';
     import { TIPOS_OBJETIVO } from '@/lib/tipo-objetivo';
+    import type { ReputacionConfig } from '@/lib/rangos';
     import type { Programa, ObjetivoPrograma } from '@/types/domain';
 
     let {
@@ -54,6 +56,9 @@
         objetivos = [...objetivos, { tipo: 'web', valor: '', descripcion: '' }];
     }
 
+    // Niveles de acceso (con su rango) definidos en config/reputacion.php.
+    const niveles = $derived((page.props.reputacionConfig as ReputacionConfig).niveles);
+
     function eliminarObjetivo(index: number) {
         objetivos = objetivos.filter((_, i) => i !== index);
     }
@@ -62,10 +67,13 @@
 <AppHead title={`Editar ${programa.nombre}`} />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-    <PageHeader
-        title="Editar Programa"
-        description={programa.nombre}
-    />
+    <div class="flex items-center gap-4">
+        <BotonVolver href={`/programas/${programa.id}`} etiqueta="Volver al programa" />
+        <PageHeader
+            title="Editar Programa"
+            description={programa.nombre}
+        />
+    </div>
 
     <Form method="put" action={programaUpdate(programa.id)} class="space-y-6">
         {#snippet children({ errors, processing })}
@@ -110,44 +118,6 @@
                         <InputError message={errors.bugs_buscados} />
                     </div>
 
-                    <div class="grid gap-4 sm:grid-cols-3">
-                        <div class="space-y-2">
-                            <Label for="recompensa_min">Recompensa minima *</Label>
-                            <Input
-                                id="recompensa_min"
-                                name="recompensa_min"
-                                type="number"
-                                min="0"
-                                value={programa.recompensa_min}
-                                required
-                            />
-                            <InputError message={errors.recompensa_min} />
-                        </div>
-
-                        <div class="space-y-2">
-                            <Label for="recompensa_max">Recompensa maxima *</Label>
-                            <Input
-                                id="recompensa_max"
-                                name="recompensa_max"
-                                type="number"
-                                min="0"
-                                value={programa.recompensa_max}
-                                required
-                            />
-                            <InputError message={errors.recompensa_max} />
-                        </div>
-
-                        <div class="space-y-2">
-                            <Label for="moneda">Moneda</Label>
-                            <Input
-                                id="moneda"
-                                name="moneda"
-                                value={programa.moneda}
-                            />
-                            <InputError message={errors.moneda} />
-                        </div>
-                    </div>
-
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div class="space-y-2">
                             <Label for="inicia_en">Fecha de inicio</Label>
@@ -185,20 +155,23 @@
                     </div>
 
                     <div class="max-w-sm space-y-2">
-                        <Label for="reputacion_minima">Reputacion minima</Label>
-                        <Input
-                            id="reputacion_minima"
-                            name="reputacion_minima"
-                            type="number"
-                            min="0"
-                            value={programa.reputacion_minima ?? 0}
-                            required
-                        />
+                        <Label for="nivel_acceso">Nivel de acceso</Label>
+                        <select
+                            id="nivel_acceso"
+                            name="nivel_acceso"
+                            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            value={programa.nivel_acceso}
+                        >
+                            {#each niveles as nivel (nivel.valor)}
+                                <option value={nivel.valor}>
+                                    {nivel.etiqueta} · rango {nivel.rangoNombre} o superior ({nivel.minimo}+ pts)
+                                </option>
+                            {/each}
+                        </select>
                         <p class="text-xs text-muted-foreground">
-                            Solo investigadores con esta puntuacion o superior
-                            veran el programa y podran enviar reportes.
+                            Solo los investigadores con ese rango de reputación (o más) verán el programa y podrán enviar reportes.
                         </p>
-                        <InputError message={errors.reputacion_minima} />
+                        <InputError message={errors.nivel_acceso} />
                     </div>
                 </CardContent>
             </Card>

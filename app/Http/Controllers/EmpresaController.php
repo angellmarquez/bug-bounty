@@ -4,21 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
 use App\Enums\EstadoEmpresa;
-use App\Mail\EmpresaInvitacionMail;
 use App\Models\Auditoria;
 use App\Models\Empresa;
 use App\Models\EmpresaInvitacion;
 use App\Models\Reporte;
-use App\Models\Rol;
 use App\Models\User;
+use App\Services\Empresas\MembresiaEmpresa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
-use Inertia\Response;
 use Inertia\Response as InertiaResponse;
+use InvalidArgumentException;
 
 class EmpresaController extends Controller
 {
@@ -44,6 +42,11 @@ class EmpresaController extends Controller
         }
 
         $rolInterno = $esAdmin ? 'administrador' : data_get($empresa->pivot, 'rol_interno');
+
+        // Un publicador (investigador invitado) no ve los informes de la empresa: su panel son los programas.
+        if ($rolInterno === MembresiaEmpresa::PUBLICADOR) {
+            return redirect()->route('programas.gestion');
+        }
         $puedeGestionarMiembros = $empresa->estado === EstadoEmpresa::Aprobada && ($esAdmin || $rolInterno === 'propietario');
 
         // Los borradores del investigador no cuentan: la empresa solo ve informes enviados.
@@ -78,15 +81,22 @@ class EmpresaController extends Controller
                     'rechazados' => $programas->sum('reportes_rechazados'),
                 ],
                 'reportes' => $this->reportesRecientes($empresa),
-                'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email']),
-                // El enlace lleva el token de la invitación: solo lo ve quien puede gestionar miembros.
+                'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email'])
+                    ->map(fn (User $usuario): array => [
+                        'id' => $usuario->id,
+                        'name' => $usuario->name,
+                        'email' => $usuario->email,
+                        'rol_interno' => $usuario->pivot->rol_interno,
+                        'desde' => ($desde = $usuario->pivot->aceptado_en ?? $usuario->pivot->created_at) ? Carbon::parse($desde)->toISOString() : null,
+                    ])->values()->all(),
+                // Solo el propietario ve las invitaciones que hizo y puede cancelarlas.
                 'invitaciones' => $puedeGestionarMiembros
-                    ? $empresa->invitaciones()->where('estado', 'pendiente')->where('expira_en', '>', now())->latest()->get(['id', 'email', 'expira_en', 'token'])
+                    ? $empresa->invitaciones()->with('usuario:id,name')->where('estado', 'pendiente')->where('expira_en', '>', now())->latest()->get()
                         ->map(fn (EmpresaInvitacion $invitacion): array => [
                             'id' => $invitacion->id,
                             'email' => $invitacion->email,
+                            'nombre' => $invitacion->usuario?->name,
                             'expira_en' => $invitacion->expira_en->toISOString(),
-                            'url' => route('empresa.invitacion', $invitacion->token),
                         ])->values()->all()
                     : [],
             ],
@@ -110,6 +120,7 @@ class EmpresaController extends Controller
 
         abort_if($empresa === null, $esAdmin ? 404 : 403, $esAdmin ? 'Elige una empresa.' : 'Tu usuario no pertenece a una empresa.');
         abort_unless($empresa->estado === EstadoEmpresa::Aprobada, 403, 'Tu empresa todavía no tiene acceso operativo.');
+        abort_if(! $esAdmin && data_get($empresa->pivot, 'rol_interno') !== MembresiaEmpresa::PROPIETARIO, 403, 'Solo el propietario de la empresa ve los informes que recibe.');
 
         $filtro = in_array($request->input('filtro'), ['todos', 'pendientes', 'aprobados', 'rechazados', 'cerrados'], true)
             ? (string) $request->input('filtro')
@@ -197,7 +208,7 @@ class EmpresaController extends Controller
         ];
     }
 
-    public function invitarMiembro(Request $request): RedirectResponse
+    public function invitarInvestigador(Request $request, MembresiaEmpresa $membresia): RedirectResponse
     {
         [$empresa, $usuarioActual] = $this->empresaActual($request);
         $this->autorizarMiembros($empresa, $usuarioActual);
@@ -206,131 +217,48 @@ class EmpresaController extends Controller
             'email' => ['required', 'email', 'max:255'],
         ]);
 
-        $invitacion = EmpresaInvitacion::query()
-            ->where('empresa_id', $empresa->id)
-            ->where('email', $validated['email'])
-            ->where('estado', 'pendiente')
-            ->where('expira_en', '>', now())
-            ->first();
-
-        if ($invitacion === null) {
-            $invitacion = EmpresaInvitacion::create([
-                'empresa_id' => $empresa->id,
-                'email' => $validated['email'],
-                'token' => Str::random(64),
-                'rol_interno' => 'miembro',
-                'estado' => 'pendiente',
-                'invitado_por' => $usuarioActual->id,
-                'expira_en' => now()->addDays(7),
-            ]);
+        try {
+            $invitacion = $membresia->invitar($empresa, $usuarioActual, $validated['email']);
+        } catch (InvalidArgumentException $e) {
+            return $this->volverAlPanel($request, $empresa)->with('error', $e->getMessage());
         }
 
-        if (config('mail.enabled')) {
-            Mail::to($invitacion->email)->send(new EmpresaInvitacionMail(
-                $invitacion->load('empresa'),
-                route('empresa.invitacion', $invitacion->token),
-            ));
-        }
-
-        $this->auditarMiembro($usuarioActual, $usuarioActual, $empresa, 'empresa.invitacion.creada');
+        $this->auditarMiembro($usuarioActual, $invitacion->usuario, $empresa, 'empresa.invitacion.creada');
 
         return $this->volverAlPanel($request, $empresa)
-            ->with('success', 'Invitación creada. Envía el enlace a '.$invitacion->email.' (vale 7 días).')
-            ->with('invitacion_url', route('empresa.invitacion', $invitacion->token));
+            ->with('success', "Invitación enviada a {$invitacion->usuario->name}: recibirá un aviso y podrá aceptarla o rechazarla (vale ".MembresiaEmpresa::VIGENCIA_DIAS.' días).');
     }
 
-    public function verInvitacion(string $token): Response
+    public function cancelarInvitacion(Request $request, EmpresaInvitacion $invitacion, MembresiaEmpresa $membresia): RedirectResponse
     {
-        $invitacion = EmpresaInvitacion::query()
-            ->with('empresa:id,razon_social,nombre_comercial')
-            ->where('token', $token)
-            ->where('estado', 'pendiente')
-            ->firstOrFail();
+        $empresa = $invitacion->empresa;
+        $this->autorizarMiembros($empresa, $request->user());
 
-        return Inertia::render('empresa/Invitacion', [
-            'invitacion' => [
-                'token' => $invitacion->token,
-                'email' => $invitacion->email,
-                'expira_en' => $invitacion->expira_en->toISOString(),
-                'empresa' => $invitacion->empresa->only(['razon_social', 'nombre_comercial']),
-            ],
-        ]);
-    }
-
-    public function aceptarInvitacion(Request $request, string $token): RedirectResponse
-    {
-        $invitacion = EmpresaInvitacion::query()
-            ->where('token', $token)
-            ->where('estado', 'pendiente')
-            ->firstOrFail();
-
-        abort_if($invitacion->expira_en->isPast(), 410, 'La invitación ha expirado.');
-        if (strtolower((string) $request->user()->email) !== strtolower($invitacion->email)) {
-            abort(403, 'La invitación no pertenece a este correo.');
+        try {
+            $membresia->cancelar($invitacion);
+        } catch (InvalidArgumentException $e) {
+            return $this->volverAlPanel($request, $empresa)->with('error', $e->getMessage());
         }
 
-        $rolEmpresa = Rol::firstOrCreate(
-            ['slug' => 'empresa'],
-            ['nombre' => 'Empresa', 'descripcion' => 'Gestiona sus programas y recibe reportes de vulnerabilidades.'],
-        );
+        $this->auditarMiembro($request->user(), $invitacion->usuario, $empresa, 'empresa.invitacion.cancelada');
 
-        $invitacion->empresa->usuarios()->syncWithoutDetaching([
-            $request->user()->id => [
-                'rol_interno' => $invitacion->rol_interno,
-                'estado' => 'activo',
-                'aceptado_en' => now(),
-            ],
-        ]);
-        $request->user()->roles()->syncWithoutDetaching([$rolEmpresa->id]);
-        $invitacion->update(['estado' => 'aceptada', 'aceptado_en' => now()]);
-
-        $this->auditarMiembro($request->user(), $request->user(), $invitacion->empresa, 'empresa.invitacion.aceptada');
-
-        return redirect()->route('empresa.dashboard')->with('success', 'Invitación aceptada.');
+        return $this->volverAlPanel($request, $empresa)->with('success', 'Invitación cancelada.');
     }
 
-    public function agregarMiembro(Request $request): RedirectResponse
+    public function retirarMiembro(Request $request, User $user, MembresiaEmpresa $membresia): RedirectResponse
     {
         [$empresa, $usuarioActual] = $this->empresaActual($request);
         $this->autorizarMiembros($empresa, $usuarioActual);
 
-        $validated = $request->validate([
-            'email' => ['required', 'email', 'exists:users,email'],
-        ]);
-        $miembro = User::where('email', $validated['email'])->firstOrFail();
+        try {
+            $membresia->retirar($empresa, $user);
+        } catch (InvalidArgumentException $e) {
+            return $this->volverAlPanel($request, $empresa)->with('error', $e->getMessage());
+        }
 
-        abort_if($miembro->id === $usuarioActual->id, 422, 'El propietario ya pertenece a la empresa.');
-        abort_if($empresa->usuarios()->whereKey($miembro->id)->exists(), 422, 'El usuario ya pertenece a la empresa.');
-
-        $rolEmpresa = Rol::firstOrCreate(
-            ['slug' => 'empresa'],
-            ['nombre' => 'Empresa', 'descripcion' => 'Gestiona sus programas y recibe reportes de vulnerabilidades.'],
-        );
-        $miembro->roles()->syncWithoutDetaching([$rolEmpresa->id]);
-        $empresa->usuarios()->attach($miembro, [
-            'rol_interno' => 'miembro',
-            'estado' => 'activo',
-            'aceptado_en' => now(),
-        ]);
-
-        $this->auditarMiembro($usuarioActual, $miembro, $empresa, 'empresa.miembro.agregado');
-
-        return $this->volverAlPanel($request, $empresa)->with('success', 'Miembro agregado.');
-    }
-
-    public function eliminarMiembro(Request $request, User $user): RedirectResponse
-    {
-        [$empresa, $usuarioActual] = $this->empresaActual($request);
-        $this->autorizarMiembros($empresa, $usuarioActual);
-
-        $pivot = $empresa->usuarios()->whereKey($user->id)->first()?->pivot;
-        abort_if($pivot === null, 404, 'El usuario no pertenece a esta empresa.');
-        abort_if(data_get($pivot, 'rol_interno') === 'propietario', 422, 'No se puede retirar al propietario.');
-
-        $empresa->usuarios()->detach($user->id);
         $this->auditarMiembro($usuarioActual, $user, $empresa, 'empresa.miembro.eliminado');
 
-        return $this->volverAlPanel($request, $empresa)->with('success', 'Miembro retirado.');
+        return $this->volverAlPanel($request, $empresa)->with('success', 'Publicador retirado de la empresa.');
     }
 
     /** @return array{0: Empresa, 1: User} */

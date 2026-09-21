@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ApelacionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\InvitacionController;
 use App\Http\Controllers\ModeracionController;
+use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ReputacionController;
@@ -15,25 +18,35 @@ Route::inertia('/', 'Welcome')->name('home');
 Route::get('empresa/login', [EmpresaAuthController::class, 'login'])->name('empresa.login');
 Route::get('empresa/registro', [EmpresaAuthController::class, 'create'])->name('empresa.register');
 Route::post('empresa/registro', [EmpresaAuthController::class, 'store'])->name('empresa.register.store');
-Route::middleware('auth')->get('empresa/invitacion/{token}', [EmpresaController::class, 'verInvitacion'])->name('empresa.invitacion');
-Route::middleware('auth')->post('empresa/invitacion/{token}/aceptar', [EmpresaController::class, 'aceptarInvitacion'])->name('empresa.invitacion.aceptar');
 
 Route::middleware('auth')->group(function () {
+    // La campana de avisos: la ven todos los roles, también una empresa aún pendiente de aprobación.
+    Route::get('notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::post('notificaciones/leer-todas', [NotificacionController::class, 'leerTodas'])->name('notificaciones.leer-todas');
+    Route::get('notificaciones/{id}/abrir', [NotificacionController::class, 'abrir'])->name('notificaciones.abrir');
+    Route::post('notificaciones/{id}/leer', [NotificacionController::class, 'leer'])->name('notificaciones.leer');
+
     Route::get('empresa', [EmpresaController::class, 'dashboard'])->name('empresa.dashboard');
     Route::get('empresa/reportes', [EmpresaController::class, 'reportes'])->name('empresa.reportes');
-    Route::post('empresa/miembros', [EmpresaController::class, 'agregarMiembro'])->name('empresa.miembros.agregar');
-    Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarMiembro'])->name('empresa.invitaciones.crear');
-    Route::delete('empresa/miembros/{user}', [EmpresaController::class, 'eliminarMiembro'])->name('empresa.miembros.eliminar');
+    // El propietario invita a investigadores registrados (por su correo) y los retira.
+    Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarInvestigador'])->name('empresa.invitaciones.crear');
+    Route::delete('empresa/invitaciones/{invitacion}', [EmpresaController::class, 'cancelarInvitacion'])->name('empresa.invitaciones.cancelar');
+    Route::delete('empresa/miembros/{user}', [EmpresaController::class, 'retirarMiembro'])->name('empresa.miembros.eliminar');
+
+    // El invitado decide desde la plataforma (le llega un aviso en la campana).
+    Route::get('invitaciones', [InvitacionController::class, 'index'])->name('invitaciones.index');
+    Route::post('invitaciones/{invitacion}/aceptar', [InvitacionController::class, 'aceptar'])->name('invitaciones.aceptar');
+    Route::post('invitaciones/{invitacion}/rechazar', [InvitacionController::class, 'rechazar'])->name('invitaciones.rechazar');
 });
 
 Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
     Route::get('reportes/crear', [ReporteController::class, 'create'])->name('reportes.create');
-    Route::post('reportes', [ReporteController::class, 'store'])->name('reportes.store');
+    Route::post('reportes', [ReporteController::class, 'store'])->name('reportes.store')->middleware('throttle:reportes');
     Route::get('reportes/{reporte}/editar', [ReporteController::class, 'edit'])->name('reportes.edit');
     Route::put('reportes/{reporte}', [ReporteController::class, 'update'])->name('reportes.update');
-    Route::post('reportes/{reporte}/enviar', [ReporteController::class, 'enviar'])->name('reportes.enviar');
+    Route::post('reportes/{reporte}/enviar', [ReporteController::class, 'enviar'])->name('reportes.enviar')->middleware('throttle:reportes');
 
     // Acciones de triaje (Slice 5.4)
     Route::get('reportes/{reporte}/vista-rapida', [ReporteController::class, 'vistaRapida'])->name('reportes.vista-rapida');
@@ -42,7 +55,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('reportes/{reporte}/validar', [ReporteController::class, 'validar'])->name('reportes.validar');
     Route::post('reportes/{reporte}/rechazar', [ReporteController::class, 'rechazar'])->name('reportes.rechazar');
     Route::post('reportes/{reporte}/marcar-duplicado', [ReporteController::class, 'marcarDuplicado'])->name('reportes.marcar-duplicado');
-    Route::post('reportes/{reporte}/pagar', [ReporteController::class, 'pagar'])->name('reportes.pagar');
+    Route::post('reportes/{reporte}/reparacion', [ReporteController::class, 'reparacion'])->name('reportes.reparacion');
     Route::post('reportes/{reporte}/cerrar', [ReporteController::class, 'cerrar'])->name('reportes.cerrar');
     Route::post('reportes/{reporte}/comentar', [ReporteController::class, 'comentar'])->name('reportes.comentar');
 
@@ -79,8 +92,11 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::put('admin/usuarios/{user}', [AdminController::class, 'updateUsuario'])->name('admin.usuarios.update');
     Route::get('admin/sanciones', [AdminController::class, 'sanciones'])->name('admin.sanciones');
     Route::post('admin/sanciones/{sancion}/revocar', [AdminController::class, 'revocarSancion'])->name('admin.sanciones.revocar');
-    Route::get('admin/apelaciones', [AdminController::class, 'apelaciones'])->name('admin.apelaciones');
-    Route::post('admin/apelaciones/{apelacion}/resolver', [AdminController::class, 'resolverApelacion'])->name('admin.apelaciones.resolver');
+    // Las apelaciones las resuelven los moderadores y el administrador (nunca quien aplicó la sanción).
+    Route::redirect('admin/apelaciones', '/moderacion/apelaciones')->name('admin.apelaciones');
+    Route::get('moderacion/apelaciones', [ApelacionController::class, 'index'])->name('apelaciones.index');
+    Route::get('moderacion/apelaciones/{apelacion}', [ApelacionController::class, 'show'])->name('apelaciones.show');
+    Route::post('moderacion/apelaciones/{apelacion}/resolver', [ApelacionController::class, 'resolver'])->name('apelaciones.resolver');
     Route::get('admin/auditoria', [AdminController::class, 'auditoria'])->name('admin.auditoria');
 
     // Config reputacion
@@ -88,14 +104,18 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::put('admin/config/reputacion', [AdminController::class, 'updateConfigReputacion'])->name('admin.config.reputacion.update');
 
     // PGP plataforma
-    Route::post('admin/pgp/setup', [AdminController::class, 'pgpSetup'])->name('admin.pgp.setup');
     Route::get('admin/pgp', [AdminController::class, 'pgpEstado'])->name('admin.pgp');
 
     // Reputacion (investigador)
     Route::get('reputacion', [ReputacionController::class, 'ledger'])->name('reputacion.ledger');
     Route::get('reputacion/sanciones', [ReputacionController::class, 'sanciones'])->name('reputacion.sanciones');
     Route::get('reputacion/apelaciones', [ReputacionController::class, 'apelaciones'])->name('reputacion.apelaciones');
+    Route::get('reputacion/apelaciones/{apelacion}', [ReputacionController::class, 'apelacion'])->name('reputacion.apelacion');
     Route::post('reputacion/sanciones/{sancion}/apelar', [ReputacionController::class, 'apelar'])->name('reputacion.apelar');
 });
 
 require __DIR__.'/settings.php';
+
+// Una URL que no existe (con cualquier método) también pasa por el grupo web (sesión, menú):
+// la página 404 sabe quién eres y una ruta retirada sigue dando 404, no 405.
+Route::any('{fallbackPlaceholder}', fn () => abort(404))->where('fallbackPlaceholder', '.*')->fallback();

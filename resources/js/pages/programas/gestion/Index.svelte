@@ -18,6 +18,7 @@
     import PageHeader from '@/components/PageHeader.svelte';
     import EmptyState from '@/components/EmptyState.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
+    import NivelAccesoBadge from '@/components/NivelAccesoBadge.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import {
@@ -44,7 +45,7 @@
         esAdmin,
     }: {
         programas: {
-            data: (Programa & { objetivos?: ObjetivoPrograma[]; reportes_count?: number; puede_editar?: boolean })[];
+            data: (Programa & { objetivos?: ObjetivoPrograma[]; reportes_count?: number | null; puede_editar?: boolean })[];
             links: { url: string | null; label: string; active: boolean }[];
             current_page: number;
             last_page: number;
@@ -201,13 +202,8 @@
                                 {programa.descripcion}
                             </p>
 
-                            <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span class="font-medium text-foreground">
-                                    {new Intl.NumberFormat('es-ES').format(programa.recompensa_min)}
-                                    {' - '}
-                                    {new Intl.NumberFormat('es-ES').format(programa.recompensa_max)}
-                                    {' '}{programa.moneda}
-                                </span>
+                            <div class="flex items-center gap-2">
+                                <NivelAccesoBadge nivel={programa.nivel_acceso} />
                             </div>
 
                             {#if programa.objetivos && programa.objetivos.length > 0}
@@ -224,7 +220,9 @@
                                 <span>
                                     {formatearFecha(programa.inicia_en)} - {formatearFecha(programa.termina_en)}
                                 </span>
-                                <span>{programa.reportes_count ?? 0} reportes</span>
+                                {#if typeof programa.reportes_count === 'number'}
+                                    <span>{programa.reportes_count} reportes</span>
+                                {/if}
                             </div>
                             {#if programa.puede_editar}
                                 <div class="mt-4 flex justify-end">

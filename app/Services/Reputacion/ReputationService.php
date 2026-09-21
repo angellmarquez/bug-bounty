@@ -13,6 +13,7 @@ use App\Models\EventoReporte;
 use App\Models\Reporte;
 use App\Models\Sancion;
 use App\Models\User;
+use App\Services\Notificaciones\Notificador;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -99,7 +100,10 @@ class ReputationService
             throw new InvalidArgumentException('El ledger no admite asientos de 0 puntos.');
         }
 
-        return DB::transaction(function () use ($usuarioId, $puntos, $motivo, $reporte, $sancion, $apelacion, $metadata): EntradaReputacion {
+        $rangos = app(Rangos::class);
+        $rangoAntes = $rangos->deReputacion($this->saldo($usuarioId));
+
+        $entrada = DB::transaction(function () use ($usuarioId, $puntos, $motivo, $reporte, $sancion, $apelacion, $metadata): EntradaReputacion {
             $entrada = EntradaReputacion::query()->create([
                 'usuario_id' => $usuarioId,
                 'puntos' => $puntos,
@@ -115,11 +119,15 @@ class ReputationService
 
             return $entrada;
         });
+
+        $this->notificador()->rangoCambiado($usuarioId, $rangoAntes, $rangos->deReputacion($this->saldo($usuarioId)));
+
+        return $entrada;
     }
 
     /**
      * Otorga los puntos configurados para un evento de reputación positiva
-     * (p. ej. `reporte_validado`, `reporte_pagado`).
+     * (p. ej. `reporte_validado`, `reporte_resuelto`).
      *
      * @param  array<string, mixed>  $metadata
      */
@@ -155,6 +163,7 @@ class ReputationService
         ?Reporte $reporte = null,
         array $metadata = [],
         ?int $puntos = null,
+        ?User $aplicadaPor = null,
     ): Sancion {
         $usuarioId = $this->usuarioId($usuario);
         $base = $puntos ?? (int) config("reputacion.penalizacion.{$gravedad->value}", -25);
@@ -163,10 +172,11 @@ class ReputationService
 
         [$suspensionDesde, $suspensionHasta] = $this->ventanaSuspension($gravedad);
 
-        return DB::transaction(function () use ($usuarioId, $motivo, $gravedad, $reporte, $metadata, $penalizacion, $multiplicador, $suspensionDesde, $suspensionHasta): Sancion {
+        $sancion = DB::transaction(function () use ($usuarioId, $motivo, $gravedad, $reporte, $metadata, $penalizacion, $multiplicador, $suspensionDesde, $suspensionHasta, $aplicadaPor): Sancion {
             $sancion = Sancion::query()->create([
                 'usuario_id' => $usuarioId,
                 'reporte_id' => $reporte?->id,
+                'aplicada_por' => $aplicadaPor?->id,
                 'motivo' => $motivo,
                 'gravedad' => $gravedad->value,
                 'puntos' => $penalizacion,
@@ -206,10 +216,15 @@ class ReputationService
                 'puntos' => $penalizacion,
                 'multiplicador' => $multiplicador,
                 'reporte_id' => $reporte?->id,
+                'aplicada_por' => $aplicadaPor?->id,
             ]);
 
             return $sancion;
         });
+
+        $this->notificador()->sancionAplicada($sancion);
+
+        return $sancion;
     }
 
     /**
@@ -217,7 +232,7 @@ class ReputationService
      * ledger la reversión exacta de los puntos, devolviendo al usuario a su
      * saldo previo.
      */
-    public function revocarSancion(Sancion $sancion, string $nota = ''): void
+    public function revocarSancion(Sancion $sancion, string $nota = '', bool $avisar = true): void
     {
         if (! in_array($sancion->estado, [EstadoSancion::Aplicada, EstadoSancion::Apelada], true)) {
             throw new InvalidArgumentException('Solo se pueden revocar sanciones en estado aplicada o apelada.');
@@ -243,6 +258,10 @@ class ReputationService
 
             $this->auditar((int) $sancion->usuario_id, 'sancion.revocada', $sancion, ['nota' => $nota]);
         });
+
+        if ($avisar) {
+            $this->notificador()->sancionRevocada($sancion);
+        }
     }
 
     /**
@@ -282,7 +301,15 @@ class ReputationService
             throw new InvalidArgumentException('Ya existe una apelación pendiente para esta sanción.');
         }
 
-        return DB::transaction(function () use ($sancion, $usuarioId, $motivo, $evidencia): Apelacion {
+        $rechazada = Apelacion::query()
+            ->where('sancion_id', $sancion->id)
+            ->where('estado', EstadoApelacion::Rechazada->value)
+            ->exists();
+        if ($rechazada) {
+            throw new InvalidArgumentException('Esta sanción ya fue apelada y la apelación se rechazó: no se puede apelar de nuevo.');
+        }
+
+        $apelacion = DB::transaction(function () use ($sancion, $usuarioId, $motivo, $evidencia): Apelacion {
             $apelacion = Apelacion::query()->create([
                 'sancion_id' => $sancion->id,
                 'usuario_id' => $usuarioId,
@@ -295,8 +322,19 @@ class ReputationService
 
             $this->auditar($usuarioId, 'apelacion.creada', $apelacion, ['sancion_id' => $sancion->id]);
 
+            $this->traza()->registrar($apelacion, TrazaApelaciones::PRESENTADA, User::query()->find($usuarioId), $motivo, [
+                'sancion_id' => $sancion->id,
+                'sancion_gravedad' => $sancion->gravedad->value,
+                'sancion_puntos' => $sancion->puntos,
+                'sancion_aplicada_por' => $sancion->aplicada_por,
+            ]);
+
             return $apelacion;
         });
+
+        $this->notificador()->apelacionPresentada($apelacion);
+
+        return $apelacion;
     }
 
     /**
@@ -325,7 +363,7 @@ class ReputationService
             ]);
 
             if ($aprobada) {
-                $this->revocarSancion($apelacion->sancion, $nota);
+                $this->revocarSancion($apelacion->sancion, $nota, avisar: false);
             } else {
                 $apelacion->sancion->update(['estado' => EstadoSancion::Aplicada->value]);
             }
@@ -334,7 +372,18 @@ class ReputationService
                 'aprobada' => $aprobada,
                 'nota' => $nota,
             ]);
+
+            $this->traza()->registrar(
+                $apelacion,
+                $aprobada ? TrazaApelaciones::APROBADA : TrazaApelaciones::RECHAZADA,
+                User::query()->find($resolutorId),
+                $nota,
+                // Solo un administrador puede resolver la apelación de una sanción que él mismo aplicó: queda anotado.
+                ['mismo_que_sanciono' => (int) $apelacion->sancion->aplicada_por === $resolutorId],
+            );
         });
+
+        $this->notificador()->apelacionResuelta($apelacion, $aprobada, User::query()->find($resolutorId));
     }
 
     /**
@@ -389,6 +438,33 @@ class ReputationService
     /**
      * @param  array<string, mixed>  $detalle
      */
+    /**
+     * ¿Puede el usuario apelar esta sanción ahora? Vigente, dentro del plazo y sin ninguna
+     * apelación previa: una sanción se apela una sola vez.
+     */
+    public function puedeApelar(Sancion $sancion): bool
+    {
+        if ($sancion->estado !== EstadoSancion::Aplicada) {
+            return false;
+        }
+
+        if ($sancion->plazo_apelacion === null || $sancion->plazo_apelacion->lt(now())) {
+            return false;
+        }
+
+        return ! Apelacion::query()->where('sancion_id', $sancion->id)->exists();
+    }
+
+    private function notificador(): Notificador
+    {
+        return app(Notificador::class);
+    }
+
+    private function traza(): TrazaApelaciones
+    {
+        return app(TrazaApelaciones::class);
+    }
+
     private function auditar(int|string|null $usuarioId, string $accion, ?Model $entidad = null, array $detalle = []): void
     {
         Auditoria::query()->create([

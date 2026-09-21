@@ -3,7 +3,6 @@
         breadcrumbs: [
             {
                 title: 'Admin',
-                href: '/admin',
             },
             {
                 title: 'PGP Plataforma',
@@ -14,14 +13,11 @@
 </script>
 
 <script lang="ts">
-    import { page, router } from '@inertiajs/svelte';
     import Key from '@lucide/svelte/icons/key';
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-    import AlertError from '@/components/AlertError.svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
-    import { Button } from '@/components/ui/button';
     import {
         Card,
         CardContent,
@@ -41,34 +37,23 @@
             identidad: string | null;
             algoritmo: string | null;
             bits: number | null;
-            created_at: string;
+            creada_en: string | null;
+            expira_en: string | null;
         } | null;
         driver: string;
         available: boolean;
     } = $props();
 
-    let generando = $state(false);
-
-    const errorPgp = $derived((page.props.errors as Record<string, string> | undefined)?.pgp);
-
-    function generarClave() {
-        generando = true;
-        router.post('/admin/pgp/setup', {}, {
-            preserveState: true,
-            onFinish: () => {
-                generando = false;
-            },
-        });
-    }
-
-    function formatearFecha(dateStr: string): string {
+    // El servidor envía fechas sin hora (creada_en) o con hora (expira_en); una fecha vacía o inválida no debe romper la página.
+    function formatearFecha(dateStr: string | null): string {
+        if (!dateStr) return 'N/A';
+        const fecha = new Date(dateStr);
+        if (Number.isNaN(fecha.getTime())) return 'N/A';
         return new Intl.DateTimeFormat('es-ES', {
             day: '2-digit',
             month: 'long',
             year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        }).format(new Date(dateStr));
+        }).format(fecha);
     }
 
     const isFallback = $derived(driver === 'fallback');
@@ -79,12 +64,9 @@
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <PageHeader
         title="PGP Plataforma"
-        description="Gestion del par de claves PGP de la plataforma para cifrado interno"
+        description="Estado del cifrado interno. La plataforma crea y gestiona su clave sola: no requiere ninguna acción."
     />
 
-    {#if errorPgp}
-        <AlertError errors={[errorPgp]} title="No se pudo generar el par de claves" />
-    {/if}
 
     <Card>
         <CardHeader>
@@ -129,7 +111,7 @@
                     Clave Activa
                 </CardTitle>
                 <CardDescription>
-                    Par de claves PGP de la plataforma generado y activo
+                    Par de claves PGP de la plataforma, creado automáticamente. La clave privada nunca se muestra.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -158,37 +140,34 @@
                     {/if}
                     <div class="space-y-1">
                         <p class="text-xs text-muted-foreground">Generada</p>
-                        <p class="text-sm">{formatearFecha(clave.created_at)}</p>
+                        <p class="text-sm">{formatearFecha(clave.creada_en)}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs text-muted-foreground">Expira</p>
+                        <p class="text-sm">{formatearFecha(clave.expira_en)}</p>
                     </div>
                 </div>
             </CardContent>
         </Card>
     {:else}
-        <Card>
-            <CardHeader>
-                <CardTitle class="text-lg">Sin Clave Configurada</CardTitle>
-                <CardDescription>
-                    La plataforma no tiene un par de claves PGP generado. Sin la clave, el cifrado interno no esta disponible.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button
-                    onclick={generarClave}
-                    disabled={generando || !available}
-                    size="lg"
-                >
-                    {#if generando}
-                        Generando...
-                    {:else}
-                        Generar Par de Claves
-                    {/if}
-                </Button>
+        <div data-test="sin-clave">
+            <Card>
+                <CardHeader>
+                    <CardTitle class="text-lg">Aún no hay clave</CardTitle>
+                    <CardDescription>
+                        La plataforma crea su clave de cifrado automáticamente: al instalarse o al recibir el primer informe. No hace
+                        falta ninguna acción.
+                    </CardDescription>
+                </CardHeader>
                 {#if !available}
-                    <p class="mt-2 text-xs text-muted-foreground">
-                        El driver PGP no esta disponible en este entorno.
-                    </p>
+                    <CardContent>
+                        <p class="text-sm text-chart-3" data-test="driver-no-disponible">
+                            El driver PGP no está disponible en este entorno, así que la clave no se puede crear todavía. Mientras tanto,
+                            ningún informe se guarda sin cifrar.
+                        </p>
+                    </CardContent>
                 {/if}
-            </CardContent>
-        </Card>
+            </Card>
+        </div>
     {/if}
 </div>

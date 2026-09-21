@@ -23,7 +23,7 @@
         | 'validar'
         | 'rechazar'
         | 'marcar_duplicado'
-        | 'pagar'
+        | 'reparacion'
         | 'cerrar';
 
     let {
@@ -31,7 +31,7 @@
         accion,
         reporteId,
         estadoActual,
-        usuariosGestion = [],
+        moderadoresAsignables = [],
         candidatosDuplicado = [],
         onsuccess,
     }: {
@@ -39,7 +39,7 @@
         accion: TransicionAccion;
         reporteId: number;
         estadoActual: EstadoReporte;
-        usuariosGestion?: { id: number; name: string }[];
+        moderadoresAsignables?: { id: number; name: string }[];
         candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
         onsuccess?: () => void;
     } = $props();
@@ -47,7 +47,6 @@
     let nota = $state('');
     let asignadoA = $state<string>('');
     let reporteDuplicadoId = $state('');
-    let recompensa = $state('');
     let sancionar = $state(false);
     let gravedadSancion = $state('leve');
     let processing = $state(false);
@@ -57,7 +56,7 @@
         validar: 'validar',
         rechazar: 'rechazar',
         marcar_duplicado: 'marcar-duplicado',
-        pagar: 'pagar',
+        reparacion: 'reparacion',
         cerrar: 'cerrar',
     };
 
@@ -83,15 +82,15 @@
                 descripcion: 'Vincula este reporte con el reporte original del cual es duplicado.',
                 variante: 'outline',
             },
-            pagar: {
-                titulo: 'Registrar pago',
-                descripcion: 'Registra la recompensa pagada al investigador.',
+            reparacion: {
+                titulo: 'Marcar en reparación',
+                descripcion: 'Indica que tu equipo ya está corrigiendo la vulnerabilidad. El investigador lo verá en su línea de tiempo.',
                 variante: 'default',
             },
             cerrar: {
-                titulo: 'Cerrar reporte',
-                descripcion: 'El reporte sera cerrado definitivamente.',
-                variante: 'destructive',
+                titulo: 'Cerrar como resuelto',
+                descripcion: 'La vulnerabilidad quedó corregida. El informe se cierra y el investigador recibe sus puntos de reputación.',
+                variante: 'default',
             },
         };
         return configs[accion];
@@ -104,7 +103,6 @@
         if (nota) data.nota = nota;
         if (accion === 'asignar' && asignadoA) data.asignado_a = asignadoA;
         if (accion === 'marcar_duplicado' && reporteDuplicadoId) data.reporte_duplicado_id = reporteDuplicadoId;
-        if (accion === 'pagar' && recompensa) data.recompensa = recompensa;
         if (accion === 'rechazar' && sancionar) {
             data.sancionar = '1';
             data.gravedad_sancion = gravedadSancion;
@@ -127,7 +125,6 @@
         nota = '';
         asignadoA = '';
         reporteDuplicadoId = '';
-        recompensa = '';
         sancionar = false;
         gravedadSancion = 'leve';
     }
@@ -147,11 +144,11 @@
                     <Select type="single" bind:value={asignadoA}>
                         <SelectTrigger class="w-full">
                             {#snippet children()}
-                                {usuariosGestion.find((u) => String(u.id) === asignadoA)?.name ?? 'Seleccionar analista...'}
+                                {moderadoresAsignables.find((u) => String(u.id) === asignadoA)?.name ?? 'Seleccionar analista...'}
                             {/snippet}
                         </SelectTrigger>
                         <SelectContent>
-                            {#each usuariosGestion as usuario (usuario.id)}
+                            {#each moderadoresAsignables as usuario (usuario.id)}
                                 <SelectItem value={String(usuario.id)}>
                                     {usuario.name}
                                 </SelectItem>
@@ -182,20 +179,6 @@
                             {/each}
                         </select>
                     {/if}
-                </div>
-            {/if}
-
-            {#if accion === 'pagar'}
-                <div class="space-y-2">
-                    <Label for="recompensa">Monto de recompensa</Label>
-                    <Input
-                        id="recompensa"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        bind:value={recompensa}
-                        placeholder="Ej: 500.00"
-                    />
                 </div>
             {/if}
 
@@ -236,7 +219,7 @@
             <Button
                 variant={accionConfig.variante}
                 onclick={submit}
-                disabled={processing || (accion === 'asignar' && !asignadoA) || (accion === 'marcar_duplicado' && !reporteDuplicadoId) || (accion === 'pagar' && !recompensa)}
+                disabled={processing || (accion === 'asignar' && !asignadoA) || (accion === 'marcar_duplicado' && !reporteDuplicadoId)}
             >
                 {#if processing}
                     Procesando...

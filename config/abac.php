@@ -57,7 +57,7 @@ return [
             'objeto' => [
                 'estado' => ['=' => 'activo'],
                 'es_publico' => ['=' => true],
-                'reputacion_minima' => ['<=' => '@sujeto.reputation_score'],
+                'nivel_acceso' => ['in' => '@sujeto.niveles_acceso'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -115,7 +115,7 @@ return [
             'objeto' => [
                 'es_publico' => ['=' => true],
                 'estado' => ['in' => ['activo', 'en_pausa']],
-                'reputacion_minima' => ['<=' => '@sujeto.reputation_score'],
+                'nivel_acceso' => ['in' => '@sujeto.niveles_acceso'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -139,82 +139,9 @@ return [
         ],
 
         // ------------------------------------------------------------------
-        // 3. Gestión: triaje de reportes y operación de programas.
+        // 3. Programas: quién NO edita. (El antiguo rol "Gestión" lo absorbió el moderador.)
         // ------------------------------------------------------------------
-        [
-            'id' => 'gestion-ver-reportes-no-borrador',
-            'prioridad' => 30,
-            'acciones' => ['reportes.ver', 'reportes.ver_notas_internas'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => ['estado' => ['!=' => 'borrador']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-asignar-reportes',
-            'prioridad' => 30,
-            'acciones' => ['reportes.asignar'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => ['estado' => ['in' => ['enviado', 'en_revision']]],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-triaje-propio',
-            'prioridad' => 30,
-            'acciones' => [
-                'reportes.validar',
-                'reportes.rechazar',
-                'reportes.marcar_duplicado',
-                'reportes.pagar',
-                'reportes.cerrar',
-            ],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
-                'asignado_a' => ['=' => '@sujeto.id'],
-            ],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-triaje-sin-asignar',
-            'prioridad' => 30,
-            'acciones' => [
-                'reportes.validar',
-                'reportes.rechazar',
-                'reportes.marcar_duplicado',
-                'reportes.pagar',
-                'reportes.cerrar',
-            ],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
-                'asignado_a' => ['is_null'],
-            ],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-crear-programa',
-            'prioridad' => 30,
-            'acciones' => ['programas.crear'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        // Editar un programa es cosa de la empresa dueña. La única excepción es un programa
-        // heredado sin empresa, que edita quien lo creó con el rol de gestión.
-        [
-            'id' => 'gestion-editar-programa-propio-sin-empresa',
-            'prioridad' => 30,
-            'acciones' => ['programas.editar'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => ['creado_por' => ['=' => '@sujeto.id'], 'empresa_id' => ['is_null']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
+        // Editar un programa es cosa de la empresa dueña (y de sus publicadores).
         // El deny gana sobre cualquier permiso, también sobre el bypass del administrador.
         [
             'id' => 'denegar-edicion-de-programas-al-administrador',
@@ -233,24 +160,6 @@ return [
             'objeto' => [],
             'entorno' => [],
             'decision' => 'denegar',
-        ],
-        [
-            'id' => 'gestion-programa-propio',
-            'prioridad' => 30,
-            'acciones' => ['programas.gestionar', 'programas.cambiar_estado'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => ['creado_por' => ['=' => '@sujeto.id']],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        [
-            'id' => 'gestion-resolver-apelaciones',
-            'prioridad' => 30,
-            'acciones' => ['apelaciones.resolver'],
-            'sujeto' => ['roles' => ['contains' => 'gestion']],
-            'objeto' => [],
-            'entorno' => [],
-            'decision' => 'permitir',
         ],
 
         // ------------------------------------------------------------------
@@ -295,30 +204,42 @@ return [
         ],
 
         [
-            'id' => 'moderador-ver-reportes-no-borrador',
+            'id' => 'moderador-ver-reportes-de-sus-programas',
             'prioridad' => 35,
             'acciones' => ['reportes.ver', 'reportes.ver_notas_internas'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
-            'objeto' => [],
+            'objeto' => [
+                'estado' => ['!=' => 'borrador'],
+                'programa_id' => ['in' => '@sujeto.programas_moderados'],
+            ],
             'entorno' => [],
             'decision' => 'permitir',
         ],
         [
-            'id' => 'empresa-pagar-y-cerrar-reportes-de-sus-programas',
+            'id' => 'empresa-reparar-y-cerrar-reportes-de-sus-programas',
             'prioridad' => 35,
-            'acciones' => ['reportes.pagar', 'reportes.cerrar'],
+            'acciones' => ['reportes.marcar_en_reparacion', 'reportes.cerrar'],
             'sujeto' => ['roles' => ['contains' => 'empresa']],
             'objeto' => [
-                'estado' => ['in' => ['validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'estado' => ['in' => ['validado', 'en_reparacion']],
                 'programa.empresa_id' => ['=' => '@entorno.empresa_id'],
             ],
             'entorno' => ['empresa_id' => ['is_not_null']],
             'decision' => 'permitir',
         ],
         [
-            'id' => 'moderador-ver-programas',
+            'id' => 'moderador-ver-sus-programas',
             'prioridad' => 35,
             'acciones' => ['programas.ver'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => ['id' => ['in' => '@sujeto.programas_moderados']],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-resolver-apelaciones',
+            'prioridad' => 30,
+            'acciones' => ['apelaciones.resolver'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [],
             'entorno' => [],
@@ -356,8 +277,9 @@ return [
             ],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion']],
                 'asignado_a' => ['is_null'],
+                'programa_id' => ['in' => '@sujeto.programas_moderados'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -368,8 +290,9 @@ return [
             'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion']],
                 'asignado_a' => ['=' => '@sujeto.id'],
+                'programa_id' => ['in' => '@sujeto.programas_moderados'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -388,7 +311,7 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
-                'reportes.pagar',
+                'reportes.marcar_en_reparacion',
                 'reportes.cerrar',
             ],
             'sujeto' => ['roles' => ['=' => ['investigador']]],
@@ -397,6 +320,132 @@ return [
             'decision' => 'denegar',
         ],
 
+        // ------------------------------------------------------------------
+        // 5b. Publicador: un investigador que el propietario invitó a su empresa. Publica y gestiona
+        //     los programas de la empresa, pero NO ve sus informes ni gestiona miembros (eso es solo
+        //     del propietario, que tiene el rol empresa). La empresa debe estar aprobada: el contexto
+        //     `empresa_id` solo se entrega para empresas aprobadas.
+        // ------------------------------------------------------------------
+        [
+            'id' => 'publicador-crear-programa',
+            'prioridad' => 30,
+            'acciones' => ['programas.crear'],
+            'sujeto' => ['rol_empresa' => ['=' => 'publicador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'publicador-ver-programa-de-su-empresa',
+            'prioridad' => 30,
+            'acciones' => ['programas.ver'],
+            'sujeto' => ['rol_empresa' => ['=' => 'publicador']],
+            'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'publicador-gestionar-programa-de-su-empresa',
+            'prioridad' => 30,
+            'acciones' => ['programas.gestionar', 'programas.editar', 'programas.cambiar_estado'],
+            'sujeto' => ['rol_empresa' => ['=' => 'publicador']],
+            'objeto' => ['empresa_id' => ['=' => '@entorno.empresa_id']],
+            'entorno' => ['empresa_id' => ['is_not_null']],
+            'decision' => 'permitir',
+        ],
+
+        // ------------------------------------------------------------------
+        // 6. Conflicto de interés y suspensiones (el deny gana siempre).
+        // ------------------------------------------------------------------
+
+        // Quien modera un programa ve las vulnerabilidades de sus informes: reportar ahí sería trampa.
+        [
+            'id' => 'denegar-reportar-en-programa-que-modera',
+            'prioridad' => 5,
+            'acciones' => ['reportes.crear'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => ['id' => ['in' => '@sujeto.programas_moderados']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-enviar-o-editar-informe-de-programa-que-modera',
+            'prioridad' => 5,
+            'acciones' => ['reportes.enviar', 'reportes.editar'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => ['programa_id' => ['in' => '@sujeto.programas_moderados']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        // Nadie revisa, valida ni cierra su propio informe (tampoco un administrador).
+        [
+            'id' => 'denegar-triaje-de-informe-propio',
+            'prioridad' => 5,
+            'acciones' => [
+                'reportes.asignar',
+                'reportes.validar',
+                'reportes.rechazar',
+                'reportes.marcar_duplicado',
+                'reportes.marcar_en_reparacion',
+                'reportes.cerrar',
+                'reportes.ver_notas_internas',
+            ],
+            'sujeto' => ['autenticado' => ['=' => true]],
+            'objeto' => ['investigador_id' => ['=' => '@sujeto.id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        // Una suspensión vigente impide presentar informes nuevos hasta que termine.
+        // Quien forma parte de una empresa no reporta a los programas de esa empresa mientras lo sea
+        // (sigue viendo el estado de los informes que ya presentó).
+        [
+            'id' => 'denegar-reportar-en-programa-de-mi-empresa',
+            'prioridad' => 5,
+            'acciones' => ['reportes.crear'],
+            'sujeto' => ['empresa_id' => ['is_not_null']],
+            'objeto' => ['empresa_id' => ['=' => '@sujeto.empresa_id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-enviar-o-editar-informe-de-programa-de-mi-empresa',
+            'prioridad' => 5,
+            'acciones' => ['reportes.enviar', 'reportes.editar'],
+            'sujeto' => ['empresa_id' => ['is_not_null']],
+            'objeto' => ['programa.empresa_id' => ['=' => '@sujeto.empresa_id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+
+        // Juez y parte: quien aplicó la sanción no resuelve su apelación (la resuelve otro moderador o un
+        // administrador) y nadie resuelve la apelación que él mismo presentó.
+        [
+            'id' => 'denegar-resolver-apelacion-de-sancion-propia-al-moderador',
+            'prioridad' => 5,
+            'acciones' => ['apelaciones.resolver'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => ['sancion.aplicada_por' => ['=' => '@sujeto.id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-resolver-apelacion-propia',
+            'prioridad' => 5,
+            'acciones' => ['apelaciones.resolver'],
+            'sujeto' => ['autenticado' => ['=' => true]],
+            'objeto' => ['usuario_id' => ['=' => '@sujeto.id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-reportar-si-esta-suspendido',
+            'prioridad' => 5,
+            'acciones' => ['reportes.crear', 'reportes.enviar'],
+            'sujeto' => ['suspendido' => ['=' => true]],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
     ],
 
 ];

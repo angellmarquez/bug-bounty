@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { Link } from '@inertiajs/svelte';
     import MessageSquare from '@lucide/svelte/icons/message-square';
     import Button from '@/components/ui/button/Button.svelte';
     import Card from '@/components/ui/card/Card.svelte';
@@ -70,6 +71,15 @@
                             </span>
                         {/if}
                     </div>
+                    {#if !showResolver}
+                        <Link
+                            href="/reputacion/apelaciones/{apelacion.id}"
+                            class="mt-3 inline-block text-sm text-primary hover:underline"
+                            data-test="ver-seguimiento"
+                        >
+                            Ver seguimiento y registro
+                        </Link>
+                    {/if}
                     {#if showResolver && apelacion.estado === 'pendiente' && onResolver}
                         <div class="mt-4 flex gap-2">
                             <Button

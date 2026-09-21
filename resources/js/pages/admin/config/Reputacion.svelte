@@ -3,7 +3,6 @@
         breadcrumbs: [
             {
                 title: 'Admin',
-                href: '/admin',
             },
             {
                 title: 'Config Reputacion',
@@ -36,7 +35,7 @@
             puntos_inicial: number;
             puntos: {
                 reporte_validado: number;
-                reporte_pagado: number;
+                reporte_resuelto: number;
                 calidad_documentacion: number;
                 participacion: number;
             };
@@ -57,7 +56,7 @@
     let form = $state({
         puntos_iniciales: config.puntos_inicial,
         reporte_validado: config.puntos.reporte_validado,
-        reporte_pagado: config.puntos.reporte_pagado,
+        reporte_resuelto: config.puntos.reporte_resuelto,
         calidad_documentacion: config.puntos.calidad_documentacion,
         participacion: config.puntos.participacion,
         penalizacion_leve: config.penalizacion.leve,
@@ -75,7 +74,7 @@
             puntos_inicial: form.puntos_iniciales,
             puntos: {
                 reporte_validado: form.reporte_validado,
-                reporte_pagado: form.reporte_pagado,
+                reporte_resuelto: form.reporte_resuelto,
                 calidad_documentacion: form.calidad_documentacion,
                 participacion: form.participacion,
             },
@@ -149,11 +148,11 @@
                         />
                     </div>
                     <div>
-                        <Label for="reporte_pagado">Reporte pagado</Label>
+                        <Label for="reporte_resuelto">Informe resuelto</Label>
                         <Input
-                            id="reporte_pagado"
+                            id="reporte_resuelto"
                             type="number"
-                            bind:value={form.reporte_pagado}
+                            bind:value={form.reporte_resuelto}
                             min="0"
                             class="mt-1"
                         />

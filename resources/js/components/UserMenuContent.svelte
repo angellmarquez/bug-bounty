@@ -8,6 +8,7 @@
         DropdownMenuLabel,
         DropdownMenuSeparator,
     } from '@/components/ui/dropdown-menu';
+    import EstadoCuentaBadges from '@/components/EstadoCuentaBadges.svelte';
     import UserInfo from '@/components/UserInfo.svelte';
     import { toUrl } from '@/lib/utils';
     import { logout } from '@/routes';
@@ -32,6 +33,7 @@
     <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
         <UserInfo {user} showEmail={true} />
     </div>
+    <EstadoCuentaBadges class="px-1 pb-2" />
 </DropdownMenuLabel>
 <DropdownMenuSeparator />
 <DropdownMenuGroup>

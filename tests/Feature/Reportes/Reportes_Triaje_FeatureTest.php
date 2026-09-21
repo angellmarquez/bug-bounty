@@ -5,11 +5,12 @@ use App\Models\Programa;
 use App\Models\User;
 
 test('moderador can asignar reporte enviado', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $analista = moderador();
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $analista = moderadorDe($programaModerado);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
 
     $response = $this->post(route('reportes.asignar', $reporte), [
         'asignado_a' => $analista->id,
@@ -23,11 +24,12 @@ test('moderador can asignar reporte enviado', function () {
 });
 
 test('asignar creates asignacion event', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $analista = moderador();
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $analista = moderadorDe($programaModerado);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
 
     $this->post(route('reportes.asignar', $reporte), [
         'asignado_a' => $analista->id,
@@ -41,10 +43,11 @@ test('asignar creates asignacion event', function () {
 });
 
 test('moderador can validate reporte enviado', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
 
     $response = $this->post(route('reportes.validar', $reporte));
 
@@ -56,10 +59,11 @@ test('moderador can validate reporte enviado', function () {
 });
 
 test('validar creates cambio_estado event', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
 
     $this->post(route('reportes.validar', $reporte));
 
@@ -70,10 +74,11 @@ test('validar creates cambio_estado event', function () {
 });
 
 test('moderador can rechazar reporte with nota', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
 
     $response = $this->post(route('reportes.rechazar', $reporte), [
         'nota' => 'No cumple con los criterios del programa.',
@@ -92,11 +97,12 @@ test('moderador can rechazar reporte with nota', function () {
 });
 
 test('moderador can mark reporte as duplicado', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $original = reporteDe(investigador(), null, ['estado' => 'enviado']);
-    $duplicado = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $original = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
+    $duplicado = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
 
     $response = $this->post(route('reportes.marcar-duplicado', $duplicado), [
         'reporte_duplicado_id' => $original->id,
@@ -115,28 +121,17 @@ test('moderador can mark reporte as duplicado', function () {
     ]);
 });
 
-test('empresa owner can pay reporte with recompensa', function () {
+test('empresa owner can marcar en reparacion un reporte validado', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
 
-    $reporte = reporteDe(investigador(), $programa, ['estado' => 'pago_pendiente', 'moneda' => 'USD']);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'validado']);
 
-    $response = $this->post(route('reportes.pagar', $reporte), [
-        'recompensa' => 500.00,
-        'nota' => 'Recompensa transferida.',
-    ]);
+    $this->post(route('reportes.reparacion', $reporte))->assertRedirect()->assertSessionHasNoErrors();
 
-    $response->assertRedirect();
-    $this->assertDatabaseHas('reportes', [
-        'id' => $reporte->id,
-        'estado' => 'pagado',
-        'recompensa' => 500.00,
-    ]);
-    $this->assertDatabaseHas('eventos_reporte', [
-        'reporte_id' => $reporte->id,
-        'tipo' => 'pago',
-    ]);
+    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'en_reparacion']);
+    $this->assertDatabaseHas('eventos_reporte', ['reporte_id' => $reporte->id, 'tipo' => 'cambio_estado']);
 });
 
 test('empresa owner can cerrar reporte', function () {
@@ -144,7 +139,7 @@ test('empresa owner can cerrar reporte', function () {
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
 
-    $reporte = reporteDe(investigador(), $programa, ['estado' => 'pagado']);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'en_reparacion']);
 
     $response = $this->post(route('reportes.cerrar', $reporte));
 
@@ -157,10 +152,11 @@ test('empresa owner can cerrar reporte', function () {
 });
 
 test('anyone can add comment to reporte they can view', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
 
     $response = $this->post(route('reportes.comentar', $reporte), [
         'nota' => 'Comentario de revision.',
@@ -208,46 +204,45 @@ test('investigador cannot rechazar reporte', function () {
     $response->assertForbidden();
 });
 
-test('investigador cannot pagar reporte', function () {
+test('investigador cannot marcar en reparacion su reporte', function () {
     $user = investigador();
     $this->actingAs($user);
 
-    $reporte = reporteDe($user, null, ['estado' => 'pago_pendiente']);
+    $reporte = reporteDe($user, null, ['estado' => 'validado']);
 
-    $response = $this->post(route('reportes.pagar', $reporte), [
-        'recompensa' => 100,
-    ]);
-    $response->assertForbidden();
+    $this->post(route('reportes.reparacion', $reporte))->assertForbidden();
+    expect($reporte->fresh()->estado->value)->toBe('validado');
 });
 
 test('investigador cannot cerrar reporte', function () {
     $user = investigador();
     $this->actingAs($user);
 
-    $reporte = reporteDe($user, null, ['estado' => 'pagado']);
+    $reporte = reporteDe($user, null, ['estado' => 'validado']);
 
     $response = $this->post(route('reportes.cerrar', $reporte));
     $response->assertForbidden();
 });
 
 test('moderador cannot validate reporte already validado', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'validado']);
 
     $this->post(route('reportes.validar', $reporte))->assertSessionHasErrors('estado');
     expect($reporte->fresh()->estado->value)->toBe('validado');
 });
 
-test('un informe validado se puede pagar y cerrar sin errores', function () {
+test('un informe validado se puede reparar y cerrar sin errores', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
     $reporte = reporteDe(investigador(), $programa, ['estado' => 'validado']);
 
-    $this->post(route('reportes.pagar', $reporte), ['recompensa' => 500])->assertRedirect()->assertSessionHasNoErrors();
-    expect($reporte->fresh()->estado->value)->toBe('pagado');
+    $this->post(route('reportes.reparacion', $reporte))->assertRedirect()->assertSessionHasNoErrors();
+    expect($reporte->fresh()->estado->value)->toBe('en_reparacion');
 
     $this->post(route('reportes.cerrar', $reporte))->assertRedirect()->assertSessionHasNoErrors();
     expect($reporte->fresh()->estado->value)->toBe('cerrado');
@@ -264,8 +259,9 @@ test('un informe validado se puede cerrar directamente', function () {
 });
 
 test('la pagina solo ofrece las acciones validas para el estado actual', function (string $estado, array $esperadas) {
-    $this->actingAs(moderador());
-    $reporte = reporteDe(investigador(), null, ['estado' => $estado]);
+    $programaModerado = Programa::factory()->create();
+    $this->actingAs(moderadorDe($programaModerado));
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => $estado]);
 
     $acciones = $this->get(route('reportes.show', $reporte))->inertiaProps()['accionesDisponibles'];
 
@@ -273,14 +269,14 @@ test('la pagina solo ofrece las acciones validas para el estado actual', functio
         expect($acciones[$accion])->toBe($disponible, "{$estado}: {$accion}");
     }
 })->with([
-    'enviado' => ['enviado', ['revisar' => true, 'validar' => true, 'rechazar' => true, 'pagar' => false, 'cerrar' => false]],
-    'en_revision' => ['en_revision', ['revisar' => false, 'validar' => true, 'rechazar' => true, 'pagar' => false, 'cerrar' => false]],
-    // El moderador solo decide si el informe es válido, duplicado o no válido: no paga ni cierra.
-    'validado' => ['validado', ['revisar' => false, 'validar' => false, 'rechazar' => true, 'pagar' => false, 'cerrar' => false]],
-    'pagado' => ['pagado', ['validar' => false, 'rechazar' => false, 'pagar' => false, 'cerrar' => false]],
+    'enviado' => ['enviado', ['revisar' => true, 'validar' => true, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
+    'en_revision' => ['en_revision', ['revisar' => false, 'validar' => true, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
+    // El moderador solo decide si el informe es válido, duplicado o no válido: no repara ni cierra.
+    'validado' => ['validado', ['revisar' => false, 'validar' => false, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
+    'en_reparacion' => ['en_reparacion', ['validar' => false, 'reparacion' => false, 'cerrar' => false]],
 ]);
 
-test('la empresa duena del programa solo puede pagar y cerrar', function () {
+test('la empresa duena del programa solo puede marcar en reparacion y cerrar', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
@@ -294,16 +290,17 @@ test('la empresa duena del programa solo puede pagar y cerrar', function () {
         'rechazar' => false,
         'marcar_duplicado' => false,
         'asignar' => false,
-        'pagar' => true,
+        'reparacion' => true,
         'cerrar' => true,
     ]);
 });
 
-test('el moderador no puede pagar ni cerrar informes', function () {
-    $this->actingAs(moderador());
-    $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
+test('el moderador no puede marcar en reparacion ni cerrar informes', function () {
+    $programaModerado = Programa::factory()->create();
+    $this->actingAs(moderadorDe($programaModerado));
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'validado']);
 
-    $this->post(route('reportes.pagar', $reporte), ['recompensa' => 100])->assertForbidden();
+    $this->post(route('reportes.reparacion', $reporte))->assertForbidden();
     $this->post(route('reportes.cerrar', $reporte))->assertForbidden();
     expect($reporte->fresh()->estado->value)->toBe('validado');
 });
@@ -326,7 +323,7 @@ test('una empresa ajena no puede cerrar el informe', function () {
     expect($reporte->fresh()->estado->value)->toBe('validado');
 });
 
-test('gestion cannot triaje reportes it cannot access', function (User $usuario) {
+test('un moderador no triaja informes de programas que no modera', function (User $usuario) {
     $this->actingAs($usuario);
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
@@ -335,7 +332,7 @@ test('gestion cannot triaje reportes it cannot access', function (User $usuario)
     $this->post(route('reportes.comentar', $reporte), ['nota' => 'hola'])->assertForbidden();
     $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'enviado']);
 })->with([
-    'gestion' => fn () => gestion(),
+    'moderador de otro programa' => fn () => moderador(),
 ]);
 
 test('admin can triaje reportes de cualquier programa', function () {
@@ -360,10 +357,11 @@ test('empresa member can read but not triaje reportes of its programas', functio
 });
 
 test('show page passes triaje props for moderador', function () {
-    $user = moderador();
+    $programaModerado = Programa::factory()->create();
+    $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
 
     $response = $this->get(route('reportes.show', $reporte));
     $response->assertOk();
@@ -388,9 +386,10 @@ test('show page does not pass triaje for investigador', function () {
 });
 
 test('validar suma al investigador los puntos de reputación del evento reporte_validado', function () {
-    $this->actingAs(moderador());
+    $programaModerado = Programa::factory()->create();
+    $this->actingAs(moderadorDe($programaModerado));
     $investigador = investigador();
-    $reporte = reporteDe($investigador, null, ['estado' => 'enviado']);
+    $reporte = reporteDe($investigador, $programaModerado, ['estado' => 'enviado']);
 
     $this->post(route('reportes.validar', $reporte))->assertRedirect();
 
@@ -402,19 +401,19 @@ test('validar suma al investigador los puntos de reputación del evento reporte_
     ]);
 });
 
-test('pagar suma al investigador los puntos de reputación del evento reporte_pagado', function () {
+test('cerrar un informe suma al investigador los puntos de reputación del evento reporte_resuelto', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
     $investigador = investigador();
     $reporte = reporteDe($investigador, $programa, ['estado' => 'validado']);
 
-    $this->post(route('reportes.pagar', $reporte), ['recompensa' => 500])->assertRedirect();
+    $this->post(route('reportes.cerrar', $reporte))->assertRedirect();
 
-    expect($investigador->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_pagado'));
+    expect($investigador->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_resuelto'));
     $this->assertDatabaseHas('ledger_reputacion', [
         'usuario_id' => $investigador->id,
         'reporte_id' => $reporte->id,
-        'motivo' => 'reporte_pagado',
+        'motivo' => 'reporte_resuelto',
     ]);
 });

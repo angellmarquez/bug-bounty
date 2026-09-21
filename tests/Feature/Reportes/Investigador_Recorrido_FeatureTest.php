@@ -12,7 +12,7 @@ test('un investigador recien registrado ve el programa, reporta y sigue su infor
         'empresa_id' => $empresa->id,
         'estado' => EstadoPrograma::Activo,
         'es_publico' => true,
-        'reputacion_minima' => 0,
+        'nivel_acceso' => 'bajo',
     ]);
 
     $this->post(route('register.store'), [
@@ -82,9 +82,6 @@ test('la empresa puede indicar que bugs busca al crear el programa', function ()
         'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
         'descripcion' => 'Descripcion',
         'bugs_buscados' => 'XSS almacenado',
-        'recompensa_min' => 100,
-        'recompensa_max' => 500,
-        'moneda' => 'USD',
     ])->assertRedirect();
 
     expect(Programa::where('nombre', 'Programa con bugs')->value('bugs_buscados'))->toBe('XSS almacenado');

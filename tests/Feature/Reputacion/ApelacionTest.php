@@ -65,7 +65,7 @@ test('una sanción no admite dos apelaciones pendientes', function () {
 test('resolverApelacion aprobada revoca la sanción y revierte el saldo', function () {
     $investigador = investigador();
     $reporte = reporteDe($investigador);
-    $resolutor = gestion();
+    $resolutor = moderador();
     $servicio = app(ReputationService::class);
 
     $sancion = $servicio->aplicarSancion($investigador, 'fabricacion_evidencia', GravedadSancion::Grave, $reporte);
@@ -82,7 +82,7 @@ test('resolverApelacion aprobada revoca la sanción y revierte el saldo', functi
 
 test('resolverApelacion rechazada mantiene la sanción aplicada', function () {
     $investigador = investigador();
-    $resolutor = gestion();
+    $resolutor = moderador();
     $servicio = app(ReputationService::class);
 
     $sancion = $servicio->aplicarSancion($investigador, 'fabricacion_evidencia', GravedadSancion::Grave);
@@ -98,7 +98,7 @@ test('resolverApelacion rechazada mantiene la sanción aplicada', function () {
 
 test('resolverApelacion rechaza resolver una apelación ya resuelta', function () {
     $investigador = investigador();
-    $resolutor = gestion();
+    $resolutor = moderador();
     $servicio = app(ReputationService::class);
 
     $sancion = $servicio->aplicarSancion($investigador, 'rafaga_reportes', GravedadSancion::Media);
@@ -152,20 +152,20 @@ test('el admin puede resolver una apelación por HTTP y el motivo obligatorio se
     $apelacion = $servicio->crearApelacion($sancion, $investigador, 'No hubo ráfaga.');
 
     $this->actingAs(administrador())
-        ->post(route('admin.apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => ''])
+        ->post(route('apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => ''])
         ->assertSessionHasErrors('nota');
     expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Pendiente);
 
     $this->actingAs(administrador())
-        ->post(route('admin.apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => 'Se acepta.'])
-        ->assertRedirect(route('admin.apelaciones'));
+        ->post(route('apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => 'Se acepta.'])
+        ->assertRedirect(route('apelaciones.index'));
     expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Aprobada)
         ->and($apelacion->fresh()->nota_resolucion)->toBe('Se acepta.');
 
     // Resolverla de nuevo no debe dar un error 500, sino un aviso.
     $this->actingAs(administrador())
-        ->post(route('admin.apelaciones.resolver', $apelacion), ['aprobada' => false, 'nota' => 'Otra vez.'])
-        ->assertRedirect(route('admin.apelaciones'))
+        ->post(route('apelaciones.resolver', $apelacion), ['aprobada' => false, 'nota' => 'Otra vez.'])
+        ->assertRedirect(route('apelaciones.index'))
         ->assertSessionHas('error');
 });
 

@@ -22,7 +22,6 @@ class TransitionReporteRequest extends FormRequest
         return [
             'nota' => ['nullable', 'string', 'max:2000'],
             'reporte_duplicado_id' => ['nullable', 'integer', 'exists:reportes,id'],
-            'recompensa' => ['nullable', 'numeric', 'min:0'],
             'asignado_a' => ['nullable', 'integer', 'exists:users,id'],
             'sancionar' => ['nullable', 'boolean'],
             'gravedad_sancion' => ['nullable', 'string', 'in:leve,media,grave'],
@@ -34,7 +33,6 @@ class TransitionReporteRequest extends FormRequest
         return [
             'nota.max' => 'La nota no puede exceder 2000 caracteres.',
             'reporte_duplicado_id.exists' => 'El reporte duplicado no existe.',
-            'recompensa.min' => 'La recompensa no puede ser negativa.',
             'asignado_a.exists' => 'El usuario seleccionado no existe.',
             'gravedad_sancion.in' => 'La gravedad de la sancion no es valida.',
         ];

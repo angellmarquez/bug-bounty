@@ -123,4 +123,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Vite hot file
+    |--------------------------------------------------------------------------
+    |
+    | Ruta alternativa al archivo "hot". Las pruebas E2E la apuntan a un archivo
+    | inexistente para servir los assets compilados aunque haya un servidor de
+    | desarrollo de Vite abierto (public/hot).
+    |
+    */
+
+    'vite_hot_file' => env('VITE_HOT_FILE'),
+
 ];

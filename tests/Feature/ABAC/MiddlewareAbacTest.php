@@ -28,16 +28,16 @@ test('el middleware abac permite el acceso autorizado', function () {
         ->assertSee('acceso-ok');
 });
 
-test('el middleware abac permite triaje a gestión con reporte sin asignar', function () {
+test('el middleware abac permite triaje al moderador del programa con reporte sin asignar', function () {
     rutaAbac('reportes.validar');
 
-    $ges = gestion();
     $reporte = reporteDe(investigador(), atributos: [
         'estado' => EstadoReporte::EnRevision->value,
         'asignado_a' => null,
     ]);
+    $mod = moderadorDe($reporte);
 
-    $this->actingAs($ges)
+    $this->actingAs($mod)
         ->get("/abac-prueba/{$reporte->id}")
         ->assertOk();
 });

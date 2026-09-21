@@ -35,7 +35,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Apelacion> $apelaciones
  * @property-read Collection<int, EntradaReputacion> $entradas
  */
-#[Fillable(['usuario_id', 'reporte_id', 'motivo', 'gravedad', 'puntos', 'estado', 'suspension_desde', 'suspension_hasta', 'plazo_apelacion', 'metadata'])]
+#[Fillable(['usuario_id', 'reporte_id', 'motivo', 'gravedad', 'puntos', 'estado', 'suspension_desde', 'suspension_hasta', 'plazo_apelacion', 'metadata', 'aplicada_por'])]
 class Sancion extends Model
 {
     /** @use HasFactory<SancionFactory> */
@@ -83,6 +83,16 @@ class Sancion extends Model
     public function reporte(): BelongsTo
     {
         return $this->belongsTo(Reporte::class);
+    }
+
+    /**
+     * Quién aplicó la sanción; null cuando la aplicó el sistema (auditoría automática).
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function aplicadaPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'aplicada_por');
     }
 
     /**

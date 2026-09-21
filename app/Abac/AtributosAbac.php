@@ -3,6 +3,7 @@
 namespace App\Abac;
 
 use App\Models\User;
+use App\Services\Reputacion\Rangos;
 use BackedEnum;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -21,12 +22,12 @@ class AtributosAbac
     /**
      * Atributos del sujeto (usuario autenticado o invitado).
      *
-     * @return array{autenticado: bool, id: int|null, roles: array<int, string>, reputation_score: int}
+     * @return array{autenticado: bool, id: int|null, roles: array<int, string>, reputation_score: int, niveles_acceso: array<int, string>, programas_moderados: array<int, int>, suspendido: bool, empresa_id: int|null, rol_empresa: string|null}
      */
     public function sujeto(?User $usuario): array
     {
         if ($usuario === null) {
-            return ['autenticado' => false, 'id' => null, 'roles' => [], 'reputation_score' => 0];
+            return ['autenticado' => false, 'id' => null, 'roles' => [], 'reputation_score' => 0, 'niveles_acceso' => [], 'programas_moderados' => [], 'suspendido' => false, 'empresa_id' => null, 'rol_empresa' => null];
         }
 
         $roles = [];
@@ -35,11 +36,22 @@ class AtributosAbac
             $roles[] = (string) $rol->slug;
         }
 
+        $puntos = (int) ($usuario->reputation_score ?? 0);
+        $empresa = $usuario->empresaActiva();
+
         return [
             'autenticado' => true,
             'id' => $usuario->id,
             'roles' => $roles,
-            'reputation_score' => (int) ($usuario->reputation_score ?? 0),
+            'reputation_score' => $puntos,
+            // Niveles de programa a los que su rango de reputación le da acceso.
+            'niveles_acceso' => app(Rangos::class)->nivelesAccesibles($puntos),
+            // Un moderador solo actúa sobre los programas que se le asignaron.
+            'programas_moderados' => in_array('moderador', $roles, true) ? $usuario->idsProgramasModerados() : [],
+            'suspendido' => $usuario->suspensionActiva() !== null,
+            // La empresa a la que pertenece (una sola) y su papel en ella: propietario o publicador.
+            'empresa_id' => $empresa?->id,
+            'rol_empresa' => $empresa?->pivot->rol_interno,
         ];
     }
 

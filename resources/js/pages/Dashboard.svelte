@@ -12,16 +12,13 @@
 </script>
 
 <script lang="ts">
-    import { index as reportesIndex, create as reportesCreate } from '@/routes/reportes';
-    import { index as programasIndex, gestion as gestionProgramas } from '@/routes/programas';
+    import { index as reportesIndex } from '@/routes/reportes';
     import { Link, page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
+    import EstadoCuentaCard from '@/components/EstadoCuentaCard.svelte';
+    import type { CuentaEstado } from '@/lib/rangos';
     import { Button } from '@/components/ui/button';
-    import Plus from '@lucide/svelte/icons/plus';
-    import Bug from '@lucide/svelte/icons/bug';
-    import Shield from '@lucide/svelte/icons/shield';
-    import Settings from '@lucide/svelte/icons/settings';
     import Building2 from '@lucide/svelte/icons/building-2';
     import UserCog from '@lucide/svelte/icons/user-cog';
     import {
@@ -32,6 +29,7 @@
         CardTitle,
     } from '@/components/ui/card';
     import EstadoProgreso from '@/components/EstadoProgreso.svelte';
+    import RolesUsuario from '@/components/RolesUsuario.svelte';
     import ReportesTimeline from '@/components/ReportesTimeline.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import type { DashboardRoleStats, DashboardStats } from '@/types/domain';
@@ -93,7 +91,9 @@
     }
 
     const isAdmin = $derived(userRoles.includes('administrador'));
-    const isGestion = $derived(userRoles.includes('gestion'));
+    const cuenta = $derived(page.props.cuenta as CuentaEstado | null | undefined);
+    const esPublicador = $derived(cuenta?.empresa?.rol_interno === 'publicador');
+    const invitacionesPendientes = $derived(cuenta?.invitaciones_pendientes ?? 0);
 
     const greeting = $derived.by(() => {
         const hour = new Date().getHours();
@@ -124,7 +124,7 @@
             },
         ];
 
-        if (isAdmin || isGestion) {
+        if (isAdmin) {
             cards.push({
                 title: 'Programas Activos',
                 value: stats.programas_activos,
@@ -145,15 +145,39 @@
         description="Panel de control de la plataforma de divulgacion coordinada"
     />
 
-    {#if user?.reputation_score !== undefined}
-        <Card>
+    <RolesUsuario />
+
+    <EstadoCuentaCard />
+
+    {#if invitacionesPendientes > 0}
+        <div data-test="tarjeta-invitaciones"><Card class="border-indigo-500/40">
             <CardHeader>
-                <CardDescription>Tu reputacion</CardDescription>
-                <CardTitle class="text-3xl font-bold text-primary">
-                    {user.reputation_score} pts
+                <CardTitle>
+                    Tienes {invitacionesPendientes} invitación{invitacionesPendientes === 1 ? '' : 'es'} a una empresa
                 </CardTitle>
+                <CardDescription>
+                    Una empresa quiere que publiques sus programas. Revisa qué implica antes de aceptar.
+                </CardDescription>
             </CardHeader>
-        </Card>
+            <CardContent>
+                <Button href="/invitaciones">Ver invitaciones</Button>
+            </CardContent>
+        </Card></div>
+    {/if}
+
+    {#if esPublicador && cuenta?.empresa}
+        <div data-test="tarjeta-publicador"><Card class="border-sky-500/40">
+            <CardHeader>
+                <CardTitle>Publicas para {cuenta.empresa.nombre}</CardTitle>
+                <CardDescription>
+                    Puedes crear y gestionar los programas de la empresa. No ves sus informes y no puedes reportar a sus programas.
+                </CardDescription>
+            </CardHeader>
+            <CardContent class="flex flex-wrap gap-3">
+                <Button href="/gestion/programas/crear" data-test="publicar-programa">Publicar un programa</Button>
+                <Button variant="outline" href="/gestion/programas">Programas de mi empresa</Button>
+            </CardContent>
+        </Card></div>
     {/if}
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -204,16 +228,6 @@
                 </Button>
             </CardContent>
         </Card>
-    {:else if isGestion}
-        <Card>
-            <CardHeader>
-                <CardTitle>Vista de Gestion</CardTitle>
-                <CardDescription>
-                    Puedes triar reportes, asignar analistas y gestionar
-                    programas de bug bounty.
-                </CardDescription>
-            </CardHeader>
-        </Card>
     {:else}
         <Card>
             <CardHeader>
@@ -246,7 +260,7 @@
             <CardHeader>
                 <CardTitle>Estado de mis informes por programa</CardTitle>
                 <CardDescription>
-                    El avance de cada informe: enviado, revisión del moderador, validación y pago.
+                    El avance de cada informe: enviado, revisión del moderador, validación, reparación y cierre.
                     Cada decisión del moderador aparece aquí.
                 </CardDescription>
             </CardHeader>
@@ -343,36 +357,4 @@
             </CardContent>
         </Card>
     {/if}
-
-    <div class="space-y-4">
-        <h3 class="text-lg font-medium">Acciones rapidas</h3>
-        <div class="flex flex-wrap gap-4">
-            <Button asChild>
-                {#snippet children(props)}
-                    <Link href={reportesCreate()} {...props}>
-                        <Plus class="mr-2 h-4 w-4" />
-                        Crear Reporte
-                    </Link>
-                {/snippet}
-            </Button>
-            <Button asChild variant="outline">
-                {#snippet children(props)}
-                    <Link href={programasIndex()} {...props}>
-                        <Shield class="mr-2 h-4 w-4" />
-                        Ver Programas
-                    </Link>
-                {/snippet}
-            </Button>
-            {#if isGestion || isAdmin}
-                <Button asChild variant="outline">
-                    {#snippet children(props)}
-                        <Link href={gestionProgramas()} {...props}>
-                            <Settings class="mr-2 h-4 w-4" />
-                            Gestionar Programas
-                        </Link>
-                    {/snippet}
-                </Button>
-            {/if}
-        </div>
-    </div>
 </div>

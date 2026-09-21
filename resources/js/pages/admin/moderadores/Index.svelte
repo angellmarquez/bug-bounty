@@ -1,7 +1,7 @@
 <script module lang="ts">
     export const layout = {
         breadcrumbs: [
-            { title: 'Admin', href: '/admin' },
+            { title: 'Admin' },
             { title: 'Moderadores', href: '/admin/moderadores' },
         ],
     };
@@ -43,6 +43,14 @@
         router.post(`/admin/programas/${programaId}/moderadores/${userId}`, {}, { preserveState: true });
     }
 
+    function quitarDePrograma(userId: number, programaId: number) {
+        router.delete(`/admin/programas/${programaId}/moderadores/${userId}`, { preserveState: true });
+    }
+
+    function programasDe(userId: number) {
+        return programas.filter((programa) => programa.moderadores.some((moderador) => moderador.id === userId));
+    }
+
     function estaAsignado(programa: { moderadores: { id: number }[] }, userId: number): boolean {
         return programa.moderadores.some((moderador) => moderador.id === userId);
     }
@@ -82,6 +90,22 @@
                         <div class="flex items-center justify-between gap-3">
                             <div><p class="text-sm font-medium">{moderador.name}</p><p class="text-xs text-muted-foreground">{moderador.email}</p></div>
                             <Button size="sm" variant="destructive" onclick={() => revocar(moderador.id)}>Revocar</Button>
+                        </div>
+                        <div class="space-y-1" data-test="programas-moderados">
+                            <p class="text-xs font-medium text-muted-foreground">Programas que modera</p>
+                            {#each programasDe(moderador.id) as programa (programa.id)}
+                                <div class="flex items-center justify-between gap-2 rounded-md bg-muted px-2 py-1 text-sm">
+                                    <span class="truncate">{programa.nombre}</span>
+                                    <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" aria-label="Quitar {programa.nombre}" onclick={() => quitarDePrograma(moderador.id, programa.id)}>
+                                        Quitar
+                                    </Button>
+                                </div>
+                            {:else}
+                                <p class="text-xs text-muted-foreground">
+                                    Ninguno todavía: no ve ningún informe hasta que le asignes un programa. Como moderador de un programa no
+                                    podrá enviar informes a él.
+                                </p>
+                            {/each}
                         </div>
                         <div class="flex gap-2">
                             <select class="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm" bind:value={programaSeleccionado[moderador.id]}>

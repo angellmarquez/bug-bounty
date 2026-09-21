@@ -21,8 +21,10 @@
     import Settings from '@lucide/svelte/icons/settings';
     import Edit from '@lucide/svelte/icons/edit';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
+    import NivelAccesoBadge from '@/components/NivelAccesoBadge.svelte';
     import { Badge } from '@/components/ui/badge';
     import { Button } from '@/components/ui/button';
     import {
@@ -37,6 +39,9 @@
     import InformesDelPrograma from '@/components/InformesDelPrograma.svelte';
     import type { Programa, ObjetivoPrograma, ReporteCompacto } from '@/types/domain';
 
+    // Una suspensión vigente oculta el botón de reportar: se explica el motivo.
+    const suspension = $derived((page.props.cuenta as { suspension: unknown } | null | undefined)?.suspension ?? null);
+
     let {
         programa,
         puedeReportar,
@@ -46,6 +51,8 @@
         puedeEliminar = false,
         transicionesPermitidas = [],
         puedeModerar = false,
+        moderaEstePrograma = false,
+        esDeMiEmpresa = false,
         filtroInformes = 'por_revisar',
         conteosInformes = null,
         informes = [],
@@ -63,6 +70,8 @@
         puedeEliminar?: boolean;
         transicionesPermitidas?: string[];
         puedeModerar?: boolean;
+        moderaEstePrograma?: boolean;
+        esDeMiEmpresa?: boolean;
         filtroInformes?: 'por_revisar' | 'en_revision' | 'aprobados' | 'rechazados' | 'todos';
         conteosInformes?: Record<'por_revisar' | 'en_revision' | 'aprobados' | 'rechazados' | 'todos', number> | null;
         informes?: ReporteCompacto[];
@@ -112,6 +121,15 @@
         return labels[type] ?? type;
     }
 
+    // Cada rol llega al programa desde un sitio distinto: "volver" respeta ese origen.
+    const destinoVolver = $derived(
+        puedeModerar
+            ? { href: '/moderacion', etiqueta: 'Volver a moderación' }
+            : puedeEditar
+              ? { href: '/empresa', etiqueta: 'Volver al panel de empresa' }
+              : { href: programasIndex(), etiqueta: 'Volver a programas' },
+    );
+
     const urlReportar = $derived(`/reportes/crear?programa=${programa.id}`);
     const enPausa = $derived(programa.estado === 'en_pausa');
 </script>
@@ -127,6 +145,7 @@
 
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex flex-wrap items-center gap-3">
+            <BotonVolver href={destinoVolver.href} etiqueta={destinoVolver.etiqueta} />
             <PageHeader
                 title={programa.nombre}
                 description={programa.empresa ? `Programa de ${programa.empresa.nombre}` : undefined}
@@ -266,6 +285,35 @@
                         </Button>
                     </CardContent>
                 </Card>
+            {:else if suspension}
+                <Card class="border-rose-500/40">
+                    <CardHeader>
+                        <CardTitle>Tu cuenta está suspendida</CardTitle>
+                        <CardDescription>
+                            No puedes enviar informes nuevos hasta que termine la suspensión. Puedes apelarla desde Mi reputación.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            {:else if moderaEstePrograma}
+                <Card class="border-violet-500/40">
+                    <CardHeader>
+                        <CardTitle>Moderas este programa</CardTitle>
+                        <CardDescription>
+                            Como moderador ves los informes de los demás investigadores, así que no puedes enviar los tuyos a este
+                            programa: sería un conflicto de interés. En los demás programas puedes reportar con normalidad.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            {:else if esDeMiEmpresa}
+                <div data-test="aviso-mi-empresa"><Card class="border-sky-500/40">
+                    <CardHeader>
+                        <CardTitle>Este programa es de tu empresa</CardTitle>
+                        <CardDescription>
+                            Como miembro no puedes enviarle informes: sería un conflicto de interés. Sigues viendo el estado de los que ya
+                            presentaste antes de unirte y puedes reportar a los programas de otras empresas.
+                        </CardDescription>
+                    </CardHeader>
+                </Card></div>
             {:else if enPausa && !puedeGestionar}
                 <Card>
                     <CardContent class="pt-6 text-sm text-muted-foreground">
@@ -287,13 +335,8 @@
                     <Separator />
 
                     <div class="flex items-center justify-between">
-                        <span class="text-sm text-muted-foreground">Recompensa</span>
-                        <span class="text-sm font-semibold text-primary">
-                            {new Intl.NumberFormat('es-ES').format(programa.recompensa_min)}
-                            {' - '}
-                            {new Intl.NumberFormat('es-ES').format(programa.recompensa_max)}
-                            {' '}{programa.moneda}
-                        </span>
+                        <span class="text-sm text-muted-foreground">Nivel de acceso</span>
+                        <NivelAccesoBadge nivel={programa.nivel_acceso} />
                     </div>
 
                     <div class="flex items-center justify-between">
@@ -305,13 +348,6 @@
                         <span class="text-sm text-muted-foreground">PoC requerido</span>
                         <span class="text-sm">{programa.requiere_poc ? 'Si' : 'No'}</span>
                     </div>
-
-                    {#if programa.reputacion_minima > 0}
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">Reputación mínima</span>
-                            <span class="text-sm">{programa.reputacion_minima}</span>
-                        </div>
-                    {/if}
 
                     <Separator />
 

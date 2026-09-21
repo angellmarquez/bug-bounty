@@ -11,12 +11,9 @@ function datosDeEdicion(array $extra = []): array
     return [
         'nombre' => 'Programa editado',
         'descripcion' => 'Descripcion editada',
-        'recompensa_min' => 100,
-        'recompensa_max' => 900,
-        'moneda' => 'USD',
         'requiere_poc' => '1',
         'es_publico' => '1',
-        'reputacion_minima' => 0,
+        'nivel_acceso' => 'bajo',
         ...$extra,
     ];
 }
@@ -40,9 +37,8 @@ test('solo la empresa duena puede editar el programa', function (string $rol, bo
         'empresa duena' => miembroDeEmpresa($empresa),
         'otra empresa' => miembroDeEmpresa(Empresa::factory()->aprobada()->create()),
         'administrador' => administrador(),
-        'moderador' => moderador(),
+        'moderador' => moderadorDe($programa),
         'investigador' => investigador(),
-        'gestion' => gestion(),
     };
     $this->actingAs($usuario);
 
@@ -64,7 +60,6 @@ test('solo la empresa duena puede editar el programa', function (string $rol, bo
     'administrador' => ['administrador', false],
     'moderador' => ['moderador', false],
     'investigador' => ['investigador', false],
-    'gestion ajena' => ['gestion', false],
 ]);
 
 test('la pagina del programa solo ofrece editar a la empresa duena', function (string $rol, bool $puedeEditar) {
@@ -74,7 +69,7 @@ test('la pagina del programa solo ofrece editar a la empresa duena', function (s
     $usuario = match ($rol) {
         'empresa duena' => miembroDeEmpresa($empresa),
         'administrador' => administrador(),
-        'moderador' => moderador(),
+        'moderador' => moderadorDe($programa),
     };
 
     $this->actingAs($usuario)->get(route('programas.show', $programa))
@@ -92,16 +87,6 @@ test('el administrador puede publicar y archivar pero no editar el programa', fu
     $this->post(route('programas.cambiar-estado', $programa), ['estado' => 'activo'])->assertSessionHasNoErrors();
     expect($programa->fresh()->estado)->toBe(EstadoPrograma::Activo);
     $this->put(route('programas.update', $programa), datosDeEdicion())->assertForbidden();
-});
-
-test('gestion sigue editando los programas heredados sin empresa que creo', function () {
-    $gestion = gestion();
-    $propio = programaDe($gestion, ['empresa_id' => null]);
-    $ajeno = programaDe(gestion(), ['empresa_id' => null]);
-    $this->actingAs($gestion);
-
-    $this->put(route('programas.update', $propio), datosDeEdicion())->assertRedirect();
-    $this->put(route('programas.update', $ajeno), datosDeEdicion())->assertForbidden();
 });
 
 test('editar un programa conserva sus informes', function () {

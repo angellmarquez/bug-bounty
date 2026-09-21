@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Abac\AccionesAbac;
 use App\Enums\EstadoEmpresa;
 use App\Mail\EmpresaEstadoMail;
-use App\Models\Apelacion;
 use App\Models\Auditoria;
 use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
@@ -13,6 +12,8 @@ use App\Models\Programa;
 use App\Models\Rol;
 use App\Models\Sancion;
 use App\Models\User;
+use App\Services\Empresas\MembresiaEmpresa;
+use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
 use Illuminate\Http\RedirectResponse;
@@ -70,6 +71,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.aprobada');
+        app(Notificador::class)->empresaDecidida($empresa, 'aprobada');
         if (config('mail.enabled')) {
             Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
         }
@@ -93,6 +95,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.rechazada');
+        app(Notificador::class)->empresaDecidida($empresa, 'rechazada');
         if (config('mail.enabled')) {
             Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'rechazada'));
         }
@@ -114,6 +117,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.suspendida');
+        app(Notificador::class)->empresaDecidida($empresa, 'suspendida');
         if (config('mail.enabled')) {
             Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'suspendida'));
         }
@@ -133,6 +137,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.reactivada');
+        app(Notificador::class)->empresaDecidida($empresa, 'aprobada');
         if (config('mail.enabled')) {
             Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
         }
@@ -167,6 +172,7 @@ class AdminController extends Controller
         $usuariosDisponibles = User::query()
             ->whereHas('roles', fn ($query) => $query->where('slug', 'investigador'))
             ->whereDoesntHave('roles', fn ($query) => $query->whereIn('slug', ['administrador', 'moderador']))
+            ->whereDoesntHave('empresas', fn ($query) => $query->where('empresa_usuario.estado', 'activo'))
             ->with('roles')
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
@@ -194,6 +200,11 @@ class AdminController extends Controller
 
         abort_if($user->roles()->where('slug', 'administrador')->exists(), 422, 'Un administrador no puede asignarse como moderador.');
 
+        if (app(MembresiaEmpresa::class)->pertenece($user)) {
+            return redirect()->route('admin.moderadores')
+                ->with('error', "{$user->name} forma parte de una empresa: un moderador no puede pertenecer a una empresa (conflicto de interés).");
+        }
+
         $rol = Rol::firstOrCreate(
             ['slug' => 'moderador'],
             [
@@ -204,6 +215,7 @@ class AdminController extends Controller
         $user->roles()->syncWithoutDetaching([$rol->id]);
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.asignado');
+        app(Notificador::class)->moderadorRol($user, true);
 
         return redirect()->route('admin.moderadores')->with('success', 'Moderador asignado correctamente.');
     }
@@ -217,8 +229,11 @@ class AdminController extends Controller
             return redirect()->route('admin.moderadores');
         }
         $user->roles()->detach($rol->id);
+        // Sin el rol no tiene sentido conservar los programas asignados.
+        $user->programasModerados()->detach();
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.revocado');
+        app(Notificador::class)->moderadorRol($user, false);
 
         return redirect()->route('admin.moderadores')->with('success', 'Rol de moderador revocado.');
     }
@@ -228,11 +243,18 @@ class AdminController extends Controller
         Gate::authorize('abac', [AccionesAbac::ModeradorAsignar]);
         abort_unless($user->roles()->where('slug', 'moderador')->exists(), 422, 'El usuario no tiene rol de moderador.');
 
+        // Quien ya reportó en un programa no puede moderarlo: revisaría (o vería) informes con conflicto de interés.
+        if ($programa->reportes()->where('investigador_id', $user->id)->exists()) {
+            return redirect()->route('admin.moderadores')
+                ->with('error', "{$user->name} ya presentó informes en {$programa->nombre}: no puede moderarlo.");
+        }
+
         $programa->moderadores()->syncWithoutDetaching([
             $user->id => ['asignado_por' => $request->user()->id],
         ]);
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.programa.asignado');
+        app(Notificador::class)->moderadorPrograma($user, $programa, true);
 
         return redirect()->route('admin.moderadores')->with('success', 'Moderador asignado al programa.');
     }
@@ -243,6 +265,7 @@ class AdminController extends Controller
         $programa->moderadores()->detach($user->id);
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.programa.revocado');
+        app(Notificador::class)->moderadorPrograma($user, $programa, false);
 
         return redirect()->route('admin.moderadores')->with('success', 'Moderador retirado del programa.');
     }
@@ -301,6 +324,11 @@ class AdminController extends Controller
 
         $rol = Rol::where('slug', $request->input('rol'))->first();
         abort_if($rol === null, 422, 'Rol no encontrado.');
+
+        if ($rol->slug === 'moderador' && app(MembresiaEmpresa::class)->pertenece($user)) {
+            return redirect()->route('admin.usuarios')
+                ->with('error', "{$user->name} forma parte de una empresa: un moderador no puede pertenecer a una empresa (conflicto de interés).");
+        }
 
         // Cambiar el rol reemplaza al anterior: sin estas guardas un administrador podía
         // quitarse su propio rol de administrador (y dejar la plataforma sin ninguno).
@@ -381,50 +409,6 @@ class AdminController extends Controller
     // Apelaciones
     // ------------------------------------------------------------------
 
-    public function apelaciones(Request $request): InertiaResponse
-    {
-        Gate::authorize('abac', [AccionesAbac::ApelacionResolver]);
-
-        $query = Apelacion::query()->with(['sancion.usuario', 'usuario', 'resueltaPor']);
-
-        if ($request->filled('estado')) {
-            $query->where('estado', $request->input('estado'));
-        }
-
-        $apelaciones = $query->latest()->paginate(15)->withQueryString();
-
-        return Inertia::render('admin/apelaciones/Index', [
-            'apelaciones' => $apelaciones,
-            'filtros' => $request->only(['estado']),
-        ]);
-    }
-
-    public function resolverApelacion(Apelacion $apelacion, Request $request, ReputationService $reputacion): RedirectResponse
-    {
-        Gate::authorize('abac', [AccionesAbac::ApelacionResolver]);
-
-        $validated = $request->validate([
-            'aprobada' => ['required', 'boolean'],
-            'nota' => ['required', 'string', 'max:2000'],
-        ]);
-
-        try {
-            $reputacion->resolverApelacion(
-                $apelacion,
-                $validated['aprobada'],
-                $request->user(),
-                $validated['nota'],
-            );
-        } catch (InvalidArgumentException $e) {
-            return redirect()->route('admin.apelaciones')->with('error', $e->getMessage());
-        }
-
-        $texto = $validated['aprobada'] ? 'aprobada' : 'rechazada';
-
-        return redirect()->route('admin.apelaciones')
-            ->with('success', "Apelacion {$texto}. {$apelacion->sancion->usuario->name}.");
-    }
-
     // ------------------------------------------------------------------
     // Auditoria
     // ------------------------------------------------------------------
@@ -481,7 +465,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'puntos_inicial' => ['required', 'integer', 'min:0'],
             'puntos.reporte_validado' => ['required', 'integer', 'min:0'],
-            'puntos.reporte_pagado' => ['required', 'integer', 'min:0'],
+            'puntos.reporte_resuelto' => ['required', 'integer', 'min:0'],
             'puntos.calidad_documentacion' => ['required', 'integer', 'min:0'],
             'puntos.participacion' => ['required', 'integer', 'min:0'],
             'penalizacion.leve' => ['required', 'integer'],
@@ -521,28 +505,5 @@ class AdminController extends Controller
             'driver' => $pgpService->driverName(),
             'available' => $pgpService->available(),
         ]);
-    }
-
-    public function pgpSetup(Request $request, PgpService $pgpService): RedirectResponse
-    {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
-
-        try {
-            $clave = $pgpService->generatePlatformKeyPair();
-
-            Auditoria::query()->create([
-                'usuario_id' => $request->user()->id,
-                'accion' => 'admin.pgp.clave_generada',
-                'entidad_type' => 'clave_pgp_plataforma',
-                'entidad_id' => $clave->id,
-                'detalle' => ['huella' => $clave->huella],
-            ]);
-
-            return redirect()->route('admin.pgp')
-                ->with('success', "Par de claves PGP generado. Huella: {$clave->huella}");
-        } catch (\Throwable $e) {
-            return redirect()->route('admin.pgp')
-                ->withErrors(['pgp' => 'Error generando claves: '.$e->getMessage()]);
-        }
     }
 }

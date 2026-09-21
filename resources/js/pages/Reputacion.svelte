@@ -10,13 +10,14 @@
 </script>
 
 <script lang="ts">
-    import { Link, router } from '@inertiajs/svelte';
+    import { Link, page, router } from '@inertiajs/svelte';
     import Award from '@lucide/svelte/icons/award';
     import History from '@lucide/svelte/icons/history';
     import AppHead from '@/components/AppHead.svelte';
     import ApelacionesList from '@/components/ApelacionesList.svelte';
     import EmptyState from '@/components/EmptyState.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
+    import RangoBadge from '@/components/RangoBadge.svelte';
     import ReputacionChart from '@/components/ReputacionChart.svelte';
     import SancionesList from '@/components/SancionesList.svelte';
     import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@
         DialogTitle,
     } from '@/components/ui/dialog';
     import { Label } from '@/components/ui/label';
+    import type { CuentaEstado } from '@/lib/rangos';
     import type { Apelacion, EntradaReputacion, Sancion } from '@/types/domain';
 
     type Paginado<T> = {
@@ -57,6 +59,8 @@
         apelaciones?: Paginado<Apelacion>;
     } = $props();
 
+    const cuenta = $derived(page.props.cuenta as CuentaEstado | null | undefined);
+
     const PESTANAS = [
         { id: 'resumen', label: 'Resumen', href: '/reputacion' },
         { id: 'sanciones', label: 'Sanciones', href: '/reputacion/sanciones' },
@@ -65,7 +69,9 @@
 
     const MOTIVOS: Record<string, string> = {
         reporte_validado: 'Reporte validado',
-        reporte_pagado: 'Reporte pagado',
+        reporte_resuelto: 'Informe resuelto',
+        // Movimientos antiguos, de cuando la plataforma todavía registraba pagos.
+        reporte_pagado: 'Informe pagado (histórico)',
         calidad_documentacion: 'Calidad de la documentación',
         participacion: 'Participación',
     };
@@ -153,9 +159,29 @@
                 <CardHeader class="pb-2">
                     <CardDescription>Saldo actual</CardDescription>
                     <CardTitle class="text-4xl font-bold">{saldo} <span class="text-base font-normal text-muted-foreground">pts</span></CardTitle>
+                    <div class="pt-1"><RangoBadge puntos={saldo} /></div>
                 </CardHeader>
-                <CardContent class="text-sm text-muted-foreground">
-                    Los reportes válidos suman puntos; las sanciones los restan.
+                <CardContent class="space-y-2 text-sm text-muted-foreground">
+                    {#if cuenta?.rango}
+                        <div
+                            class="h-2 overflow-hidden rounded-full bg-muted"
+                            role="progressbar"
+                            aria-valuenow={cuenta.rango.progreso}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label="Avance hacia el siguiente rango"
+                        >
+                            <div class="h-full rounded-full bg-primary" style="width: {cuenta.rango.progreso}%"></div>
+                        </div>
+                        <p class="text-xs">
+                            {#if cuenta.rango.siguiente}
+                                Te faltan {cuenta.rango.faltan} pts para {cuenta.rango.siguiente.nombre}.
+                            {:else}
+                                Rango más alto alcanzado.
+                            {/if}
+                        </p>
+                    {/if}
+                    <p>Los reportes válidos suman puntos; las sanciones los restan.</p>
                 </CardContent>
             </Card>
 
@@ -180,7 +206,7 @@
             <EmptyState
                 icon={History}
                 title="Todavía no tienes movimientos"
-                description="Cuando un reporte tuyo sea validado o pagado, verás aquí los puntos ganados."
+                description="Cuando un reporte tuyo sea validado o resuelto, verás aquí los puntos ganados."
             />
         {:else}
             <div class="flex flex-col gap-2">
@@ -239,7 +265,7 @@
             <div>
                 <DialogTitle>Apelar sanción</DialogTitle>
                 <DialogDescription>
-                    Explica por qué consideras que la sanción no corresponde. Un administrador revisará tu caso.
+                    Explica por qué consideras que la sanción no corresponde. Otro moderador o el administrador revisará tu caso (nunca quien la aplicó) y podrás seguirlo en Apelaciones.
                 </DialogDescription>
             </div>
 

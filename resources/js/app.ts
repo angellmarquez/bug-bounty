@@ -13,6 +13,9 @@ void createInertiaApp({
         switch (true) {
             case name === 'Welcome':
                 return null;
+            // La página de error elige su propio diseño: con menú si hay sesión, a pantalla completa si no.
+            case name === 'Error':
+                return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

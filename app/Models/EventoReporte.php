@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Enums\TipoEventoReporte;
+use App\Observers\EventoReporteObserver;
 use Database\Factories\EventoReporteFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $actor
  */
 #[Fillable(['reporte_id', 'actor_id', 'tipo', 'nota', 'datos'])]
+#[ObservedBy(EventoReporteObserver::class)]
 class EventoReporte extends Model
 {
     /** @use HasFactory<EventoReporteFactory> */

@@ -6,8 +6,6 @@ export const EstadoReporte = {
     FueraDeAlcance: 'fuera_de_alcance',
     Validado: 'validado',
     EnReparacion: 'en_reparacion',
-    PagoPendiente: 'pago_pendiente',
-    Pagado: 'pagado',
     Rechazado: 'rechazado',
     Cerrado: 'cerrado',
 } as const;
@@ -45,7 +43,6 @@ export const TipoEventoReporte = {
     CambioDeEstado: 'cambio_estado',
     Comentario: 'comentario',
     MarcadoDuplicado: 'marcado_duplicado',
-    Pago: 'pago',
     Sancion: 'sancion',
     Asignacion: 'asignacion',
 } as const;
@@ -86,7 +83,8 @@ export type EstadoClavePgp =
 
 export const RolSlug = {
     Administrador: 'administrador',
-    Gestion: 'gestion',
+    Moderador: 'moderador',
+    Empresa: 'empresa',
     Investigador: 'investigador',
 } as const;
 export type RolSlug = (typeof RolSlug)[keyof typeof RolSlug];

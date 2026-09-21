@@ -11,8 +11,6 @@ enum EstadoReporte: string
     case FueraDeAlcance = 'fuera_de_alcance';
     case Validado = 'validado';
     case EnReparacion = 'en_reparacion';
-    case PagoPendiente = 'pago_pendiente';
-    case Pagado = 'pagado';
     case Rechazado = 'rechazado';
     case Cerrado = 'cerrado';
 }

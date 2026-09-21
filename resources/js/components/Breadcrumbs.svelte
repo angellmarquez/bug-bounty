@@ -19,10 +19,12 @@
 
 <Breadcrumb>
     <BreadcrumbList>
-        {#each breadcrumbs as item, index (item.href)}
+        {#each breadcrumbs as item, index (index)}
             <BreadcrumbItem>
                 {#if index === breadcrumbs.length - 1}
                     <BreadcrumbPage>{item.title}</BreadcrumbPage>
+                {:else if item.href === undefined}
+                    <span class="text-muted-foreground">{item.title}</span>
                 {:else}
                     <BreadcrumbLink asChild>
                         {#snippet children(props)}

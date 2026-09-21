@@ -33,16 +33,14 @@ test('investigador can see public active programs', function () {
     $this->assertCount(1, $props['programas']['data']);
 });
 
-test('gestion can create a program', function () {
-    $user = gestion();
+test('una empresa aprobada puede crear un programa', function () {
+    $user = propietarioDeEmpresa();
     $this->actingAs($user);
 
     $response = $this->post(route('programas.store'), [
         'nombre' => 'New Program',
         'descripcion' => 'Program description',
-        'recompensa_min' => 100,
-        'recompensa_max' => 1000,
-        'moneda' => 'USD',
+        'objetivos' => [['tipo' => 'web', 'valor' => 'app.ejemplo.test']],
     ]);
 
     $response->assertRedirect();
@@ -56,45 +54,36 @@ test('investigador cannot create a program', function () {
     $response = $this->post(route('programas.store'), [
         'nombre' => 'Test Program',
         'descripcion' => 'Test description',
-        'recompensa_min' => 50,
-        'recompensa_max' => 500,
-        'moneda' => 'USD',
     ]);
 
     $response->assertForbidden();
 });
 
-test('gestion can update own program', function () {
-    $user = gestion();
+test('la empresa puede editar su propio programa', function () {
+    $user = propietarioDeEmpresa();
     $this->actingAs($user);
 
-    $programa = programaDe($user);
+    $programa = programaDeEmpresa($user);
 
     $response = $this->put(route('programas.update', $programa), [
         'nombre' => 'Updated Name',
         'descripcion' => 'Updated description',
-        'recompensa_min' => 100,
-        'recompensa_max' => 1000,
-        'moneda' => 'USD',
     ]);
 
     $response->assertRedirect();
     $this->assertDatabaseHas('programas', ['id' => $programa->id, 'nombre' => 'Updated Name']);
 });
 
-test('gestion cannot update another gestion program', function () {
-    $user = gestion();
+test('una empresa no puede editar el programa de otra empresa', function () {
+    $user = propietarioDeEmpresa();
     $this->actingAs($user);
 
-    $otro = gestion();
-    $programa = programaDe($otro);
+    $otro = propietarioDeEmpresa();
+    $programa = programaDeEmpresa($otro);
 
     $response = $this->put(route('programas.update', $programa), [
         'nombre' => 'Hacked Name',
         'descripcion' => 'Hacked',
-        'recompensa_min' => 0,
-        'recompensa_max' => 1,
-        'moneda' => 'USD',
     ]);
 
     $response->assertForbidden();
@@ -104,29 +93,29 @@ test('admin can delete a program', function () {
     $user = administrador();
     $this->actingAs($user);
 
-    $programa = programaDe(gestion());
+    $programa = programaDeEmpresa(propietarioDeEmpresa());
 
     $response = $this->delete(route('programas.destroy', $programa));
     $response->assertRedirect();
     $this->assertSoftDeleted('programas', ['id' => $programa->id]);
 });
 
-test('gestion cannot delete a program', function () {
-    $user = gestion();
+test('un moderador no puede borrar un programa', function () {
+    $user = moderador();
     $this->actingAs($user);
 
-    $programa = programaDe($user);
+    $programa = programaDeEmpresa(propietarioDeEmpresa());
 
     $response = $this->delete(route('programas.destroy', $programa));
     $response->assertForbidden();
 });
 
-test('gestion sees only own programs in gestion index', function () {
-    $user = gestion();
+test('la empresa solo ve sus propios programas en la gestion de programas', function () {
+    $user = propietarioDeEmpresa();
     $this->actingAs($user);
 
-    $propio = programaDe($user);
-    $ajeno = programaDe(gestion());
+    $propio = programaDeEmpresa($user);
+    $ajeno = programaDeEmpresa(propietarioDeEmpresa());
 
     $response = $this->get(route('programas.gestion'));
     $response->assertOk();
@@ -138,15 +127,13 @@ test('gestion sees only own programs in gestion index', function () {
 });
 
 test('slug is auto-generated from name', function () {
-    $user = gestion();
+    $user = propietarioDeEmpresa();
     $this->actingAs($user);
 
     $response = $this->post(route('programas.store'), [
         'nombre' => 'Mi Programa de Prueba',
         'descripcion' => 'Description',
-        'recompensa_min' => 50,
-        'recompensa_max' => 500,
-        'moneda' => 'USD',
+        'objetivos' => [['tipo' => 'web', 'valor' => 'app.ejemplo.test']],
     ]);
 
     $response->assertRedirect();
@@ -154,13 +141,11 @@ test('slug is auto-generated from name', function () {
 });
 
 test('programas con el mismo nombre reciben un slug distinto en lugar de fallar con error 500', function () {
-    $this->actingAs(gestion());
+    $this->actingAs(propietarioDeEmpresa());
     $datos = [
         'nombre' => 'Programa Repetido',
         'descripcion' => 'Description',
-        'recompensa_min' => 50,
-        'recompensa_max' => 500,
-        'moneda' => 'USD',
+        'objetivos' => [['tipo' => 'web', 'valor' => 'app.ejemplo.test']],
     ];
 
     $this->post(route('programas.store'), $datos)->assertRedirect();

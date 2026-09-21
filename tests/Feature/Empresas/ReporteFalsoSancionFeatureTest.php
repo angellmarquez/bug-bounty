@@ -6,7 +6,7 @@ use App\Models\Sancion;
 test('moderator can reject a false report and apply a proportional sanction', function () {
     $moderador = investigador();
     $moderador->roles()->syncWithoutDetaching([rol('moderador')->id]);
-    $programa = programaDe(gestion());
+    $programa = programaDe(administrador());
     $programa->moderadores()->attach($moderador);
     $investigador = investigador();
     $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado']);
@@ -27,7 +27,7 @@ test('moderator can reject a false report and apply a proportional sanction', fu
 test('rejecting a report without false flag does not sanction researcher', function () {
     $moderador = investigador();
     $moderador->roles()->syncWithoutDetaching([rol('moderador')->id]);
-    $programa = programaDe(gestion());
+    $programa = programaDe(administrador());
     $programa->moderadores()->attach($moderador);
     $investigador = investigador();
     $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado']);

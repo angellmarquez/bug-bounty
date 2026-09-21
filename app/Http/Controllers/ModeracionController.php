@@ -22,9 +22,14 @@ class ModeracionController extends Controller
         Gate::authorize('abac', [AccionesAbac::ModeracionVer]);
 
         $usuario = $request->user();
-        $recibidos = fn () => Reporte::query()->where('estado', '!=', 'borrador');
+        // Un moderador solo ve los programas que se le asignaron; el administrador, todos.
+        $alcance = $usuario->tieneRol('administrador') ? null : $usuario->idsProgramasModerados();
+        $recibidos = fn () => Reporte::query()
+            ->where('estado', '!=', 'borrador')
+            ->when($alcance !== null, fn ($query) => $query->whereIn('programa_id', $alcance));
 
         $programas = Programa::query()
+            ->when($alcance !== null, fn ($query) => $query->whereIn('id', $alcance))
             ->with('empresa:id,razon_social,nombre_comercial')
             ->withCount([
                 'reportes as reportes_total' => fn ($query) => $query->where('estado', '!=', 'borrador'),
@@ -102,6 +107,7 @@ class ModeracionController extends Controller
     public function programa(Request $request, Programa $programa, ColaDeInformes $cola): InertiaResponse
     {
         Gate::authorize('abac', [AccionesAbac::ModeracionVer]);
+        abort_unless($request->user()->puedeModerarPrograma($programa), 403, 'No moderas este programa.');
 
         $filtro = ColaDeInformes::filtro($request->input('filtro'));
 

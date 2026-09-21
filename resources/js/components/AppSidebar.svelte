@@ -1,7 +1,5 @@
 <script lang="ts">
     import { Link, page } from '@inertiajs/svelte';
-    import BookOpen from '@lucide/svelte/icons/book-open';
-    import FolderGit2 from '@lucide/svelte/icons/folder-git-2';
     import LayoutGrid from '@lucide/svelte/icons/layout-grid';
     import Bug from '@lucide/svelte/icons/bug';
     import Shield from '@lucide/svelte/icons/shield';
@@ -10,9 +8,11 @@
     import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
     import Settings from '@lucide/svelte/icons/settings';
     import Users from '@lucide/svelte/icons/users';
+    import MessageSquare from '@lucide/svelte/icons/message-square';
+    import Building2 from '@lucide/svelte/icons/building-2';
+    import Mail from '@lucide/svelte/icons/mail';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
-    import NavFooter from '@/components/NavFooter.svelte';
     import NavMain from '@/components/NavMain.svelte';
     import NavUser from '@/components/NavUser.svelte';
     import {
@@ -29,6 +29,7 @@
     import { index as reportesIndex } from '@/routes/reportes';
     import { index as programasIndex, gestion as gestionProgramas } from '@/routes/programas';
     import type { NavItem } from '@/types';
+    import type { CuentaEstado } from '@/lib/rangos';
 
     let {
         children,
@@ -41,10 +42,12 @@
     );
 
     const isAdmin = $derived(userRoles.includes('administrador'));
-    const isGestion = $derived(userRoles.includes('gestion'));
     const isInvestigador = $derived(userRoles.includes('investigador'));
     const isEmpresa = $derived(userRoles.includes('empresa'));
     const isModerador = $derived(userRoles.includes('moderador'));
+    const cuenta = $derived(page.props.cuenta as CuentaEstado | null | undefined);
+    const esPublicador = $derived(cuenta?.empresa?.rol_interno === 'publicador');
+    const invitacionesPendientes = $derived(cuenta?.invitaciones_pendientes ?? 0);
 
     const mainNavItems = $derived.by(() => {
         const items: NavItem[] = [
@@ -61,9 +64,14 @@
                 href: '/moderacion',
                 icon: ClipboardCheck,
             });
+            items.push({
+                title: 'Apelaciones',
+                href: '/moderacion/apelaciones',
+                icon: MessageSquare,
+            });
         }
 
-        if (isInvestigador || isGestion || isAdmin || isEmpresa || isModerador) {
+        if (isInvestigador || isAdmin || isEmpresa || isModerador) {
             items.push({
                 title: isEmpresa
                     ? 'Reportes recibidos'
@@ -75,7 +83,7 @@
             });
         }
 
-        if (isInvestigador || isGestion || isAdmin) {
+        if (isInvestigador || isAdmin) {
             items.push({
                 title: 'Programas',
                 href: programasIndex(),
@@ -84,7 +92,7 @@
         }
 
         /*
-        if (isInvestigador || isGestion || isAdmin) {
+        if (isInvestigador || isAdmin) {
             items.push({
                 title: 'Mis Claves PGP',
                 href: '/claves-pgp',
@@ -99,9 +107,31 @@
                 href: '/reputacion',
                 icon: Award,
             });
+            items.push({
+                title: 'Mis apelaciones',
+                href: '/reputacion/apelaciones',
+                icon: MessageSquare,
+            });
         }
 
-        if (isGestion || isAdmin) {
+        // Un investigador invitado por una empresa publica sus programas desde aquí.
+        if (esPublicador) {
+            items.push({
+                title: 'Mi empresa',
+                href: '/gestion/programas',
+                icon: Building2,
+            });
+        }
+
+        if (invitacionesPendientes > 0) {
+            items.push({
+                title: 'Invitaciones',
+                href: '/invitaciones',
+                icon: Mail,
+            });
+        }
+
+        if (isAdmin) {
             items.push({
                 title: 'Gestión Programas',
                 href: gestionProgramas(),
@@ -147,19 +177,6 @@
 
         return items;
     });
-
-    const footerNavItems: NavItem[] = [
-        {
-            title: 'Repositorio',
-            href: 'https://github.com/laravel/svelte-starter-kit',
-            icon: FolderGit2,
-        },
-        {
-            title: 'Documentacion',
-            href: 'https://laravel.com/docs/starter-kits#svelte',
-            icon: BookOpen,
-        },
-    ];
 </script>
 
 <Sidebar collapsible="icon" variant="inset">
@@ -186,7 +203,6 @@
     </SidebarContent>
 
     <SidebarFooter>
-        <NavFooter items={footerNavItems} />
         <NavUser />
     </SidebarFooter>
 </Sidebar>

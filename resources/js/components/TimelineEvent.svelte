@@ -4,7 +4,6 @@
     import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
     import MessageSquare from '@lucide/svelte/icons/message-square';
     import Copy from '@lucide/svelte/icons/copy';
-    import DollarSign from '@lucide/svelte/icons/dollar-sign';
     import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
     import UserPlus from '@lucide/svelte/icons/user-plus';
     import type { EventoReporte } from '@/types/domain';
@@ -22,7 +21,6 @@
         [TipoEventoReporte.CambioDeEstado]: ArrowRightLeft,
         [TipoEventoReporte.Comentario]: MessageSquare,
         [TipoEventoReporte.MarcadoDuplicado]: Copy,
-        [TipoEventoReporte.Pago]: DollarSign,
         [TipoEventoReporte.Sancion]: AlertTriangle,
         [TipoEventoReporte.Asignacion]: UserPlus,
     };
@@ -33,7 +31,6 @@
         [TipoEventoReporte.CambioDeEstado]: 'bg-chart-2',
         [TipoEventoReporte.Comentario]: 'bg-muted-foreground',
         [TipoEventoReporte.MarcadoDuplicado]: 'bg-chart-4',
-        [TipoEventoReporte.Pago]: 'bg-chart-1',
         [TipoEventoReporte.Sancion]: 'bg-chart-3',
         [TipoEventoReporte.Asignacion]: 'bg-chart-5',
     };
@@ -41,7 +38,7 @@
     const Icon = $derived(iconMap[evento.tipo] ?? FilePlus);
 
     // El estado al que apunta el evento: en un cambio de estado, el nuevo estado; en el
-    // resto, el que implica el tipo (p. ej. un pago deja el informe en "pagado").
+    // resto, el que implica el tipo (p. ej. un informe creado es un "borrador").
     const estadoDelEvento = $derived.by((): EstadoReporte | null => {
         const nuevo = evento.metadata?.estado_nuevo;
         if (evento.tipo === TipoEventoReporte.CambioDeEstado && typeof nuevo === 'string') {
@@ -51,7 +48,6 @@
             [TipoEventoReporte.Creado]: 'borrador',
             [TipoEventoReporte.Enviado]: 'enviado',
             [TipoEventoReporte.MarcadoDuplicado]: 'duplicado',
-            [TipoEventoReporte.Pago]: 'pagado',
         };
         return porTipo[evento.tipo] ?? null;
     });

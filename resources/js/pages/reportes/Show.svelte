@@ -17,19 +17,19 @@
 
 <script lang="ts">
     import { Link, router } from '@inertiajs/svelte';
-    import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ExternalLink from '@lucide/svelte/icons/external-link';
     import UserPlus from '@lucide/svelte/icons/user-plus';
     import CheckCircle from '@lucide/svelte/icons/check-circle';
     import XCircle from '@lucide/svelte/icons/x-circle';
     import Copy from '@lucide/svelte/icons/copy';
-    import DollarSign from '@lucide/svelte/icons/dollar-sign';
+    import Wrench from '@lucide/svelte/icons/wrench';
     import Lock from '@lucide/svelte/icons/lock';
     import Edit from '@lucide/svelte/icons/edit';
     import Send from '@lucide/svelte/icons/send';
     import Eye from '@lucide/svelte/icons/eye';
     import { page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
+    import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import SeverityBadge from '@/components/SeverityBadge.svelte';
@@ -38,6 +38,7 @@
     import StateTransition from '@/components/StateTransition.svelte';
     import { Button } from '@/components/ui/button';
     import ContenidoInforme from '@/components/ContenidoInforme.svelte';
+    import RangoBadge from '@/components/RangoBadge.svelte';
     import EstadoProgreso from '@/components/EstadoProgreso.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
     import {
@@ -59,7 +60,7 @@
         cifradoIndisponible = false,
         historialInvestigador = null,
         accionesDisponibles = {},
-        usuariosGestion = [],
+        moderadoresAsignables = [],
         candidatosDuplicado = [],
     }: {
         reporte: Reporte;
@@ -74,7 +75,7 @@
             descartados: number;
         } | null;
         accionesDisponibles?: Record<string, boolean>;
-        usuariosGestion?: { id: number; name: string }[];
+        moderadoresAsignables?: { id: number; name: string }[];
         candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
     } = $props();
 
@@ -83,7 +84,7 @@
     const auth = $derived(page.props.auth);
 
     let transitionOpen = $state(false);
-    let transitionAccion = $state<'asignar' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'pagar' | 'cerrar'>('validar');
+    let transitionAccion = $state<'asignar' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'reparacion' | 'cerrar'>('validar');
 
     function openTransition(accion: typeof transitionAccion) {
         transitionAccion = accion;
@@ -94,6 +95,16 @@
     const programaInforme = $derived(
         reporte.programa as (Programa & { empresa_nombre?: string | null }) | undefined,
     );
+
+    // "Volver" lleva a la lista desde la que este rol suele llegar al informe.
+    const destinoVolver = $derived.by(() => {
+        const roles = (page.props.userRoles as string[] | undefined) ?? [];
+        if (puedeModerar && reporte.programa) {
+            return { href: `/moderacion/programas/${reporte.programa.id}`, etiqueta: 'Volver a la cola del programa' };
+        }
+        if (roles.includes('empresa')) return { href: '/empresa/reportes', etiqueta: 'Volver a informes recibidos' };
+        return { href: reportesRoute(), etiqueta: 'Volver a mis reportes' };
+    });
 
     function iniciarRevision() {
         router.post(`/reportes/${reporte.id}/revisar`, {}, { preserveScroll: true });
@@ -125,14 +136,7 @@
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
         <div class="flex items-center gap-4">
-            <Button
-                variant="ghost"
-                size="icon"
-                href={puedeModerar && reporte.programa ? `/moderacion/programas/${reporte.programa.id}` : reportesRoute()}
-                aria-label={puedeModerar ? 'Volver a la cola de moderación' : 'Volver a reportes'}
-            >
-                <ArrowLeft class="h-4 w-4" />
-            </Button>
+            <BotonVolver href={destinoVolver.href} etiqueta={destinoVolver.etiqueta} />
             <PageHeader
                 title="{reporte.numero_reporte}"
                 description={reporte.titulo}
@@ -254,16 +258,16 @@
                                     Duplicado
                                 </Button>
                             {/if}
-                            {#if accionesDisponibles.pagar}
-                                <Button variant="outline" size="sm" onclick={() => openTransition('pagar')}>
-                                    <DollarSign class="mr-1 h-3 w-3" />
-                                    Pagar
+                            {#if accionesDisponibles.reparacion}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('reparacion')}>
+                                    <Wrench class="mr-1 h-3 w-3" />
+                                    En reparación
                                 </Button>
                             {/if}
                             {#if accionesDisponibles.cerrar}
                                 <Button variant="outline" size="sm" onclick={() => openTransition('cerrar')}>
                                     <Lock class="mr-1 h-3 w-3" />
-                                    Cerrar
+                                    Cerrar como resuelto
                                 </Button>
                             {/if}
                         </div>
@@ -325,15 +329,6 @@
                         </div>
                     {/if}
 
-                    {#if reporte.recompensa}
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">Recompensa</span>
-                            <span class="text-sm font-semibold text-primary">
-                                {reporte.recompensa.toLocaleString('es-ES', { minimumFractionDigits: 2 })} {reporte.moneda}
-                            </span>
-                        </div>
-                    {/if}
-
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-muted-foreground">Creado</span>
                         <span class="text-sm">{formatearFecha(reporte.created_at)}</span>
@@ -368,7 +363,10 @@
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-muted-foreground">Reputación</span>
-                            <span class="text-sm font-semibold text-primary">{historialInvestigador.reputation_score}</span>
+                            <span class="flex items-center gap-2 text-sm font-semibold text-primary">
+                                {historialInvestigador.reputation_score}
+                                <RangoBadge puntos={historialInvestigador.reputation_score} />
+                            </span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-muted-foreground">Informes enviados</span>
@@ -453,7 +451,7 @@
     accion={transitionAccion}
     reporteId={reporte.id}
     estadoActual={reporte.estado}
-    {usuariosGestion}
+    {moderadoresAsignables}
     {candidatosDuplicado}
     onsuccess={recargar}
 />

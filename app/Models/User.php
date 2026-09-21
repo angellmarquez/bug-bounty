@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\EstadoSancion;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -85,6 +86,23 @@ class User extends Authenticatable implements PasskeyUser
             ->withTimestamps();
     }
 
+    /** La empresa a la que pertenece ahora (una sola por usuario), con su rol interno en `pivot`. */
+    public function empresaActiva(): ?Empresa
+    {
+        return $this->empresas()->wherePivot('estado', 'activo')->first();
+    }
+
+    public function idEmpresaActiva(): ?int
+    {
+        return $this->empresaActiva()?->id;
+    }
+
+    /** `propietario`, `publicador` o null si no pertenece a ninguna empresa. */
+    public function rolEnEmpresa(): ?string
+    {
+        return $this->empresaActiva()?->pivot->rol_interno;
+    }
+
     /**
      * Los programas que el usuario gestiona.
      *
@@ -145,6 +163,51 @@ class User extends Authenticatable implements PasskeyUser
     public function entradasReputacion(): HasMany
     {
         return $this->hasMany(EntradaReputacion::class, 'usuario_id');
+    }
+
+    /**
+     * Indica si el usuario tiene el rol indicado.
+     */
+    public function tieneRol(string $slug): bool
+    {
+        return $this->roles()->where('slug', $slug)->exists();
+    }
+
+    /**
+     * Ids de los programas que modera. Un moderador solo ve y actúa sobre esos programas.
+     *
+     * @return array<int, int>
+     */
+    public function idsProgramasModerados(): array
+    {
+        return $this->programasModerados()->pluck('programas.id')->map(fn ($id): int => (int) $id)->all();
+    }
+
+    /**
+     * Un administrador revisa cualquier programa; un moderador, solo los que se le asignaron.
+     */
+    public function puedeModerarPrograma(Programa|int $programa): bool
+    {
+        if ($this->tieneRol('administrador')) {
+            return true;
+        }
+
+        $id = $programa instanceof Programa ? $programa->id : $programa;
+
+        return $this->tieneRol('moderador') && in_array((int) $id, $this->idsProgramasModerados(), true);
+    }
+
+    /**
+     * Sanción que hoy mantiene suspendido al usuario (no revocada y con suspensión en curso), si la hay.
+     */
+    public function suspensionActiva(): ?Sancion
+    {
+        return $this->sanciones()
+            ->whereIn('estado', [EstadoSancion::Aplicada->value, EstadoSancion::Apelada->value])
+            ->where('suspension_desde', '<=', now())
+            ->where('suspension_hasta', '>', now())
+            ->latest('suspension_hasta')
+            ->first();
     }
 
     /**

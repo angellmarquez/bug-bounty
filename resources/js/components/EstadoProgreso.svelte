@@ -11,8 +11,6 @@
         'en_revision',
         'validado',
         'en_reparacion',
-        'pago_pendiente',
-        'pagado',
         'cerrado',
     ];
     const DESCARTADOS: EstadoReporte[] = ['rechazado', 'duplicado', 'fuera_de_alcance'];

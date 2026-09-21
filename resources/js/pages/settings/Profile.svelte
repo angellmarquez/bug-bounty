@@ -18,6 +18,7 @@
     import DeleteUser from '@/components/DeleteUser.svelte';
     import Heading from '@/components/Heading.svelte';
     import InputError from '@/components/InputError.svelte';
+    import RolesUsuario from '@/components/RolesUsuario.svelte';
     import TextLink from '@/components/TextLink.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -32,6 +33,15 @@
 <h1 class="sr-only">Profile settings</h1>
 
 <div class="flex flex-col space-y-6">
+    <div class="space-y-3">
+        <Heading
+            variant="small"
+            title="Tus roles"
+            description="Lo que puedes hacer en la plataforma"
+        />
+        <RolesUsuario descripciones />
+    </div>
+
     <Heading
         variant="small"
         title="Profile"

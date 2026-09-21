@@ -25,9 +25,6 @@ test('approved company owns programs created by its user', function () {
         'nombre' => 'Programa Acme',
         'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
         'descripcion' => 'Programa de seguridad de Acme.',
-        'recompensa_min' => 100,
-        'recompensa_max' => 1000,
-        'moneda' => 'USD',
     ]);
 
     $response->assertRedirect();
@@ -44,8 +41,5 @@ test('pending company cannot create programs', function () {
     $this->post(route('programas.store'), [
         'nombre' => 'Programa bloqueado',
         'descripcion' => 'No debería crearse.',
-        'recompensa_min' => 100,
-        'recompensa_max' => 1000,
-        'moneda' => 'USD',
     ])->assertForbidden();
 });

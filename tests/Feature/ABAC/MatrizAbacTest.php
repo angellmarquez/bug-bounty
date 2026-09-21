@@ -4,6 +4,8 @@ use App\Abac\AbacEngine;
 use App\Enums\EstadoPrograma;
 use App\Enums\EstadoReporte;
 use App\Models\Apelacion;
+use App\Models\Programa;
+use App\Models\Reporte;
 use App\Models\Sancion;
 use App\Models\User;
 
@@ -17,6 +19,27 @@ use App\Models\User;
 | escenario (cierra usuario y objeto), decisión esperada].
 |
 */
+
+/**
+ * Un moderador asignado a un programa y un informe de ese programa.
+ * `asignado_a => 'yo'` deja el informe asignado al propio moderador.
+ *
+ * @param  array<string, mixed>  $atributos  atributos del informe
+ * @param  string|array<int, string>  $roles  roles del moderador
+ * @return array{0: User, 1: Reporte}
+ */
+function reporteModerado(array $atributos = [], string|array $roles = 'moderador'): array
+{
+    $programa = Programa::factory()->create();
+    $moderador = conRol(User::factory()->create(), $roles);
+    $moderador->programasModerados()->attach($programa->id);
+
+    if (($atributos['asignado_a'] ?? null) === 'yo') {
+        $atributos['asignado_a'] = $moderador->id;
+    }
+
+    return [$moderador, reporteDe(investigador(), $programa, $atributos)];
+}
 
 dataset('matriz_abac', [
     // ------------------------------------------------------------------
@@ -34,24 +57,27 @@ dataset('matriz_abac', [
     'inv no puede triajar (deny explícito gana)' => ['reportes.validar', fn () => [($inv = investigador()), reporteDe($inv, atributos: ['estado' => EstadoReporte::EnRevision->value])], false],
     'inv no puede asignar reportes' => ['reportes.asignar', fn () => [investigador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Enviado->value])], false],
     'inv no puede cerrar reportes' => ['reportes.cerrar', fn () => [investigador(), reporteDe(investigador())], false],
-    'inv no opera sanciones fuera del alcance' => ['reportes.pagar', fn () => [investigador(), reporteDe(investigador())], false],
+    'inv no opera sanciones fuera del alcance' => ['reportes.marcar_en_reparacion', fn () => [investigador(), reporteDe(investigador())], false],
 
     // ------------------------------------------------------------------
-    // Reportes — gestión (triaje)
+    // Reportes — moderador (triaje, solo en los programas que se le asignan)
     // ------------------------------------------------------------------
-    'gestion ve un reporte enviado' => ['reportes.ver', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Enviado->value])], true],
-    'gestion ve notas internas de un reporte en revisión' => ['reportes.ver_notas_internas', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], true],
-    'gestion no ve los borradores' => ['reportes.ver', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Borrador->value])], false],
-    'gestion asigna un reporte enviado' => ['reportes.asignar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Enviado->value])], true],
-    'gestion asigna un reporte en revisión' => ['reportes.asignar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], true],
-    'gestion no asigna un reporte validado' => ['reportes.asignar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Validado->value])], false],
-    'gestion valida un reporte sin asignar' => ['reportes.validar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null])], true],
-    'gestion valida un reporte asignado a sí mismo' => ['reportes.validar', fn () => [($ges = gestion()), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => $ges->id])], true],
-    'gestion no valida un reporte asignado a otro gestor' => ['reportes.validar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => gestion()->id])], false],
-    'gestion no valida un reporte borrador' => ['reportes.validar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Borrador->value])], false],
-    'gestion marca duplicado un reporte en revisión' => ['reportes.marcar_duplicado', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], true],
-    'gestion paga un reporte validado sin adjudicar' => ['reportes.pagar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Validado->value, 'asignado_a' => null])], true],
-    'gestion cierra un reporte pagado' => ['reportes.cerrar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::PagoPendiente->value, 'asignado_a' => null])], true],
+    'moderador ve un reporte enviado de su programa' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Enviado->value]), true],
+    'moderador ve notas internas de un reporte en revisión de su programa' => ['reportes.ver_notas_internas', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value]), true],
+    'moderador no ve los borradores' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value]), false],
+    'moderador no ve reportes de un programa que no modera' => ['reportes.ver', fn () => [moderador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Enviado->value])], false],
+    'moderador asigna un reporte enviado sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::Enviado->value, 'asignado_a' => null]), true],
+    'moderador asigna un reporte en revisión sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), true],
+    'moderador asigna un reporte validado sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::Validado->value, 'asignado_a' => null]), true],
+    'moderador no reasigna un reporte que ya tiene responsable' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => moderador()->id]), false],
+    'moderador no asigna un borrador' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value, 'asignado_a' => null]), false],
+    'moderador valida un reporte sin asignar' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), true],
+    'moderador valida un reporte asignado a sí mismo' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => 'yo']), true],
+    'moderador no valida un reporte asignado a otro moderador' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => moderador()->id]), false],
+    'moderador no valida un reporte borrador' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value]), false],
+    'moderador no valida un reporte de un programa que no modera' => ['reportes.validar', fn () => [moderador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null])], false],
+    'moderador marca duplicado un reporte en revisión' => ['reportes.marcar_duplicado', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), true],
+    'moderador no cierra un reporte en reparación (lo cierra la empresa)' => ['reportes.cerrar', fn () => reporteModerado(['estado' => EstadoReporte::EnReparacion->value, 'asignado_a' => null]), false],
     'inv no interviene en el triaje de un reporte asignado' => ['reportes.validar', fn () => [($inv = investigador()), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => $inv->id])], false],
 
     // ------------------------------------------------------------------
@@ -69,19 +95,18 @@ dataset('matriz_abac', [
     'inv ve un programa público en pausa' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::EnPausa->value, 'es_publico' => true])], true],
     'inv no ve un programa privado' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => false])], false],
     'inv no ve un programa archivado' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Archivado->value, 'es_publico' => true])], false],
-    'inv con reputacion suficiente ve programa restringido' => ['programas.ver', fn () => [investigador(['reputation_score' => 50]), programaDe(investigador(['reputation_score' => 50]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'reputacion_minima' => 50])], true],
-    'inv con reputacion insuficiente no ve programa restringido' => ['programas.ver', fn () => [investigador(['reputation_score' => 49]), programaDe(investigador(['reputation_score' => 49]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'reputacion_minima' => 50])], false],
+    'inv con rango suficiente (plata) ve programa de nivel medio' => ['programas.ver', fn () => [investigador(['reputation_score' => 100]), programaDe(investigador(['reputation_score' => 100]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'nivel_acceso' => 'medio'])], true],
+    'inv con rango insuficiente (bronce) no ve programa de nivel medio' => ['programas.ver', fn () => [investigador(['reputation_score' => 99]), programaDe(investigador(['reputation_score' => 99]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'nivel_acceso' => 'medio'])], false],
     'inv crea un reporte en un programa activo' => ['reportes.crear', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])], true],
     'inv no crea reportes en un programa borrador' => ['reportes.crear', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Borrador->value])], false],
-    'gestion crea programas' => ['programas.crear', fn () => [gestion(), null], true],
+    'moderador no crea programas' => ['programas.crear', fn () => [moderador(), null], false],
     'inv no crea programas' => ['programas.crear', fn () => [investigador(), null], false],
-    'gestion gestiona un programa que creó' => ['programas.gestionar', fn () => [($ges = gestion()), programaDe($ges)], true],
-    'gestion no gestiona el programa de otro gestor' => ['programas.gestionar', fn () => [gestion(), programaDe(gestion())], false],
-    'gestion cambia el estado de su programa' => ['programas.cambiar_estado', fn () => [($ges = gestion()), programaDe($ges)], true],
-    'gestion no cambia el estado del programa ajeno' => ['programas.cambiar_estado', fn () => [gestion(), programaDe(gestion())], false],
-    'admin gestiona cualquier programa' => ['programas.gestionar', fn () => [administrador(), programaDe(gestion())], true],
+    'moderador no gestiona un programa' => ['programas.gestionar', fn () => [moderador(), programaDe(investigador())], false],
+    'moderador no cambia el estado de un programa' => ['programas.cambiar_estado', fn () => [moderador(), programaDe(investigador())], false],
+    'admin gestiona cualquier programa' => ['programas.gestionar', fn () => [administrador(), programaDe(investigador())], true],
     'inv no elimina programas' => ['programas.eliminar', fn () => [investigador(), programaDe(investigador())], false],
-    'admin elimina programas (soft delete)' => ['programas.eliminar', fn () => [administrador(), programaDe(gestion())], true],
+    'moderador no elimina programas' => ['programas.eliminar', fn () => [moderador(), programaDe(investigador())], false],
+    'admin elimina programas (soft delete)' => ['programas.eliminar', fn () => [administrador(), programaDe(investigador())], true],
 
     // ------------------------------------------------------------------
     // Claves PGP
@@ -95,7 +120,7 @@ dataset('matriz_abac', [
     'inv no apela su sanción fuera de plazo' => ['apelaciones.crear', fn () => [($inv = investigador()), apelacionDe($inv, ['plazo_apelacion' => now()->subDay()])], false],
     'inv no apela su sanción revocada' => ['apelaciones.crear', fn () => [($inv = investigador()), apelacionDe($inv, ['estado' => 'revocada'])], false],
     'inv no resuelve apelaciones' => ['apelaciones.resolver', fn () => [investigador(), apelacionDe(investigador())], false],
-    'gestion resuelve apelaciones' => ['apelaciones.resolver', fn () => [gestion(), apelacionDe(investigador())], true],
+    'moderador resuelve apelaciones' => ['apelaciones.resolver', fn () => [moderador(), apelacionDe(investigador())], true],
     'admin resuelve cualquier apelación' => ['apelaciones.resolver', fn () => [administrador(), apelacionDe(investigador())], true],
 
     // ------------------------------------------------------------------
@@ -103,8 +128,8 @@ dataset('matriz_abac', [
     // ------------------------------------------------------------------
     'invitado no ve reportes' => ['reportes.ver', fn () => [null, reporteDe(investigador())], false],
     'invitado no ve programas públicos' => ['programas.ver', fn () => [null, programaDe(investigador())], false],
-    'un usuario con roles investigador+gestion triajea sin asignar' => ['reportes.validar', fn () => [($mix = conRol(investigador(), ['investigador', 'gestion'])), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null])], true],
-    'un usuario con roles investigador+gestion sigue sin ver borradores ajenos' => ['reportes.ver', fn () => [($mix = conRol(investigador(), ['investigador', 'gestion'])), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Borrador->value])], false],
+    'un usuario investigador+moderador triaja en el programa que modera' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null], ['investigador', 'moderador']), true],
+    'un usuario investigador+moderador sigue sin ver borradores ajenos' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value], ['investigador', 'moderador']), false],
 ]);
 
 /**

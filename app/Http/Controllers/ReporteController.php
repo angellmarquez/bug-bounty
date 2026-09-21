@@ -14,6 +14,8 @@ use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
+use App\Services\Reportes\LimiteDeEnvios;
+use App\Services\Reputacion\Rangos;
 use App\Services\Reputacion\ReputationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +30,7 @@ use Inertia\Response as InertiaResponse;
 
 class ReporteController extends Controller
 {
-    private const MENSAJE_CIFRADO_NO_DISPONIBLE = 'No se pudo cifrar el reporte porque el cifrado de la plataforma aún no está configurado. Avisa al administrador e inténtalo de nuevo; tu texto sigue en pantalla.';
+    private const MENSAJE_CIFRADO_NO_DISPONIBLE = 'No se pudo cifrar el reporte porque el cifrado de la plataforma no está disponible en este momento. No se guardó nada sin cifrar: inténtalo de nuevo en unos minutos; tu texto sigue en pantalla.';
 
     public function index(Request $request): InertiaResponse
     {
@@ -37,26 +39,33 @@ class ReporteController extends Controller
 
         $roles = $user->roles->pluck('slug')->toArray();
         $isAdmin = in_array('administrador', $roles);
-        $isGestion = in_array('gestion', $roles);
         $isModerador = in_array('moderador', $roles);
         $isEmpresa = in_array('empresa', $roles);
-        $esRevisor = $isModerador || $isAdmin;
 
         $query = Reporte::query()
             ->with(['programa', 'investigador', 'asignadoA']);
 
-        if ($esRevisor) {
-            // Moderadores y administradores revisan los informes de todos los programas.
+        $idsModerados = $isModerador ? $user->idsProgramasModerados() : [];
+
+        if ($isAdmin) {
+            // El administrador ve los informes enviados de todos los programas (los borradores son de su autor).
+            $query->where(fn ($scope) => $scope->where('estado', '!=', 'borrador')->orWhere('investigador_id', $user->id));
         } else {
-            $query->where(function ($scope) use ($user) {
+            $query->where(function ($scope) use ($user, $idsModerados) {
                 $scope->where('investigador_id', $user->id)
                     ->orWhere(function (Builder $empresa) use ($user) {
                         $empresa->where('estado', '!=', 'borrador')
                             ->whereHas('programa.empresa.usuarios', function ($usuarios) use ($user) {
                                 $usuarios->whereKey($user->id)
-                                    ->where('empresa_usuario.estado', 'activo');
+                                    ->where('empresa_usuario.estado', 'activo')
+                                    ->where('empresa_usuario.rol_interno', 'propietario');
                             });
                     });
+
+                // Un moderador ve los informes enviados de los programas que modera.
+                if ($idsModerados !== []) {
+                    $scope->orWhere(fn (Builder $moderados) => $moderados->where('estado', '!=', 'borrador')->whereIn('programa_id', $idsModerados));
+                }
             });
         }
 
@@ -83,8 +92,11 @@ class ReporteController extends Controller
         $reportes = $query->latest()->paginate(15)->withQueryString();
 
         $programas = Programa::select('id', 'nombre')
-            ->when(! $isAdmin && ! $isGestion && ! $isModerador && ! $isEmpresa, function ($q) {
+            ->when(! $isAdmin && ! $isModerador && ! $isEmpresa, function ($q) {
                 $q->where('estado', 'activo')->where('es_publico', true);
+            })
+            ->when($isModerador && ! $isAdmin, function ($q) use ($idsModerados) {
+                $q->where(fn ($alcance) => $alcance->whereIn('id', $idsModerados)->orWhere(fn ($abiertos) => $abiertos->where('estado', 'activo')->where('es_publico', true)));
             })
             ->when($isEmpresa, function ($q) use ($user) {
                 $empresa = $user->empresas()->where('empresa_usuario.estado', 'activo')->first();
@@ -154,9 +166,9 @@ class ReporteController extends Controller
         $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
         $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
         $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
-        // Pagar y cerrar corresponden a la empresa dueña del programa (y al admin), por eso
-        // se evalúan con el contexto de la empresa.
-        $puedePagar = Gate::allows('abac', [AccionesAbac::ReportePagar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'pagado');
+        // Marcar en reparación y cerrar corresponden a la empresa dueña del programa (y al admin),
+        // por eso se evalúan con el contexto de la empresa.
+        $puedeMarcarEnReparacion = Gate::allows('abac', [AccionesAbac::ReporteMarcarEnReparacion, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'en_reparacion');
         $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'cerrado');
 
         // Originales posibles para marcar un duplicado: otros informes del mismo programa.
@@ -177,16 +189,19 @@ class ReporteController extends Controller
                 ->all()
             : [];
 
-        $usuariosGestion = [];
+        $moderadoresAsignables = [];
         if ($puedeAsignar) {
-            $usuariosGestion = User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))
+            // Solo pueden revisar el informe los moderadores de su programa (y no su propio autor).
+            $moderadoresAsignables = User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))
+                ->whereHas('programasModerados', fn ($q) => $q->whereKey($reporte->programa_id))
+                ->whereKeyNot($reporte->investigador_id)
                 ->select('id', 'name')
                 ->orderBy('name')
                 ->get()
                 ->toArray();
         }
 
-        $puedeModerar = Gate::allows('abac', [AccionesAbac::ModeracionVer]);
+        $puedeModerar = request()->user()->puedeModerarPrograma($reporte->programa_id);
 
         // Historial del autor: ayuda a valorar cuánto confiar en el informe.
         $historialInvestigador = $puedeModerar ? $this->historialInvestigador($reporte->investigador) : null;
@@ -217,17 +232,17 @@ class ReporteController extends Controller
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
             'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
-            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedePagar || $puedeCerrar,
+            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
                 'revisar' => $puedeRevisar,
                 'validar' => $puedeValidar,
                 'rechazar' => $puedeRechazar,
                 'marcar_duplicado' => $puedeMarcarDuplicado,
-                'pagar' => $puedePagar,
+                'reparacion' => $puedeMarcarEnReparacion,
                 'cerrar' => $puedeCerrar,
             ],
-            'usuariosGestion' => $usuariosGestion,
+            'moderadoresAsignables' => $moderadoresAsignables,
         ]);
     }
 
@@ -237,7 +252,11 @@ class ReporteController extends Controller
 
         $programas = Programa::where('estado', 'activo')
             ->where('es_publico', true)
-            ->where('reputacion_minima', '<=', (int) ($user->reputation_score ?? 0))
+            ->whereIn('nivel_acceso', app(Rangos::class)->nivelesAccesibles((int) ($user->reputation_score ?? 0)))
+            // Quien modera un programa no puede reportar en él: vería la vulnerabilidad de los demás.
+            ->when($user->tieneRol('moderador'), fn ($query) => $query->whereNotIn('id', $user->idsProgramasModerados()))
+            // Quien pertenece a una empresa no reporta a sus programas: conoce su interior.
+            ->when($user->idEmpresaActiva(), fn ($query, $empresaId) => $query->where(fn ($programas) => $programas->whereNull('empresa_id')->orWhere('empresa_id', '!=', $empresaId)))
             ->orderBy('nombre')
             ->get();
 
@@ -256,6 +275,18 @@ class ReporteController extends Controller
     {
         $validated = $request->validated();
         $user = $request->user();
+
+        // "Guardar y enviar" cuenta como un envío: se frena el envío masivo antes de crear nada.
+        // Guardar solo un borrador no llega al programa, así que no tiene este límite.
+        if ($request->boolean('enviar')) {
+            $bloqueo = app(LimiteDeEnvios::class)->motivoDeBloqueo($user, (int) $validated['programa_id'], $validated['titulo']);
+
+            if ($bloqueo !== null) {
+                return redirect()->back()
+                    ->withErrors(['limite' => $bloqueo])
+                    ->with('error', $bloqueo);
+            }
+        }
 
         $poc = $validated['poc'] ?? [];
 
@@ -276,7 +307,7 @@ class ReporteController extends Controller
         $programa = Programa::query()->where('id', (int) $validated['programa_id'])->first();
         abort_if($programa === null, 404, 'Programa no encontrado.');
 
-        $reporte = DB::transaction(function () use ($validated, $user, $cifrado, $programa) {
+        $reporte = DB::transaction(function () use ($validated, $user, $cifrado) {
             $reporte = Reporte::create([
                 'numero_reporte' => $this->generarNumeroReporte(),
                 'programa_id' => $validated['programa_id'],
@@ -289,7 +320,6 @@ class ReporteController extends Controller
                 'severidad' => $validated['severidad'] ?? null,
                 'poc' => $cifrado['poc'],
                 'estado' => 'borrador',
-                'moneda' => $programa->moneda,
                 'clave_huella' => $cifrado['clave_huella'],
             ]);
 
@@ -382,6 +412,12 @@ class ReporteController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ReporteEnviar, $reporte]);
 
+        $bloqueo = app(LimiteDeEnvios::class)->motivoDeBloqueo(request()->user(), $reporte->programa_id, $reporte->titulo, $reporte->id);
+
+        if ($bloqueo !== null) {
+            return redirect()->route('reportes.show', $reporte)->with('error', $bloqueo);
+        }
+
         $this->marcarEnviado($reporte, request()->user());
 
         return redirect()->route('reportes.show', $reporte)
@@ -409,12 +445,10 @@ class ReporteController extends Controller
     private const TRANSICIONES_VALIDAS = [
         'enviado' => ['en_revision', 'validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
         'en_revision' => ['validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
-        // Tras validar, el informe se puede pagar y cerrar sin pasar por los estados
-        // intermedios (en_reparacion / pago_pendiente), que no tienen una acción propia.
-        'validado' => ['en_reparacion', 'pago_pendiente', 'pagado', 'cerrado', 'rechazado', 'duplicado'],
-        'en_reparacion' => ['pago_pendiente', 'pagado', 'cerrado', 'rechazado'],
-        'pago_pendiente' => ['pagado', 'cerrado', 'rechazado'],
-        'pagado' => ['cerrado'],
+        // Tras validar, la empresa puede marcar el informe en reparación o cerrarlo directamente
+        // como resuelto (sin pasar por el estado intermedio).
+        'validado' => ['en_reparacion', 'cerrado', 'rechazado', 'duplicado'],
+        'en_reparacion' => ['cerrado', 'rechazado'],
     ];
 
     private function transicionPosible(Reporte $reporte, string $estadoDestino): bool
@@ -537,11 +571,15 @@ class ReporteController extends Controller
 
         $userId = $request->input('asignado_a');
 
-        $reporte->update(['asignado_a' => $userId]);
-
         $actor = $request->user();
         $asignado = User::find($userId);
         abort_unless($asignado instanceof User, 404, 'Usuario no encontrado.');
+
+        if (! $asignado->puedeModerarPrograma($reporte->programa_id) || (int) $asignado->id === (int) $reporte->investigador_id) {
+            throw ValidationException::withMessages(['asignado_a' => 'Ese usuario no puede revisar este informe: debe moderar el programa y no ser su autor.']);
+        }
+
+        $reporte->update(['asignado_a' => $userId]);
 
         $reporte->eventos()->create([
             'actor_id' => $actor->id,
@@ -595,6 +633,7 @@ class ReporteController extends Controller
                 $gravedad,
                 $reporte,
                 metadata: ['origen' => 'triaje', 'actor_id' => $request->user()->id],
+                aplicadaPor: $request->user(),
             );
             if (config('mail.enabled')) {
                 Mail::to($reporte->investigador->email)->send(new SancionAplicadaMail($sancion));
@@ -645,35 +684,27 @@ class ReporteController extends Controller
             ->with('success', 'Reporte marcado como duplicado.');
     }
 
-    public function pagar(TransitionReporteRequest $request, Reporte $reporte, ReputationService $reputacion): RedirectResponse
+    public function reparacion(Reporte $reporte): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReportePagar, $reporte, $this->empresaContexto()]);
+        Gate::authorize('abac', [AccionesAbac::ReporteMarcarEnReparacion, $reporte, $this->empresaContexto()]);
 
-        $validated = $request->validated();
-
-        abort_if(empty($validated['recompensa']), 422, 'Debe especificar la recompensa.');
-
-        $this->validarTransicion($reporte, 'pagado');
-        $reporte->update([
-            'estado' => 'pagado',
-            'recompensa' => $validated['recompensa'],
-        ]);
+        $this->validarTransicion($reporte, 'en_reparacion');
+        $estadoAnterior = $reporte->estado->value;
+        $reporte->update(['estado' => 'en_reparacion']);
 
         $reporte->eventos()->create([
-            'actor_id' => $request->user()->id,
-            'tipo' => 'pago',
-            'nota' => $validated['nota'] ?? "Recompensa de {$validated['recompensa']} {$reporte->moneda} pagada.",
-            'datos' => ['recompensa' => $validated['recompensa'], 'moneda' => $reporte->moneda],
+            'actor_id' => request()->user()->id,
+            'tipo' => 'cambio_estado',
+            'nota' => 'La empresa está corrigiendo la vulnerabilidad.',
+            'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'en_reparacion'],
         ]);
 
-        $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_pagado', $reporte);
-
         return redirect()->route('reportes.show', $reporte)
-            ->with('success', 'Recompensa registrada exitosamente.');
+            ->with('success', 'Informe marcado en reparación.');
     }
 
-    public function cerrar(Reporte $reporte): RedirectResponse
+    public function cerrar(Reporte $reporte, ReputationService $reputacion): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]);
@@ -688,12 +719,15 @@ class ReporteController extends Controller
         $reporte->eventos()->create([
             'actor_id' => request()->user()->id,
             'tipo' => 'cambio_estado',
-            'nota' => 'Reporte cerrado.',
+            'nota' => 'Vulnerabilidad resuelta: informe cerrado.',
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'cerrado'],
         ]);
 
+        // La recompensa por un informe válido es la reputación: se otorga al resolverlo.
+        $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_resuelto', $reporte);
+
         return redirect()->route('reportes.show', $reporte)
-            ->with('success', 'Reporte cerrado exitosamente.');
+            ->with('success', 'Informe cerrado como resuelto. El investigador recibió sus puntos de reputación.');
     }
 
     public function comentar(Reporte $reporte, Request $request): RedirectResponse
@@ -733,7 +767,7 @@ class ReporteController extends Controller
             return false;
         }
 
-        if ($user->roles()->whereIn('slug', ['moderador', 'administrador'])->exists()) {
+        if ($user->tieneRol('administrador')) {
             return true;
         }
 
@@ -741,14 +775,21 @@ class ReporteController extends Controller
             return true;
         }
 
-        // La empresa solo accede a reportes ya enviados por el investigador.
+        // Los borradores son solo del investigador: ni la empresa ni los moderadores los ven.
         if ($reporte->estado === EstadoReporte::Borrador) {
             return false;
         }
 
+        // Un moderador accede a los informes de los programas que modera.
+        if ($user->puedeModerarPrograma($reporte->programa_id)) {
+            return true;
+        }
+
+        // Los informes de una empresa solo los ve su propietario (no los publicadores).
         return $reporte->programa->empresa?->usuarios()
             ->whereKey($user->id)
             ->where('empresa_usuario.estado', 'activo')
+            ->where('empresa_usuario.rol_interno', 'propietario')
             ->exists() ?? false;
     }
 

@@ -11,6 +11,8 @@ import type {
     TipoObjetivo,
 } from '@/types/enums';
 
+import type { NivelAcceso } from '@/lib/rangos';
+
 export type Rol = {
     id: number;
     nombre: string;
@@ -75,12 +77,9 @@ export type Programa = {
     descripcion: string;
     bugs_buscados: string | null;
     estado: EstadoPrograma;
-    moneda: string;
-    recompensa_min: number;
-    recompensa_max: number;
     requiere_poc: boolean;
     es_publico: boolean;
-    reputacion_minima: number;
+    nivel_acceso: NivelAcceso;
     poc_schema: PocSchemaField[] | null;
     creado_por: number | null;
     inicia_en: string | null;
@@ -107,8 +106,6 @@ export type Reporte = {
     severidad: Severidad | null;
     poc: Record<string, unknown> | null;
     estado: EstadoReporte;
-    recompensa: number | null;
-    moneda: string;
     es_duplicado_de: number | null;
     notas_internas: string | null;
     enviado_en: string | null;
@@ -201,6 +198,64 @@ export type Sancion = {
     deleted_at: string | null;
     usuario?: User;
     reporte?: Reporte | null;
+    // Lo calcula el servidor: vigente, dentro de plazo y sin apelación previa.
+    puede_apelar?: boolean;
+};
+
+/** Un aviso de la campana (notificación interna). */
+export type Notificacion = {
+    id: string;
+    tipo: 'informe' | 'sancion' | 'apelacion' | 'empresa' | 'moderacion' | 'reputacion' | 'invitacion' | string;
+    titulo: string;
+    mensaje: string;
+    url: string | null;
+    leida: boolean;
+    created_at: string | null;
+};
+
+export type ResumenNotificaciones = {
+    no_leidas: number;
+    recientes: Notificacion[];
+};
+
+/** Un paso del registro de control de una apelación (con su huella SHA-256 encadenada). */
+export type PasoApelacion = {
+    id: number;
+    tipo: 'presentada' | 'aprobada' | 'rechazada' | string;
+    actor?: { id: number; name: string | null } | null;
+    actor_rol: string | null;
+    ip?: string | null;
+    user_agent?: string | null;
+    nota: string | null;
+    datos?: Record<string, unknown> | null;
+    huella: string;
+    huella_anterior?: string | null;
+    created_at: string | null;
+};
+
+/** Apelación tal como la ve quien la resuelve (moderador o administrador). */
+export type ApelacionParaResolver = {
+    id: number;
+    estado: EstadoApelacion;
+    motivo: string;
+    nota_resolucion: string | null;
+    created_at: string;
+    resuelta_en: string | null;
+    usuario: { id: number; name: string } | null;
+    resuelta_por: { id: number; name: string } | null;
+    sancion: {
+        id: number;
+        motivo: string;
+        gravedad: GravedadSancion;
+        puntos: number;
+        estado: EstadoSancion;
+        plazo_apelacion: string | null;
+        origen: 'triaje' | 'auditoria';
+        aplicada_por: { id: number; name: string } | null;
+        reporte: { id: number; numero_reporte: string; titulo: string } | null;
+    };
+    puede_resolver: boolean;
+    motivo_bloqueo: string | null;
 };
 
 export type Apelacion = {

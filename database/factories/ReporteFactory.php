@@ -33,8 +33,6 @@ class ReporteFactory extends Factory
             'severidad' => fake()->randomElement(['baja', 'media', 'alta', 'critica']),
             'poc' => null,
             'estado' => EstadoReporte::Enviado->value,
-            'recompensa' => null,
-            'moneda' => 'USD',
             'es_duplicado_de' => null,
             'notas_internas' => null,
             'enviado_en' => now(),

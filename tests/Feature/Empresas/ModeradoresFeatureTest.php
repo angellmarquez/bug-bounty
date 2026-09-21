@@ -15,8 +15,8 @@ test('administrator can assign and revoke moderator role', function () {
     expect(Auditoria::where('entidad_id', $usuario->id)->whereIn('accion', ['admin.moderador.asignado', 'admin.moderador.revocado'])->count())->toBe(2);
 });
 
-test('gestion cannot assign moderators', function () {
-    $this->actingAs(gestion());
+test('a moderator cannot assign moderators', function () {
+    $this->actingAs(moderador());
     $usuario = investigador();
 
     $this->post(route('admin.moderadores.asignar', $usuario))->assertForbidden();
