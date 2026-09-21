@@ -6,6 +6,7 @@ import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 import Mail from '@lucide/svelte/icons/mail';
 import MessageSquare from '@lucide/svelte/icons/message-square';
 import ShieldAlert from '@lucide/svelte/icons/shield-alert';
+import ShieldCheck from '@lucide/svelte/icons/shield-check';
 import type { Component } from 'svelte';
 
 /** Ícono y color de cada tipo de aviso. */
@@ -16,6 +17,7 @@ const TIPOS: Record<string, { icono: Component; clase: string }> = {
     empresa: { icono: Building2 as unknown as Component, clase: 'text-violet-600 bg-violet-500/10' },
     moderacion: { icono: ClipboardCheck as unknown as Component, clase: 'text-emerald-600 bg-emerald-500/10' },
     reputacion: { icono: Award as unknown as Component, clase: 'text-yellow-600 bg-yellow-500/10' },
+    sistema: { icono: ShieldCheck as unknown as Component, clase: 'text-slate-600 bg-slate-500/10' },
     invitacion: { icono: Mail as unknown as Component, clase: 'text-indigo-600 bg-indigo-500/10' },
 };
 

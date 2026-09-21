@@ -30,7 +30,7 @@ use Inertia\Response as InertiaResponse;
 
 class ReporteController extends Controller
 {
-    private const MENSAJE_CIFRADO_NO_DISPONIBLE = 'No se pudo cifrar el reporte porque el cifrado de la plataforma aún no está configurado. Avisa al administrador e inténtalo de nuevo; tu texto sigue en pantalla.';
+    private const MENSAJE_CIFRADO_NO_DISPONIBLE = 'No se pudo cifrar el reporte porque el cifrado de la plataforma no está disponible en este momento. No se guardó nada sin cifrar: inténtalo de nuevo en unos minutos; tu texto sigue en pantalla.';
 
     public function index(Request $request): InertiaResponse
     {

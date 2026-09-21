@@ -4,6 +4,7 @@ namespace App\Services\Notificaciones;
 
 use App\Enums\TipoEventoReporte;
 use App\Models\Apelacion;
+use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
 use App\Models\EmpresaInvitacion;
 use App\Models\EventoReporte;
@@ -243,6 +244,23 @@ class Notificador
             [$usuario],
             new AvisoPlataforma('moderacion', $asignado ? 'Se te asignó un programa' : 'Te retiraron de un programa', $asignado ? "Ahora moderas {$programa->nombre}." : "Ya no moderas {$programa->nombre}.", '/moderacion'),
         ));
+    }
+
+    // ------------------------------------------------------------------
+    // Cifrado de la plataforma
+    // ------------------------------------------------------------------
+
+    public function claveGenerada(ClavePgpPlataforma $clave, string $origen): void
+    {
+        $this->seguro(function () use ($clave, $origen): void {
+            $huella = trim(chunk_split(substr($clave->huella, 0, 16), 4, ' '));
+            $como = $origen === 'automatico' ? 'al recibir un informe sin clave' : 'durante la instalación';
+
+            $this->enviar(
+                $this->administradores(),
+                new AvisoPlataforma('sistema', 'Se creó la clave de cifrado', "El sistema generó una clave PGP nueva {$como} (huella {$huella}…). Los informes nuevos se cifran con ella.", '/admin/pgp'),
+            );
+        });
     }
 
     // ------------------------------------------------------------------

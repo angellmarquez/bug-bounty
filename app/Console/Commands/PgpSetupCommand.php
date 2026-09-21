@@ -8,12 +8,16 @@ use Throwable;
 
 /**
  * Genera e instala el par de claves PGP interno de la plataforma.
+ *
+ * Normalmente no hace falta ejecutarlo: la plataforma crea la clave sola (al desplegar o al
+ * recibir el primer informe). Sirve para el equipo técnico y para regenerarla con --force.
  */
 class PgpSetupCommand extends Command
 {
     protected $signature = 'pgp:setup
         {--force : Regenera el par de claves aunque ya exista uno activo}
-        {--identity= : Identidad usada al generar la clave}';
+        {--identity= : Identidad usada al generar la clave (por defecto, la configurada más una marca única)}
+        {--tolerante : No falla si no se puede crear ahora: la clave se creará sola al recibir el primer informe}';
 
     protected $description = 'Genera el par de claves PGP de la plataforma y lo persiste como activo';
 
@@ -22,7 +26,7 @@ class PgpSetupCommand extends Command
         if (! $pgp->available()) {
             $this->error("El driver PGP [{$pgp->driverName()}] no está disponible en este entorno.");
 
-            return self::FAILURE;
+            return $this->option('tolerante') ? self::SUCCESS : self::FAILURE;
         }
 
         if (! $this->option('force') && $pgp->platformKey() !== null) {
@@ -33,16 +37,18 @@ class PgpSetupCommand extends Command
             return self::SUCCESS;
         }
 
-        $identity = (string) ($this->option('identity') ?: config('pgp.identity'));
+        $identity = (string) ($this->option('identity') ?: $pgp->identidadUnica());
 
         try {
-            $clave = $pgp->generatePlatformKeyPair([
-                'identity' => $identity,
-                'algorithm' => (string) config('pgp.gpg.algorithm'),
-                'expires_in' => '1y',
-            ]);
+            $clave = $pgp->crearClave('consola', $identity);
         } catch (Throwable $e) {
             $this->error(sprintf('No se pudo generar la clave PGP: %s', $e->getMessage()));
+
+            if ($this->option('tolerante')) {
+                $this->line('Se creará sola al recibir el primer informe.');
+
+                return self::SUCCESS;
+            }
 
             return self::FAILURE;
         }

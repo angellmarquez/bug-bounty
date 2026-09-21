@@ -60,4 +60,19 @@ return [
 
     'identity' => env('PGP_IDENTITY', 'Plataforma BugBounty <seguridad@localhost>'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Creación automática de la clave
+    |--------------------------------------------------------------------------
+    |
+    | La plataforma crea sola su clave si falta (al instalar o al recibir el primer
+    | informe). Un candado evita que dos peticiones creen dos claves a la vez.
+    |
+    */
+
+    'creacion' => [
+        'candado_segundos' => (int) env('PGP_CREACION_CANDADO', 180),
+        'espera_segundos' => (int) env('PGP_CREACION_ESPERA', 60),
+    ],
+
 ];

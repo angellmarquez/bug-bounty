@@ -2,12 +2,18 @@
 
 namespace App\Services\Pgp;
 
+use App\Models\Auditoria;
 use App\Models\ClavePgpPlataforma;
+use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\Contracts\PgpDriver;
 use App\Services\Pgp\DataObjects\PgpKeyInfo;
 use App\Services\Pgp\Exceptions\PgpDriverUnavailableException;
 use App\Services\Pgp\Exceptions\PgpException;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use JsonException;
+use Throwable;
 
 /**
  * Fachada del motor PGP interno de la plataforma.
@@ -60,6 +66,11 @@ class PgpService
      */
     public function generatePlatformKeyPair(array $options = []): ClavePgpPlataforma
     {
+        // En producción una clave sin contraseña queda expuesta si se roba el servidor: no se crea.
+        if (app()->isProduction() && ! $this->usesFallback() && (string) config('pgp.gpg.passphrase') === '') {
+            throw new PgpException('En producción la clave PGP debe protegerse con una contraseña: define PGP_KEY_PASSWORD en el .env antes de crearla.');
+        }
+
         $identity = (string) ($options['identity'] ?? config('pgp.identity'));
 
         $info = $this->driver->generateKeyPair($options + compact('identity'));
@@ -83,6 +94,85 @@ class PgpService
                 'activa' => true,
             ]);
         });
+    }
+
+    /**
+     * Devuelve la clave activa y, si todavía no hay ninguna, la crea (una sola vez, aunque lleguen
+     * varias peticiones a la vez). Así el cifrado se configura solo y un informe nunca se rechaza
+     * ni se guarda en claro por «falta de clave».
+     *
+     * @throws PgpException si no se puede crear (GnuPG no disponible, sin contraseña en producción…)
+     */
+    public function asegurarClave(string $origen = 'automatico'): ClavePgpPlataforma
+    {
+        $existente = $this->platformKey();
+
+        if ($existente !== null) {
+            return $existente;
+        }
+
+        $candado = Cache::lock('pgp:crear-clave', (int) config('pgp.creacion.candado_segundos', 180));
+
+        try {
+            return $candado->block((int) config('pgp.creacion.espera_segundos', 60), function () use ($origen): ClavePgpPlataforma {
+                // Otra petición pudo crearla mientras esperábamos el candado.
+                return $this->platformKey() ?? $this->crearClave($origen);
+            });
+        } catch (LockTimeoutException) {
+            $clave = $this->platformKey();
+
+            if ($clave !== null) {
+                return $clave;
+            }
+
+            throw new PgpException('Otra petición está creando la clave de cifrado de la plataforma; inténtalo de nuevo en unos segundos.');
+        }
+    }
+
+    /**
+     * Crea una clave nueva, con identidad única, y deja constancia: Auditoría (como acción del
+     * sistema) y aviso a los administradores. Nunca registra la clave privada.
+     */
+    public function crearClave(string $origen, ?string $identidad = null): ClavePgpPlataforma
+    {
+        $clave = $this->generatePlatformKeyPair([
+            'identity' => $identidad ?? $this->identidadUnica(),
+            'algorithm' => (string) config('pgp.gpg.algorithm'),
+            'expires_in' => '1y',
+        ]);
+
+        try {
+            Auditoria::query()->create([
+                'usuario_id' => null,
+                'accion' => 'pgp.clave_generada',
+                'entidad_type' => 'clave_pgp_plataforma',
+                'entidad_id' => $clave->id,
+                'detalle' => ['huella' => $clave->huella, 'identidad' => $clave->identidad, 'origen' => $origen],
+                'ip' => request()->ip(),
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        app(Notificador::class)->claveGenerada($clave, $origen);
+
+        return $clave;
+    }
+
+    /**
+     * La identidad configurada más una marca única (fecha y código corto), para que una clave nueva
+     * nunca choque con otra del llavero del servidor (GnuPG rechaza dos con la misma identidad).
+     */
+    public function identidadUnica(?string $base = null): string
+    {
+        $base = trim($base ?? (string) config('pgp.identity'));
+        $marca = 'auto '.now()->format('Ymd').'-'.Str::lower(Str::random(4));
+
+        if (preg_match('/^(.*?)\s*<([^>]+)>$/', $base, $partes) === 1) {
+            return trim($partes[1])." ({$marca}) <{$partes[2]}>";
+        }
+
+        return "{$base} ({$marca})";
     }
 
     /**
@@ -130,15 +220,7 @@ class PgpService
      */
     public function platformPublicKey(): string
     {
-        $platform = $this->platformKey();
-
-        if ($platform === null) {
-            throw new PgpException(
-                'La plataforma aún no tiene un par de claves PGP. Ejecuta php artisan pgp:setup.',
-            );
-        }
-
-        return $platform->clave_publica;
+        return ($this->platformKey() ?? $this->asegurarClave())->clave_publica;
     }
 
     /**
@@ -150,13 +232,7 @@ class PgpService
      */
     public function cifrarReporte(string $descripcion, array $poc = []): array
     {
-        $plataforma = $this->platformKey();
-
-        if ($plataforma === null) {
-            throw new PgpException(
-                'La plataforma no tiene un par de claves PGP activo. Ejecuta php artisan pgp:setup.',
-            );
-        }
+        $plataforma = $this->platformKey() ?? $this->asegurarClave();
 
         $pocCifrado = $poc === []
             ? null
