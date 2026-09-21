@@ -64,7 +64,13 @@ $programa = Programa::factory()->create([
 ]);
 ObjetivoPrograma::factory()->create(['programa_id' => $programa->id, 'tipo' => 'web', 'valor' => 'app.acme.test']);
 
-$borrador = Programa::factory()->create([
+// Un moderador solo ve los programas que se le asignan (ninguno de los dos reportó en él).
+$programa->moderadores()->attach([
+    $moderador->id => ['asignado_por' => $admin->id],
+    $dobleRol->id => ['asignado_por' => $admin->id],
+]);
+
+$borrador =Programa::factory()->create([
     'empresa_id' => $empresa->id,
     'creado_por' => $duenoEmpresa->id,
     'nombre' => 'Programa en borrador E2E',
