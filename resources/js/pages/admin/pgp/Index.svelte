@@ -13,10 +13,11 @@
 </script>
 
 <script lang="ts">
-    import { router } from '@inertiajs/svelte';
+    import { page, router } from '@inertiajs/svelte';
     import Key from '@lucide/svelte/icons/key';
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+    import AlertError from '@/components/AlertError.svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import { Button } from '@/components/ui/button';
@@ -48,6 +49,8 @@
 
     let generando = $state(false);
 
+    const errorPgp = $derived((page.props.errors as Record<string, string> | undefined)?.pgp);
+
     function generarClave() {
         generando = true;
         router.post('/admin/pgp/setup', {}, {
@@ -58,16 +61,16 @@
         });
     }
 
+    // El servidor envía fechas sin hora (creada_en) o con hora (expira_en); una fecha vacía o inválida no debe romper la página.
     function formatearFecha(dateStr: string | null): string {
-        if (!dateStr || Number.isNaN(new Date(dateStr).getTime())) return 'Sin fecha';
-
+        if (!dateStr) return 'N/A';
+        const fecha = new Date(dateStr);
+        if (Number.isNaN(fecha.getTime())) return 'N/A';
         return new Intl.DateTimeFormat('es-ES', {
             day: '2-digit',
             month: 'long',
             year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        }).format(new Date(dateStr));
+        }).format(fecha);
     }
 
     const isFallback = $derived(driver === 'fallback');
@@ -80,6 +83,10 @@
         title="PGP Plataforma"
         description="Gestion del par de claves PGP de la plataforma para cifrado interno"
     />
+
+    {#if errorPgp}
+        <AlertError errors={[errorPgp]} title="No se pudo generar el par de claves" />
+    {/if}
 
     <Card>
         <CardHeader>
@@ -154,6 +161,10 @@
                     <div class="space-y-1">
                         <p class="text-xs text-muted-foreground">Generada</p>
                         <p class="text-sm">{formatearFecha(clave.creada_en)}</p>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-xs text-muted-foreground">Expira</p>
+                        <p class="text-sm">{formatearFecha(clave.expira_en)}</p>
                     </div>
                 </div>
             </CardContent>

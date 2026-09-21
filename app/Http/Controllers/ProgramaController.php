@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Abac\AccionesAbac;
 use App\Http\Requests\StoreProgramaRequest;
 use App\Http\Requests\UpdateProgramaRequest;
+use App\Models\Empresa;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Services\Moderacion\ColaDeInformes;
+use App\Services\Reputacion\Rangos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -67,8 +69,27 @@ class ProgramaController extends Controller
         ]);
     }
 
-    public function show(Request $request, Programa $programa, ColaDeInformes $cola): InertiaResponse
+    public function show(Request $request, Programa $programa, ColaDeInformes $cola): InertiaResponse|RedirectResponse
     {
+        // Un programa público al que el rango del investigador aún no llega se explica en lugar de dar un 403 seco.
+        $rangos = app(Rangos::class);
+        $usuario = $request->user();
+
+        if (
+            ! $this->puedeProgramAction(AccionesAbac::ProgramaVer, $programa)
+            && $programa->es_publico
+            && in_array($programa->estado->value, ['activo', 'en_pausa'], true)
+            && $usuario->tieneRol('investigador')
+            && ! in_array($programa->nivel_acceso->value, $rangos->nivelesAccesibles((int) $usuario->reputation_score), true)
+        ) {
+            $nivel = collect($rangos->paraInterfaz()['niveles'])->firstWhere('valor', $programa->nivel_acceso->value);
+
+            return redirect()->route('programas.index')->with(
+                'error',
+                "«{$programa->nombre}» exige el rango {$nivel['rangoNombre']} ({$nivel['minimo']}+ pts). Sigue enviando informes válidos para subir de rango.",
+            );
+        }
+
         $this->authorizeProgramAction(AccionesAbac::ProgramaVer, $programa);
 
         // Nunca se envía la relación `reportes`: contendría informes de otros investigadores.
@@ -86,7 +107,7 @@ class ProgramaController extends Controller
             : [];
 
         // Los moderadores y admins ven ahí mismo los informes del programa para revisarlos.
-        $puedeModerar = Gate::allows('abac', [AccionesAbac::ModeracionVer]);
+        $puedeModerar = $request->user()->puedeModerarPrograma($programa);
         $filtroInformes = ColaDeInformes::filtro($request->input('filtro'));
 
         return Inertia::render('programas/Show', [
@@ -109,6 +130,8 @@ class ProgramaController extends Controller
                 'objetivos' => $programa->objetivos->map(fn (ObjetivoPrograma $o) => $o->toArray()),
             ],
             'puedeReportar' => $puedeReportar,
+            // Un moderador no puede reportar en el programa que modera: se le explica en lugar de ocultar el botón sin más.
+            'moderaEstePrograma' => $request->user()->tieneRol('moderador') && in_array($programa->id, $request->user()->idsProgramasModerados(), true),
             'puedeGestionar' => $puedeGestionar,
             'puedeCambiarEstado' => $puedeCambiarEstado,
             'puedeEliminar' => $puedeEliminar && ! $programa->reportes()->exists(),
@@ -116,11 +139,19 @@ class ProgramaController extends Controller
         ]);
     }
 
-    public function create(): InertiaResponse
+    public function create(Request $request): InertiaResponse
     {
         Gate::authorize('abac', [AccionesAbac::ProgramaCrear]);
 
-        return Inertia::render('programas/gestion/Create');
+        // El administrador puede crear el programa en nombre de cualquier empresa aprobada.
+        $esAdmin = $request->user()->roles()->where('slug', 'administrador')->exists();
+
+        return Inertia::render('programas/gestion/Create', [
+            'empresas' => $esAdmin
+                ? Empresa::query()->where('estado', 'aprobada')->orderBy('razon_social')->get(['id', 'razon_social', 'nombre_comercial'])
+                : [],
+            'empresaInicial' => $esAdmin && $request->filled('empresa') ? (int) $request->input('empresa') : null,
+        ]);
     }
 
     public function edit(Programa $programa): InertiaResponse
@@ -137,16 +168,22 @@ class ProgramaController extends Controller
     {
         $validated = $request->validated();
         $user = $request->user();
-        $validated['reputacion_minima'] ??= 0;
+        $validated['nivel_acceso'] ??= 'bajo';
 
-        $programa = DB::transaction(function () use ($validated, $user) {
+        // Solo un administrador puede elegir la empresa; para el resto se ignora.
+        $empresaElegida = $user->roles()->where('slug', 'administrador')->exists() ? ($validated['empresa_id'] ?? null) : null;
+        unset($validated['empresa_id']);
+
+        $programa = DB::transaction(function () use ($validated, $user, $empresaElegida) {
             $objetivos = $validated['objetivos'] ?? [];
             unset($validated['objetivos']);
 
             $validated['creado_por'] = $user->id;
             $validated['estado'] = 'borrador';
 
-            if ($user->roles()->where('slug', 'empresa')->exists()) {
+            if ($empresaElegida !== null) {
+                $validated['empresa_id'] = $empresaElegida;
+            } elseif ($user->roles()->where('slug', 'empresa')->exists()) {
                 $empresa = $user->empresas()
                     ->where('empresas.estado', 'aprobada')
                     ->where('empresa_usuario.estado', 'activo')

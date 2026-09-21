@@ -42,7 +42,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('reportes/{reporte}/validar', [ReporteController::class, 'validar'])->name('reportes.validar');
     Route::post('reportes/{reporte}/rechazar', [ReporteController::class, 'rechazar'])->name('reportes.rechazar');
     Route::post('reportes/{reporte}/marcar-duplicado', [ReporteController::class, 'marcarDuplicado'])->name('reportes.marcar-duplicado');
-    Route::post('reportes/{reporte}/pagar', [ReporteController::class, 'pagar'])->name('reportes.pagar');
+    Route::post('reportes/{reporte}/reparacion', [ReporteController::class, 'reparacion'])->name('reportes.reparacion');
     Route::post('reportes/{reporte}/cerrar', [ReporteController::class, 'cerrar'])->name('reportes.cerrar');
     Route::post('reportes/{reporte}/comentar', [ReporteController::class, 'comentar'])->name('reportes.comentar');
 
@@ -63,6 +63,8 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('gestion/programas/{programa}/editar', [ProgramaController::class, 'edit'])->name('programas.edit');
 
     // Admin (Slice 5.6)
+    // Las migas de pan "Admin" apuntan a /admin: sin esta ruta daba 404.
+    Route::redirect('admin', '/admin/empresas')->name('admin.index');
     Route::get('admin/empresas', [AdminController::class, 'empresas'])->name('admin.empresas');
     Route::post('admin/empresas/{empresa}/aprobar', [AdminController::class, 'aprobarEmpresa'])->name('admin.empresas.aprobar');
     Route::post('admin/empresas/{empresa}/rechazar', [AdminController::class, 'rechazarEmpresa'])->name('admin.empresas.rechazar');

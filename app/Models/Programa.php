@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\EstadoPrograma;
+use App\Enums\NivelAcceso;
+use App\Services\Reputacion\Rangos;
 use Database\Factories\ProgramaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,12 +26,9 @@ use Illuminate\Support\Str;
  * @property string $descripcion
  * @property string|null $bugs_buscados
  * @property EstadoPrograma $estado
- * @property string $moneda
- * @property int|float $recompensa_min
- * @property int|float $recompensa_max
  * @property bool $requiere_poc
  * @property bool $es_publico
- * @property int $reputacion_minima
+ * @property NivelAcceso $nivel_acceso
  * @property array<string, mixed>|null $poc_schema
  * @property int|null $creado_por
  * @property Carbon|null $inicia_en
@@ -43,7 +42,7 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, User> $moderadores
  */
-#[Fillable(['nombre', 'slug', 'descripcion', 'bugs_buscados', 'estado', 'recompensa_min', 'recompensa_max', 'moneda', 'requiere_poc', 'es_publico', 'reputacion_minima', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
+#[Fillable(['nombre', 'slug', 'descripcion', 'bugs_buscados', 'estado', 'requiere_poc', 'es_publico', 'nivel_acceso', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
 class Programa extends Model
 {
     /** @use HasFactory<ProgramaFactory> */
@@ -58,11 +57,9 @@ class Programa extends Model
     {
         return [
             'estado' => EstadoPrograma::class,
-            'recompensa_min' => 'decimal:2',
-            'recompensa_max' => 'decimal:2',
             'requiere_poc' => 'boolean',
             'es_publico' => 'boolean',
-            'reputacion_minima' => 'integer',
+            'nivel_acceso' => NivelAcceso::class,
             'poc_schema' => 'array',
             'inicia_en' => 'datetime',
             'termina_en' => 'datetime',
@@ -128,15 +125,38 @@ class Programa extends Model
 
         static::creating(function (Programa $programa) {
             if (empty($programa->slug)) {
-                $programa->slug = Str::slug($programa->nombre);
+                $programa->slug = static::slugDisponible($programa->nombre);
             }
         });
 
         static::updating(function (Programa $programa) {
             if ($programa->isDirty('nombre') && ! $programa->isDirty('slug')) {
-                $programa->slug = Str::slug($programa->nombre);
+                $programa->slug = static::slugDisponible($programa->nombre, $programa->id);
             }
         });
+    }
+
+    /**
+     * Slug único a partir del nombre: añade un sufijo numérico si ya existe,
+     * contando también los programas eliminados (soft delete) porque conservan el slug.
+     */
+    protected static function slugDisponible(string $nombre, ?int $ignorarId = null): string
+    {
+        $base = Str::slug($nombre) ?: 'programa';
+        $slug = $base;
+        $sufijo = 2;
+
+        while (
+            static::withTrashed()
+                ->where('slug', $slug)
+                ->when($ignorarId, fn (Builder $query) => $query->where('id', '!=', $ignorarId))
+                ->exists()
+        ) {
+            $slug = "{$base}-{$sufijo}";
+            $sufijo++;
+        }
+
+        return $slug;
     }
 
     /**
@@ -173,8 +193,24 @@ class Programa extends Model
     {
         $roles = $user->roles->pluck('slug')->toArray();
 
-        if (in_array('administrador', $roles) || in_array('gestion', $roles) || in_array('moderador', $roles)) {
+        if (in_array('administrador', $roles) || in_array('gestion', $roles)) {
             return $query;
+        }
+
+        // Un moderador ve los programas que modera; si además es investigador, también los
+        // públicos activos a los que su rango le da acceso.
+        if (in_array('moderador', $roles)) {
+            $moderados = $user->idsProgramasModerados();
+            $esInvestigador = in_array('investigador', $roles);
+            $niveles = app(Rangos::class)->nivelesAccesibles((int) ($user->reputation_score ?? 0));
+
+            return $query->where(function (Builder $alcance) use ($moderados, $esInvestigador, $niveles) {
+                $alcance->whereIn('id', $moderados);
+
+                if ($esInvestigador) {
+                    $alcance->orWhere(fn (Builder $abiertos) => $abiertos->activos()->publicos()->whereIn('nivel_acceso', $niveles));
+                }
+            });
         }
 
         if (in_array('empresa', $roles)) {
@@ -189,7 +225,7 @@ class Programa extends Model
         return $query
             ->activos()
             ->publicos()
-            ->where('reputacion_minima', '<=', (int) ($user->reputation_score ?? 0));
+            ->whereIn('nivel_acceso', app(Rangos::class)->nivelesAccesibles((int) ($user->reputation_score ?? 0)));
     }
 
     /**

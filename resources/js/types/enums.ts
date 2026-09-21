@@ -6,8 +6,6 @@ export const EstadoReporte = {
     FueraDeAlcance: 'fuera_de_alcance',
     Validado: 'validado',
     EnReparacion: 'en_reparacion',
-    PagoPendiente: 'pago_pendiente',
-    Pagado: 'pagado',
     Rechazado: 'rechazado',
     Cerrado: 'cerrado',
 } as const;
@@ -45,7 +43,6 @@ export const TipoEventoReporte = {
     CambioDeEstado: 'cambio_estado',
     Comentario: 'comentario',
     MarcadoDuplicado: 'marcado_duplicado',
-    Pago: 'pago',
     Sancion: 'sancion',
     Asignacion: 'asignacion',
 } as const;

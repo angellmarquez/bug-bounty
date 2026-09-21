@@ -69,6 +69,7 @@
     } = $props();
 
     let notaRevocacion = $state<Record<number, string>>({});
+    let erroresNota = $state<Record<number, string>>({});
 
     function aplicarFiltro(key: string, value: string | null) {
         const params: Record<string, string> = {};
@@ -88,13 +89,21 @@
     }
 
     function revocarSancion(sancionId: number) {
-        const nota = notaRevocacion[sancionId] ?? '';
+        const nota = (notaRevocacion[sancionId] ?? '').trim();
+        if (!nota) {
+            erroresNota[sancionId] = 'Escribe una nota explicando la revocación.';
+            return;
+        }
+        erroresNota[sancionId] = '';
         router.post(`/admin/sanciones/${sancionId}/revocar`, {
             nota,
         }, {
             preserveState: true,
             onSuccess: () => {
                 notaRevocacion[sancionId] = '';
+            },
+            onError: (errores) => {
+                erroresNota[sancionId] = errores.nota ?? 'No se pudo revocar la sanción.';
             },
         });
     }
@@ -188,7 +197,7 @@
                         <p class="text-sm text-muted-foreground">{sancion.motivo}</p>
 
                         <div class="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Puntos: <span class="font-semibold text-destructive">-{sancion.puntos}</span></span>
+                            <span>Puntos: <span class="font-semibold text-destructive">{-Math.abs(sancion.puntos)}</span></span>
                             <span>{formatearFecha(sancion.created_at)}</span>
                         </div>
 
@@ -202,9 +211,13 @@
                             <div class="space-y-2 border-t border-border pt-3">
                                 <Input
                                     type="text"
-                                    placeholder="Nota de revocacion..."
+                                    placeholder="Nota de revocación (obligatoria)..."
                                     bind:value={notaRevocacion[sancion.id]}
+                                    aria-invalid={erroresNota[sancion.id] ? 'true' : undefined}
                                 />
+                                {#if erroresNota[sancion.id]}
+                                    <p class="text-xs text-destructive" role="alert">{erroresNota[sancion.id]}</p>
+                                {/if}
                                 <Button
                                     variant="destructive"
                                     size="sm"

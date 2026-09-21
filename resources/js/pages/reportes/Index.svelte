@@ -46,12 +46,10 @@
         { value: 'en_revision', label: 'En revision' },
         { value: 'validado', label: 'Validado' },
         { value: 'en_reparacion', label: 'En reparacion' },
-        { value: 'pago_pendiente', label: 'Pago pendiente' },
-        { value: 'pagado', label: 'Pagado' },
         { value: 'rechazado', label: 'Rechazado' },
         { value: 'duplicado', label: 'Duplicado' },
         { value: 'fuera_de_alcance', label: 'Fuera de alcance' },
-        { value: 'cerrado', label: 'Cerrado' },
+        { value: 'cerrado', label: 'Resuelto' },
     ];
 
     const SEVERIDADES_FILTRO = [

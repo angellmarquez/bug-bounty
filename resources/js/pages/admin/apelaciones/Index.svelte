@@ -61,6 +61,7 @@
     } = $props();
 
     let notasResolucion = $state<Record<number, string>>({});
+    let erroresNota = $state<Record<number, string>>({});
 
     function aplicarFiltro(key: string, value: string | null) {
         const params: Record<string, string> = {};
@@ -79,7 +80,12 @@
     }
 
     function resolverApelacion(apelacionId: number, aprobada: boolean) {
-        const nota = notasResolucion[apelacionId] ?? '';
+        const nota = (notasResolucion[apelacionId] ?? '').trim();
+        if (!nota) {
+            erroresNota[apelacionId] = 'Escribe una nota explicando la decisión.';
+            return;
+        }
+        erroresNota[apelacionId] = '';
         router.post(`/admin/apelaciones/${apelacionId}/resolver`, {
             aprobada,
             nota,
@@ -87,6 +93,9 @@
             preserveState: true,
             onSuccess: () => {
                 notasResolucion[apelacionId] = '';
+            },
+            onError: (errores) => {
+                erroresNota[apelacionId] = errores.nota ?? 'No se pudo resolver la apelación.';
             },
         });
     }
@@ -174,14 +183,14 @@
 
                         <div class="flex items-center justify-between text-xs text-muted-foreground">
                             <span>{formatearFecha(apelacion.created_at)}</span>
-                            {#if apelacion.resolucion}
+                            {#if apelacion.nota_resolucion}
                                 <span>Resuelta: {formatearFecha(apelacion.resuelta_en)}</span>
                             {/if}
                         </div>
 
-                        {#if apelacion.resolucion}
+                        {#if apelacion.nota_resolucion}
                             <div class="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                                Resolucion: {apelacion.resolucion}
+                                Resolucion: {apelacion.nota_resolucion}
                             </div>
                         {/if}
 
@@ -189,9 +198,13 @@
                             <div class="space-y-2 border-t border-border pt-3">
                                 <Input
                                     type="text"
-                                    placeholder="Nota de resolucion..."
+                                    placeholder="Nota de resolución (obligatoria)..."
                                     bind:value={notasResolucion[apelacion.id]}
+                                    aria-invalid={erroresNota[apelacion.id] ? 'true' : undefined}
                                 />
+                                {#if erroresNota[apelacion.id]}
+                                    <p class="text-xs text-destructive" role="alert">{erroresNota[apelacion.id]}</p>
+                                {/if}
                                 <div class="flex gap-2">
                                     <Button
                                         variant="default"

@@ -62,12 +62,10 @@ export function estadoReporteColor(estado: EstadoReporte): string {
         en_revision: pill('amber'),
         validado: pill('cyan'),
         en_reparacion: pill('indigo'),
-        pago_pendiente: pill('orange'),
-        pagado: pill('emerald'),
         rechazado: pill('pink'),
         duplicado: pill('purple'),
         fuera_de_alcance: pill('neutral'),
-        cerrado: pill('red'),
+        cerrado: pill('emerald'),
     };
     return map[estado] ?? pill('slate');
 }
@@ -141,12 +139,10 @@ export function estadoReporteDotColor(estado: EstadoReporte): string {
         en_revision: 'bg-amber-500',
         validado: 'bg-cyan-500',
         en_reparacion: 'bg-indigo-500',
-        pago_pendiente: 'bg-orange-500',
-        pagado: 'bg-emerald-500',
         rechazado: 'bg-pink-500',
         duplicado: 'bg-purple-500',
         fuera_de_alcance: 'bg-neutral-500',
-        cerrado: 'bg-red-600',
+        cerrado: 'bg-emerald-500',
     };
     return map[estado] ?? 'bg-muted-foreground';
 }
@@ -162,7 +158,6 @@ export function estadoReporteEnProgreso(estado: EstadoReporte): boolean {
         'en_revision',
         'validado',
         'en_reparacion',
-        'pago_pendiente',
     ];
     return abiertos.includes(estado);
 }
@@ -176,9 +171,7 @@ export function estadoReporteLabel(estado: EstadoReporte): string {
         fuera_de_alcance: 'Fuera de alcance',
         validado: 'Validado',
         en_reparacion: 'En reparación',
-        pagado: 'Pagado',
-        cerrado: 'Cerrado',
-        pago_pendiente: 'Pago pendiente',
+        cerrado: 'Resuelto',
         rechazado: 'Rechazado',
     };
     return map[estado] ?? estado;

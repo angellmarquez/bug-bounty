@@ -16,7 +16,7 @@
 </script>
 
 <script lang="ts">
-    import { Form } from '@inertiajs/svelte';
+    import { Form, page } from '@inertiajs/svelte';
     import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ArrowRight from '@lucide/svelte/icons/arrow-right';
     import Save from '@lucide/svelte/icons/save';
@@ -24,9 +24,11 @@
     import AppHead from '@/components/AppHead.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
+    import type { CuentaEstado } from '@/lib/rangos';
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
+    import AlertError from '@/components/AlertError.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
@@ -61,6 +63,9 @@
 
     let pasoActual = $state(1);
     let erroresPaso = $state<Record<string, string>>({});
+
+    // Una suspensión vigente impide enviar informes: se avisa antes de que rellene todo el formulario.
+    const suspension = $derived((page.props.cuenta as CuentaEstado | null | undefined)?.suspension ?? null);
 
     let formulario = $state({
         programa_id: programaInicial?.id ? String(programaInicial.id) : '',
@@ -142,6 +147,17 @@
         />
     </div>
 
+    {#if suspension}
+        <div class="rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-sm" role="alert" data-test="aviso-suspension">
+            <p class="font-medium">
+                Tu cuenta está suspendida{suspension.hasta ? ` hasta el ${new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(suspension.hasta))}` : ''}.
+            </p>
+            <p class="text-muted-foreground">
+                Hasta entonces no puedes crear ni enviar informes. Puedes seguir usando la plataforma y apelar la sanción desde Mi reputación.
+            </p>
+        </div>
+    {/if}
+
     <WizardSteps pasos={['Detalles', 'CVSS', 'PoC', 'Revision']} {pasoActual} />
 
     <Form
@@ -152,6 +168,9 @@
         onBefore={alEnviar}
     >
         {#snippet children({ errors: formErrors, processing: formProcessing })}
+            {#if formErrors.pgp}
+                <AlertError errors={[formErrors.pgp]} title="No se pudo guardar el reporte" />
+            {/if}
             {#if pasoActual === 1}
                 <Card>
                     <CardHeader>
@@ -320,7 +339,7 @@
                     {:else}
                         <Button
                             type="submit"
-                            disabled={formProcessing}
+                            disabled={formProcessing || !!suspension}
                             variant="outline"
                             onclick={() => (enviarAlGuardar = false)}
                         >
@@ -330,7 +349,7 @@
                         </Button>
                         <Button
                             type="submit"
-                            disabled={formProcessing}
+                            disabled={formProcessing || !!suspension}
                             onclick={() => (enviarAlGuardar = true)}
                         >
                             {#if formProcessing && enviarAlGuardar}<Spinner />{/if}

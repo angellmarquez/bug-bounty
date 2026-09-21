@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use InvalidArgumentException;
 
 class AdminController extends Controller
 {
@@ -216,6 +217,8 @@ class AdminController extends Controller
             return redirect()->route('admin.moderadores');
         }
         $user->roles()->detach($rol->id);
+        // Sin el rol no tiene sentido conservar los programas asignados.
+        $user->programasModerados()->detach();
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.revocado');
 
@@ -226,6 +229,12 @@ class AdminController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ModeradorAsignar]);
         abort_unless($user->roles()->where('slug', 'moderador')->exists(), 422, 'El usuario no tiene rol de moderador.');
+
+        // Quien ya reportó en un programa no puede moderarlo: revisaría (o vería) informes con conflicto de interés.
+        if ($programa->reportes()->where('investigador_id', $user->id)->exists()) {
+            return redirect()->route('admin.moderadores')
+                ->with('error', "{$user->name} ya presentó informes en {$programa->nombre}: no puede moderarlo.");
+        }
 
         $programa->moderadores()->syncWithoutDetaching([
             $user->id => ['asignado_por' => $request->user()->id],
@@ -301,6 +310,19 @@ class AdminController extends Controller
         $rol = Rol::where('slug', $request->input('rol'))->first();
         abort_if($rol === null, 422, 'Rol no encontrado.');
 
+        // Cambiar el rol reemplaza al anterior: sin estas guardas un administrador podía
+        // quitarse su propio rol de administrador (y dejar la plataforma sin ninguno).
+        if ($user->is($request->user()) && $rol->slug !== 'administrador') {
+            return redirect()->route('admin.usuarios')->with('error', 'No puedes cambiar tu propio rol: pídele a otro administrador que lo haga.');
+        }
+
+        $esAdministrador = $user->roles()->where('slug', 'administrador')->exists();
+        $quedanAdministradores = User::query()->whereHas('roles', fn ($query) => $query->where('slug', 'administrador'))->whereKeyNot($user->id)->exists();
+
+        if ($esAdministrador && $rol->slug !== 'administrador' && ! $quedanAdministradores) {
+            return redirect()->route('admin.usuarios')->with('error', 'Debe existir al menos un administrador en la plataforma.');
+        }
+
         $user->roles()->sync([$rol->id]);
 
         Auditoria::query()->create([
@@ -353,7 +375,11 @@ class AdminController extends Controller
             'nota' => ['required', 'string', 'max:2000'],
         ]);
 
-        $reputacion->revocarSancion($sancion, $request->input('nota'));
+        try {
+            $reputacion->revocarSancion($sancion, $request->input('nota'));
+        } catch (InvalidArgumentException $e) {
+            return redirect()->route('admin.sanciones')->with('error', $e->getMessage());
+        }
 
         return redirect()->route('admin.sanciones')
             ->with('success', 'Sancion revocada exitosamente. Puntos devueltos al ledger.');
@@ -390,12 +416,16 @@ class AdminController extends Controller
             'nota' => ['required', 'string', 'max:2000'],
         ]);
 
-        $reputacion->resolverApelacion(
-            $apelacion,
-            $validated['aprobada'],
-            $request->user(),
-            $validated['nota'],
-        );
+        try {
+            $reputacion->resolverApelacion(
+                $apelacion,
+                $validated['aprobada'],
+                $request->user(),
+                $validated['nota'],
+            );
+        } catch (InvalidArgumentException $e) {
+            return redirect()->route('admin.apelaciones')->with('error', $e->getMessage());
+        }
 
         $texto = $validated['aprobada'] ? 'aprobada' : 'rechazada';
 
@@ -459,7 +489,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'puntos_inicial' => ['required', 'integer', 'min:0'],
             'puntos.reporte_validado' => ['required', 'integer', 'min:0'],
-            'puntos.reporte_pagado' => ['required', 'integer', 'min:0'],
+            'puntos.reporte_resuelto' => ['required', 'integer', 'min:0'],
             'puntos.calidad_documentacion' => ['required', 'integer', 'min:0'],
             'puntos.participacion' => ['required', 'integer', 'min:0'],
             'penalizacion.leve' => ['required', 'integer'],

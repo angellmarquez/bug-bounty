@@ -34,7 +34,7 @@ dataset('matriz_abac', [
     'inv no puede triajar (deny explícito gana)' => ['reportes.validar', fn () => [($inv = investigador()), reporteDe($inv, atributos: ['estado' => EstadoReporte::EnRevision->value])], false],
     'inv no puede asignar reportes' => ['reportes.asignar', fn () => [investigador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Enviado->value])], false],
     'inv no puede cerrar reportes' => ['reportes.cerrar', fn () => [investigador(), reporteDe(investigador())], false],
-    'inv no opera sanciones fuera del alcance' => ['reportes.pagar', fn () => [investigador(), reporteDe(investigador())], false],
+    'inv no opera sanciones fuera del alcance' => ['reportes.marcar_en_reparacion', fn () => [investigador(), reporteDe(investigador())], false],
 
     // ------------------------------------------------------------------
     // Reportes — gestión (triaje)
@@ -50,8 +50,8 @@ dataset('matriz_abac', [
     'gestion no valida un reporte asignado a otro gestor' => ['reportes.validar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => gestion()->id])], false],
     'gestion no valida un reporte borrador' => ['reportes.validar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Borrador->value])], false],
     'gestion marca duplicado un reporte en revisión' => ['reportes.marcar_duplicado', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], true],
-    'gestion paga un reporte validado sin adjudicar' => ['reportes.pagar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Validado->value, 'asignado_a' => null])], true],
-    'gestion cierra un reporte pagado' => ['reportes.cerrar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::PagoPendiente->value, 'asignado_a' => null])], true],
+    'gestion marca en reparación un reporte validado sin adjudicar' => ['reportes.marcar_en_reparacion', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Validado->value, 'asignado_a' => null])], true],
+    'gestion cierra un reporte en reparación' => ['reportes.cerrar', fn () => [gestion(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnReparacion->value, 'asignado_a' => null])], true],
     'inv no interviene en el triaje de un reporte asignado' => ['reportes.validar', fn () => [($inv = investigador()), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => $inv->id])], false],
 
     // ------------------------------------------------------------------
@@ -69,8 +69,8 @@ dataset('matriz_abac', [
     'inv ve un programa público en pausa' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::EnPausa->value, 'es_publico' => true])], true],
     'inv no ve un programa privado' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => false])], false],
     'inv no ve un programa archivado' => ['programas.ver', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Archivado->value, 'es_publico' => true])], false],
-    'inv con reputacion suficiente ve programa restringido' => ['programas.ver', fn () => [investigador(['reputation_score' => 50]), programaDe(investigador(['reputation_score' => 50]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'reputacion_minima' => 50])], true],
-    'inv con reputacion insuficiente no ve programa restringido' => ['programas.ver', fn () => [investigador(['reputation_score' => 49]), programaDe(investigador(['reputation_score' => 49]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'reputacion_minima' => 50])], false],
+    'inv con rango suficiente (plata) ve programa de nivel medio' => ['programas.ver', fn () => [investigador(['reputation_score' => 100]), programaDe(investigador(['reputation_score' => 100]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'nivel_acceso' => 'medio'])], true],
+    'inv con rango insuficiente (bronce) no ve programa de nivel medio' => ['programas.ver', fn () => [investigador(['reputation_score' => 99]), programaDe(investigador(['reputation_score' => 99]), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true, 'nivel_acceso' => 'medio'])], false],
     'inv crea un reporte en un programa activo' => ['reportes.crear', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])], true],
     'inv no crea reportes en un programa borrador' => ['reportes.crear', fn () => [investigador(), programaDe(investigador(), ['estado' => EstadoPrograma::Borrador->value])], false],
     'gestion crea programas' => ['programas.crear', fn () => [gestion(), null], true],

@@ -43,5 +43,6 @@
     {/if}
 </button>
 {#if name}
-    <input type="hidden" {name} {value} />
+    <!-- Un checkbox desmarcado debe enviar "0"; si no, el servidor lo lee como marcado. -->
+    <input type="hidden" {name} value={checked ? (value ?? 'on') : '0'} />
 {/if}

@@ -108,7 +108,7 @@ export function parseCvssVector(vector: string): Record<string, string> {
 
 export function buildCvssVector(metrics: Record<string, string>): string {
     const parts = CVSS_METRICS.map(
-        (m) => `${m.abbrev}:${metrics[m.id] ?? 'N'}`,
+        (m) => `${m.abbrev}:${metrics[m.id] ?? m.values[0].id}`,
     );
     return `CVSS:3.1/${parts.join('/')}`;
 }
@@ -130,15 +130,18 @@ export function calcularPuntuacionBase(
     const ac =
         CVSS_METRICS[1].values.find((v) => v.id === (metrics.AC ?? 'L'))
             ?.weight ?? 0.77;
-    const prValue =
-        metrics.PR === 'N' ? 0.85 : metrics.PR === 'L' ? 0.62 : 0.27;
+    // Con Scope Changed, los pesos de PR:L y PR:H son mayores (CVSS 3.1).
+    const scopeChanged = metrics.S === 'C';
+    const prId = metrics.PR ?? 'N';
     const pr =
-        metrics.S === 'C'
-            ? prValue
-            : metrics.PR === 'N'
-              ? 0.85
-              : metrics.PR === 'L'
-                ? 0.62
+        prId === 'N'
+            ? 0.85
+            : prId === 'L'
+              ? scopeChanged
+                  ? 0.68
+                  : 0.62
+              : scopeChanged
+                ? 0.5
                 : 0.27;
     const ui =
         CVSS_METRICS[3].values.find((v) => v.id === (metrics.UI ?? 'N'))

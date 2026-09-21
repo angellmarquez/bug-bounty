@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use InvalidArgumentException;
 
 class ReputacionController extends Controller
 {
@@ -75,17 +76,23 @@ class ReputacionController extends Controller
 
     public function apelar(Sancion $sancion, Request $request, ReputationService $reputacion): RedirectResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ApelacionCrear, $sancion]);
+        // La regla ABAC evalúa la apelación (sus atributos `sancion.*`), no la sanción sola.
+        $intento = (new Apelacion)->forceFill(['usuario_id' => $request->user()->id, 'sancion_id' => $sancion->id]);
+        Gate::authorize('abac', [AccionesAbac::ApelacionCrear, $intento]);
 
         $request->validate([
             'motivo' => ['required', 'string', 'max:2000'],
         ]);
 
-        $reputacion->crearApelacion(
-            $sancion,
-            $request->user(),
-            $request->input('motivo'),
-        );
+        try {
+            $reputacion->crearApelacion(
+                $sancion,
+                $request->user(),
+                $request->input('motivo'),
+            );
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['motivo' => $e->getMessage()]);
+        }
 
         return redirect()->route('reputacion.ledger')
             ->with('success', 'Apelacion presentada exitosamente. La revision puede tardar hasta 48 horas.');

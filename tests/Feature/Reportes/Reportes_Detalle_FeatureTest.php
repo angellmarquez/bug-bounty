@@ -3,7 +3,6 @@
 use App\Models\Empresa;
 use App\Models\EventoReporte;
 use App\Models\Programa;
-use App\Models\User;
 
 test('guests are redirected to the login page', function () {
     $reporte = reporteDe(investigador());
@@ -33,38 +32,25 @@ test('investigador cannot view reporte de otro', function () {
     $response->assertForbidden();
 });
 
-test('moderador can view any reporte including borradores', function (string $estado) {
-    $this->actingAs(moderador());
+test('moderador sees the reportes of its programa but never the borradores', function (string $estado, int $status) {
+    $programaModerado = Programa::factory()->create();
+    $this->actingAs(moderadorDe($programaModerado));
 
-    $reporte = reporteDe(investigador(), null, ['estado' => $estado]);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => $estado]);
 
-    $this->get(route('reportes.show', $reporte))->assertOk();
-})->with(['enviado', 'borrador']);
-
-test('moderador can view notas internas', function () {
-    $this->actingAs(moderador());
-
-    $reporte = reporteDe(investigador(), null, [
-        'estado' => 'enviado',
-        'notas_internas' => 'Nota confidencial de moderacion',
-    ]);
-
-    $response = $this->get(route('reportes.show', $reporte));
-    $response->assertOk();
-    $props = $response->inertiaProps();
-    $this->assertTrue($props['puedeVerNotasInternas']);
-    $this->assertEquals('Nota confidencial de moderacion', $props['reporte']['notas_internas']);
-});
-
-test('gestion cannot view reportes de otros', function (User $usuario) {
-    $this->actingAs($usuario);
-
-    $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
-
-    $this->get(route('reportes.show', $reporte))->assertForbidden();
+    $this->get(route('reportes.show', $reporte))->assertStatus($status);
 })->with([
-    'gestion' => fn () => gestion(),
+    'enviado' => ['enviado', 200],
+    'borrador' => ['borrador', 403],
 ]);
+
+test('moderador cannot view a reporte from a programa it does not moderate', function () {
+    $this->actingAs(moderadorDe(Programa::factory()->create()));
+
+    $ajeno = reporteDe(investigador(), Programa::factory()->create(), ['estado' => 'enviado']);
+
+    $this->get(route('reportes.show', $ajeno))->assertForbidden();
+});
 
 test('admin can view reportes de otros to review them', function () {
     $this->actingAs(administrador());

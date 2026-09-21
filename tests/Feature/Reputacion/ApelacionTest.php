@@ -109,3 +109,68 @@ test('resolverApelacion rechaza resolver una apelación ya resuelta', function (
     expect(fn () => $servicio->resolverApelacion($apelacion->fresh(), aprobada: true, resolutor: $resolutor))
         ->toThrow(InvalidArgumentException::class);
 });
+
+test('el investigador puede apelar por HTTP su sanción vigente', function () {
+    $investigador = investigador();
+    $sancion = app(ReputationService::class)->aplicarSancion($investigador, 'rafaga_reportes', GravedadSancion::Leve);
+
+    $this->actingAs($investigador)
+        ->post(route('reputacion.apelar', $sancion), ['motivo' => 'No hubo ráfaga.'])
+        ->assertRedirect(route('reputacion.ledger'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('apelaciones', ['sancion_id' => $sancion->id, 'usuario_id' => $investigador->id]);
+    expect($sancion->fresh()->estado)->toBe(EstadoSancion::Apelada);
+});
+
+test('no se puede apelar por HTTP la sanción de otro investigador', function () {
+    $sancion = app(ReputationService::class)->aplicarSancion(investigador(), 'rafaga_reportes', GravedadSancion::Leve);
+
+    $this->actingAs(investigador())
+        ->post(route('reputacion.apelar', $sancion), ['motivo' => 'Intento ajeno.'])
+        ->assertForbidden();
+
+    $this->assertDatabaseCount('apelaciones', 0);
+});
+
+test('apelar una sanción con apelación pendiente muestra un error en lugar de fallar con 500', function () {
+    $investigador = investigador();
+    $sancion = app(ReputationService::class)->aplicarSancion($investigador, 'rafaga_reportes', GravedadSancion::Leve);
+    $this->actingAs($investigador)->post(route('reputacion.apelar', $sancion), ['motivo' => 'Primera.']);
+
+    $this->actingAs($investigador)
+        ->post(route('reputacion.apelar', $sancion), ['motivo' => 'Segunda.'])
+        ->assertSessionHasErrors('motivo');
+
+    $this->assertDatabaseCount('apelaciones', 1);
+});
+
+test('el admin puede resolver una apelación por HTTP y el motivo obligatorio se valida', function () {
+    $investigador = investigador();
+    $servicio = app(ReputationService::class);
+    $sancion = $servicio->aplicarSancion($investigador, 'rafaga_reportes', GravedadSancion::Leve);
+    $apelacion = $servicio->crearApelacion($sancion, $investigador, 'No hubo ráfaga.');
+
+    $this->actingAs(administrador())
+        ->post(route('admin.apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => ''])
+        ->assertSessionHasErrors('nota');
+    expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Pendiente);
+
+    $this->actingAs(administrador())
+        ->post(route('admin.apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => 'Se acepta.'])
+        ->assertRedirect(route('admin.apelaciones'));
+    expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Aprobada)
+        ->and($apelacion->fresh()->nota_resolucion)->toBe('Se acepta.');
+
+    // Resolverla de nuevo no debe dar un error 500, sino un aviso.
+    $this->actingAs(administrador())
+        ->post(route('admin.apelaciones.resolver', $apelacion), ['aprobada' => false, 'nota' => 'Otra vez.'])
+        ->assertRedirect(route('admin.apelaciones'))
+        ->assertSessionHas('error');
+});
+
+test('la ruta /admin redirige al panel de empresas en lugar de dar 404', function () {
+    $this->actingAs(administrador())
+        ->get('/admin')
+        ->assertRedirect('/admin/empresas');
+});

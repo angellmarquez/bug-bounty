@@ -76,12 +76,12 @@
                 },
                 scales: {
                     y: {
-                        grid: { color: 'rgba(255,255,255,0.06)' },
-                        ticks: { color: 'rgba(255,255,255,0.5)' },
+                        grid: { color: 'rgba(128,128,128,0.15)' },
+                        ticks: { color: 'rgba(128,128,128,0.9)' },
                     },
                     x: {
                         grid: { display: false },
-                        ticks: { color: 'rgba(255,255,255,0.5)' },
+                        ticks: { color: 'rgba(128,128,128,0.9)' },
                     },
                 },
             },

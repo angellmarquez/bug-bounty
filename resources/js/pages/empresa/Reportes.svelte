@@ -29,7 +29,7 @@
         conteos,
         reportes,
     }: {
-        empresa: { id: number; nombre: string };
+        empresa: { id: number; nombre: string; esAdmin: boolean };
         programas: { id: number; nombre: string }[];
         filtros: { filtro: Filtro; programa_id: number | null; busqueda: string };
         conteos: Record<Filtro, number>;
@@ -57,6 +57,8 @@
         if (filtro !== 'todos') params.set('filtro', filtro);
         if (programaId) params.set('programa_id', programaId);
         if (busqueda) params.set('busqueda', busqueda);
+        // Un administrador debe indicar de qué empresa son los informes.
+        if (empresa.esAdmin) params.set('empresa', String(empresa.id));
         const texto = params.toString();
         return `/empresa/reportes${texto ? `?${texto}` : ''}`;
     }

@@ -41,9 +41,43 @@ return [
 
     'puntos' => [
         'reporte_validado' => (int) env('REPUTACION_PUNTOS_VALIDADO', 50),
-        'reporte_pagado' => (int) env('REPUTACION_PUNTOS_PAGADO', 100),
+        'reporte_resuelto' => (int) env('REPUTACION_PUNTOS_RESUELTO', 100),
         'calidad_documentacion' => (int) env('REPUTACION_PUNTOS_CALIDAD', 10),
         'participacion' => (int) env('REPUTACION_PUNTOS_PARTICIPACION', 5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rangos de reputación
+    |--------------------------------------------------------------------------
+    |
+    | Como en un programa de niveles: cada rango empieza en `minimo` puntos y dura hasta el
+    | siguiente. El rango se calcula siempre a partir del saldo del ledger, no se guarda.
+    |
+    */
+
+    'rangos' => [
+        'bronce' => ['nombre' => 'Bronce', 'minimo' => 0],
+        'plata' => ['nombre' => 'Plata', 'minimo' => 100],
+        'oro' => ['nombre' => 'Oro', 'minimo' => 300],
+        'platino' => ['nombre' => 'Platino', 'minimo' => 700],
+        'diamante' => ['nombre' => 'Diamante', 'minimo' => 1500],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Nivel de acceso de los programas
+    |--------------------------------------------------------------------------
+    |
+    | Al crear un programa la empresa elige un nivel (bajo, medio, alto) y cada nivel exige
+    | un rango mínimo. Los rangos superiores (platino, diamante) también entran a todos.
+    |
+    */
+
+    'acceso' => [
+        'bajo' => 'bronce',
+        'medio' => 'plata',
+        'alto' => 'oro',
     ],
 
     /*

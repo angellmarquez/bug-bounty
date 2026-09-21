@@ -17,6 +17,7 @@
     import Plus from '@lucide/svelte/icons/plus';
     import Settings from '@lucide/svelte/icons/settings';
     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+    import { toast } from 'svelte-sonner';
     import ReportesCompactos from '@/components/ReportesCompactos.svelte';
     import type { EstadoPrograma } from '@/types/enums';
     import type { ReporteCompacto } from '@/types/domain';
@@ -31,9 +32,11 @@
             estado: string;
             motivo_estado: string | null;
             rol_interno: string;
+            esAdmin: boolean;
             puedeOperar: boolean;
+            puedeGestionarMiembros: boolean;
             usuarios: { id: number; name: string; email: string }[];
-            invitaciones: { id: number; email: string; expira_en: string }[];
+            invitaciones: { id: number; email: string; expira_en: string; url: string }[];
             programas: {
                 id: number;
                 nombre: string;
@@ -73,25 +76,35 @@
 
     let emailMiembro = $state('');
     let emailInvitacion = $state('');
-    let invitacionUrl = $state('');
+
+    async function copiarEnlace(url: string) {
+        try {
+            await navigator.clipboard.writeText(url);
+            toast.success('Enlace copiado.');
+        } catch {
+            toast.error('No se pudo copiar; selecciónalo y cópialo a mano.');
+        }
+    }
+
+    // Un administrador opera cualquier empresa: hay que decir sobre cuál.
+    const contexto = $derived(empresa.esAdmin ? { empresa_id: empresa.id } : {});
+    const sufijoAdmin = $derived(empresa.esAdmin ? `?empresa=${empresa.id}` : '');
 
     function agregarMiembro() {
-        router.post('/empresa/miembros', { email: emailMiembro }, {
+        router.post('/empresa/miembros', { email: emailMiembro, ...contexto }, {
             preserveState: true,
             onSuccess: () => { emailMiembro = ''; },
         });
     }
 
     function eliminarMiembro(userId: number) {
-        router.delete(`/empresa/miembros/${userId}`, { preserveState: true });
+        router.delete(`/empresa/miembros/${userId}${empresa.esAdmin ? `?empresa_id=${empresa.id}` : ''}`, { preserveState: true });
     }
 
     function invitarMiembro() {
-        router.post('/empresa/invitaciones', { email: emailInvitacion }, {
+        router.post('/empresa/invitaciones', { email: emailInvitacion, ...contexto }, {
             preserveState: true,
-            onSuccess: (page) => {
-                const flash = page.props.flash as { invitacion_url?: string } | undefined;
-                invitacionUrl = String(flash?.invitacion_url ?? '');
+            onSuccess: () => {
                 emailInvitacion = '';
             },
         });
@@ -106,7 +119,7 @@
         description="Estado de la solicitud empresarial"
     >
         {#if empresa.puedeOperar}
-            <Button href="/gestion/programas/crear">
+            <Button href={`/gestion/programas/crear${sufijoAdmin}`}>
                 <Plus class="mr-2 h-4 w-4" />
                 Crear programa
             </Button>
@@ -135,7 +148,7 @@
         </CardContent>
     </Card>
 
-    {#if empresa.puedeOperar && empresa.rol_interno === 'propietario'}
+    {#if empresa.puedeGestionarMiembros}
         <Card>
             <CardHeader><CardTitle>Miembros</CardTitle></CardHeader>
             <CardContent class="space-y-4">
@@ -147,8 +160,22 @@
                     <Input type="email" bind:value={emailInvitacion} placeholder="Invitar por correo" required />
                     <Button type="submit" variant="outline">Invitar</Button>
                 </form>
-                {#if invitacionUrl}
-                    <p class="break-all rounded-md bg-muted p-2 text-xs">Enlace de invitación: <a href={invitacionUrl} class="text-primary underline">{invitacionUrl}</a></p>
+                {#if empresa.invitaciones.length > 0}
+                    <div class="space-y-2">
+                        <p class="text-sm font-medium">Invitaciones pendientes</p>
+                        <p class="text-xs text-muted-foreground">
+                            La persona debe iniciar sesión (o registrarse) con ese mismo correo y abrir el enlace para unirse.
+                        </p>
+                        {#each empresa.invitaciones as invitacion (invitacion.id)}
+                            <div class="flex flex-col gap-2 rounded-md bg-muted p-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0">
+                                    <p class="font-medium">{invitacion.email}</p>
+                                    <p class="break-all text-muted-foreground">{invitacion.url}</p>
+                                </div>
+                                <Button size="sm" variant="outline" type="button" onclick={() => copiarEnlace(invitacion.url)}>Copiar enlace</Button>
+                            </div>
+                        {/each}
+                    </div>
                 {/if}
                 <div class="space-y-2">
                     {#each empresa.usuarios as usuario (usuario.id)}
@@ -266,7 +293,7 @@
                             descripción y la prueba de concepto. Los borradores no aparecen.
                         </CardDescription>
                     </div>
-                    <Button href="/empresa/reportes" variant="outline">
+                    <Button href={`/empresa/reportes${sufijoAdmin}`} variant="outline">
                         Ver todos los informes ({empresa.resumen.reportes})
                     </Button>
                 </div>

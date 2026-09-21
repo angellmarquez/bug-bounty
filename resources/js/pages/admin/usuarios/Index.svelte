@@ -13,11 +13,12 @@
 </script>
 
 <script lang="ts">
-    import { router } from '@inertiajs/svelte';
+    import { page, router } from '@inertiajs/svelte';
     import Search from '@lucide/svelte/icons/search';
     import Users from '@lucide/svelte/icons/users';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
+    import RangoBadge from '@/components/RangoBadge.svelte';
     import EmptyState from '@/components/EmptyState.svelte';
     import { Input } from '@/components/ui/input';
     import { Button } from '@/components/ui/button';
@@ -91,6 +92,9 @@
         });
     }
 
+    // Cambiar el propio rol reemplazaría el de administrador: el servidor lo rechaza y aquí se bloquea.
+    const yoId = $derived((page.props.auth as { user?: { id: number } } | undefined)?.user?.id);
+
     function cambiarRol(usuarioId: number, nuevoRol: string) {
         router.put(`/admin/usuarios/${usuarioId}`, {
             rol: nuevoRol,
@@ -160,9 +164,7 @@
                             <CardTitle class="text-sm font-semibold leading-tight">
                                 {usuario.name}
                             </CardTitle>
-                            <span class="inline-flex items-center rounded-md border border-transparent bg-chart-1 px-2 py-0.5 text-xs font-semibold text-white">
-                                {usuario.reputation_score} pts
-                            </span>
+                            <RangoBadge puntos={usuario.reputation_score} mostrarPuntos />
                         </div>
                         <p class="text-xs text-muted-foreground">
                             {usuario.email}
@@ -173,10 +175,11 @@
                             <span class="text-xs text-muted-foreground">Rol:</span>
                             <Select
                                 value={usuario.roles[0] ?? 'investigador'}
+                                disabled={usuario.id === yoId}
                                 onValueChange={(v) => cambiarRol(usuario.id, v)}
                                 items={roles.map((r) => ({ value: r.slug, label: r.nombre }))}
                             >
-                                <SelectTrigger class="h-8 w-full text-xs">
+                                <SelectTrigger class="h-8 w-full text-xs" title={usuario.id === yoId ? 'No puedes cambiar tu propio rol' : undefined}>
                                     <SelectValue placeholder={usuario.roles[0] ?? 'investigador'} />
                                 </SelectTrigger>
                                 <SelectContent>

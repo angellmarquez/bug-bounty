@@ -40,9 +40,6 @@ test('gestion can create a program', function () {
     $response = $this->post(route('programas.store'), [
         'nombre' => 'New Program',
         'descripcion' => 'Program description',
-        'recompensa_min' => 100,
-        'recompensa_max' => 1000,
-        'moneda' => 'USD',
     ]);
 
     $response->assertRedirect();
@@ -56,9 +53,6 @@ test('investigador cannot create a program', function () {
     $response = $this->post(route('programas.store'), [
         'nombre' => 'Test Program',
         'descripcion' => 'Test description',
-        'recompensa_min' => 50,
-        'recompensa_max' => 500,
-        'moneda' => 'USD',
     ]);
 
     $response->assertForbidden();
@@ -73,9 +67,6 @@ test('gestion can update own program', function () {
     $response = $this->put(route('programas.update', $programa), [
         'nombre' => 'Updated Name',
         'descripcion' => 'Updated description',
-        'recompensa_min' => 100,
-        'recompensa_max' => 1000,
-        'moneda' => 'USD',
     ]);
 
     $response->assertRedirect();
@@ -92,9 +83,6 @@ test('gestion cannot update another gestion program', function () {
     $response = $this->put(route('programas.update', $programa), [
         'nombre' => 'Hacked Name',
         'descripcion' => 'Hacked',
-        'recompensa_min' => 0,
-        'recompensa_max' => 1,
-        'moneda' => 'USD',
     ]);
 
     $response->assertForbidden();
@@ -144,11 +132,38 @@ test('slug is auto-generated from name', function () {
     $response = $this->post(route('programas.store'), [
         'nombre' => 'Mi Programa de Prueba',
         'descripcion' => 'Description',
-        'recompensa_min' => 50,
-        'recompensa_max' => 500,
-        'moneda' => 'USD',
     ]);
 
     $response->assertRedirect();
     $this->assertDatabaseHas('programas', ['nombre' => 'Mi Programa de Prueba', 'slug' => 'mi-programa-de-prueba']);
+});
+
+test('programas con el mismo nombre reciben un slug distinto en lugar de fallar con error 500', function () {
+    $this->actingAs(gestion());
+    $datos = [
+        'nombre' => 'Programa Repetido',
+        'descripcion' => 'Description',
+    ];
+
+    $this->post(route('programas.store'), $datos)->assertRedirect();
+    $this->post(route('programas.store'), $datos)->assertRedirect();
+
+    $this->assertDatabaseHas('programas', ['slug' => 'programa-repetido']);
+    $this->assertDatabaseHas('programas', ['slug' => 'programa-repetido-2']);
+
+    // Un programa eliminado (soft delete) conserva su slug, así que también cuenta.
+    Programa::where('slug', 'programa-repetido-2')->firstOrFail()->delete();
+    $this->post(route('programas.store'), $datos)->assertRedirect();
+
+    $this->assertDatabaseHas('programas', ['slug' => 'programa-repetido-3']);
+});
+
+test('renombrar un programa a un nombre ya usado no rompe por slug duplicado', function () {
+    $this->actingAs(administrador());
+    Programa::factory()->create(['nombre' => 'Nombre Libre', 'slug' => 'nombre-libre']);
+    $otro = Programa::factory()->create(['nombre' => 'Otro Nombre']);
+
+    $otro->update(['nombre' => 'Nombre Libre']);
+
+    expect($otro->fresh()->slug)->toBe('nombre-libre-2');
 });

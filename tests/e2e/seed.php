@@ -59,7 +59,7 @@ $programa = Programa::factory()->create([
     'nombre' => 'Programa Acme E2E',
     'estado' => EstadoPrograma::Activo,
     'es_publico' => true,
-    'reputacion_minima' => 0,
+    'nivel_acceso' => 'bajo',
     'bugs_buscados' => 'Inyecciones y XSS',
 ]);
 ObjetivoPrograma::factory()->create(['programa_id' => $programa->id, 'tipo' => 'web', 'valor' => 'app.acme.test']);

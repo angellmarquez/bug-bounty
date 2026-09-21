@@ -57,7 +57,7 @@ return [
             'objeto' => [
                 'estado' => ['=' => 'activo'],
                 'es_publico' => ['=' => true],
-                'reputacion_minima' => ['<=' => '@sujeto.reputation_score'],
+                'nivel_acceso' => ['in' => '@sujeto.niveles_acceso'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -115,7 +115,7 @@ return [
             'objeto' => [
                 'es_publico' => ['=' => true],
                 'estado' => ['in' => ['activo', 'en_pausa']],
-                'reputacion_minima' => ['<=' => '@sujeto.reputation_score'],
+                'nivel_acceso' => ['in' => '@sujeto.niveles_acceso'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -166,12 +166,12 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
-                'reportes.pagar',
+                'reportes.marcar_en_reparacion',
                 'reportes.cerrar',
             ],
             'sujeto' => ['roles' => ['contains' => 'gestion']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion']],
                 'asignado_a' => ['=' => '@sujeto.id'],
             ],
             'entorno' => [],
@@ -184,12 +184,12 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
-                'reportes.pagar',
+                'reportes.marcar_en_reparacion',
                 'reportes.cerrar',
             ],
             'sujeto' => ['roles' => ['contains' => 'gestion']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion']],
                 'asignado_a' => ['is_null'],
             ],
             'entorno' => [],
@@ -295,32 +295,35 @@ return [
         ],
 
         [
-            'id' => 'moderador-ver-reportes-no-borrador',
+            'id' => 'moderador-ver-reportes-de-sus-programas',
             'prioridad' => 35,
             'acciones' => ['reportes.ver', 'reportes.ver_notas_internas'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
-            'objeto' => [],
+            'objeto' => [
+                'estado' => ['!=' => 'borrador'],
+                'programa_id' => ['in' => '@sujeto.programas_moderados'],
+            ],
             'entorno' => [],
             'decision' => 'permitir',
         ],
         [
-            'id' => 'empresa-pagar-y-cerrar-reportes-de-sus-programas',
+            'id' => 'empresa-reparar-y-cerrar-reportes-de-sus-programas',
             'prioridad' => 35,
-            'acciones' => ['reportes.pagar', 'reportes.cerrar'],
+            'acciones' => ['reportes.marcar_en_reparacion', 'reportes.cerrar'],
             'sujeto' => ['roles' => ['contains' => 'empresa']],
             'objeto' => [
-                'estado' => ['in' => ['validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'estado' => ['in' => ['validado', 'en_reparacion']],
                 'programa.empresa_id' => ['=' => '@entorno.empresa_id'],
             ],
             'entorno' => ['empresa_id' => ['is_not_null']],
             'decision' => 'permitir',
         ],
         [
-            'id' => 'moderador-ver-programas',
+            'id' => 'moderador-ver-sus-programas',
             'prioridad' => 35,
             'acciones' => ['programas.ver'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
-            'objeto' => [],
+            'objeto' => ['id' => ['in' => '@sujeto.programas_moderados']],
             'entorno' => [],
             'decision' => 'permitir',
         ],
@@ -356,8 +359,9 @@ return [
             ],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion']],
                 'asignado_a' => ['is_null'],
+                'programa_id' => ['in' => '@sujeto.programas_moderados'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -368,8 +372,9 @@ return [
             'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion', 'pago_pendiente', 'pagado']],
+                'estado' => ['in' => ['enviado', 'en_revision', 'validado', 'en_reparacion']],
                 'asignado_a' => ['=' => '@sujeto.id'],
+                'programa_id' => ['in' => '@sujeto.programas_moderados'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
@@ -388,7 +393,7 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
-                'reportes.pagar',
+                'reportes.marcar_en_reparacion',
                 'reportes.cerrar',
             ],
             'sujeto' => ['roles' => ['=' => ['investigador']]],
@@ -397,6 +402,57 @@ return [
             'decision' => 'denegar',
         ],
 
+        // ------------------------------------------------------------------
+        // 6. Conflicto de interés y suspensiones (el deny gana siempre).
+        // ------------------------------------------------------------------
+
+        // Quien modera un programa ve las vulnerabilidades de sus informes: reportar ahí sería trampa.
+        [
+            'id' => 'denegar-reportar-en-programa-que-modera',
+            'prioridad' => 5,
+            'acciones' => ['reportes.crear'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => ['id' => ['in' => '@sujeto.programas_moderados']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-enviar-o-editar-informe-de-programa-que-modera',
+            'prioridad' => 5,
+            'acciones' => ['reportes.enviar', 'reportes.editar'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => ['programa_id' => ['in' => '@sujeto.programas_moderados']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        // Nadie revisa, valida ni cierra su propio informe (tampoco un administrador).
+        [
+            'id' => 'denegar-triaje-de-informe-propio',
+            'prioridad' => 5,
+            'acciones' => [
+                'reportes.asignar',
+                'reportes.validar',
+                'reportes.rechazar',
+                'reportes.marcar_duplicado',
+                'reportes.marcar_en_reparacion',
+                'reportes.cerrar',
+                'reportes.ver_notas_internas',
+            ],
+            'sujeto' => ['autenticado' => ['=' => true]],
+            'objeto' => ['investigador_id' => ['=' => '@sujeto.id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        // Una suspensión vigente impide presentar informes nuevos hasta que termine.
+        [
+            'id' => 'denegar-reportar-si-esta-suspendido',
+            'prioridad' => 5,
+            'acciones' => ['reportes.crear', 'reportes.enviar'],
+            'sujeto' => ['suspendido' => ['=' => true]],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
     ],
 
 ];

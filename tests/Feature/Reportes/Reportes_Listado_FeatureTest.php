@@ -34,15 +34,18 @@ test('investigador sees only own reportes', function () {
     $this->assertNotContains($ajeno->id, $ids);
 });
 
-test('moderador sees all reportes including borradores', function () {
-    $this->actingAs(moderador());
+test('moderador sees the reportes of its programas but not borradores nor other programas', function () {
+    $programaModerado = Programa::factory()->create();
+    $this->actingAs(moderadorDe($programaModerado));
 
-    $enviado = reporteDe(investigador(), null, ['estado' => 'enviado']);
-    $borrador = reporteDe(investigador(), null, ['estado' => 'borrador']);
+    $enviado = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
+    $borrador = reporteDe(investigador(), $programaModerado, ['estado' => 'borrador']);
+    $ajeno = reporteDe(investigador(), Programa::factory()->create(), ['estado' => 'enviado']);
 
     $ids = collect($this->get(route('reportes.index'))->inertiaProps()['reportes']['data'])->pluck('id')->toArray();
     $this->assertContains($enviado->id, $ids);
-    $this->assertContains($borrador->id, $ids);
+    $this->assertNotContains($borrador->id, $ids);
+    $this->assertNotContains($ajeno->id, $ids);
 });
 
 test('gestion does not see reportes de otros', function (User $usuario) {

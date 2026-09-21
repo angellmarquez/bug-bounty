@@ -16,6 +16,7 @@
     import { Link, page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
+    import EstadoCuentaCard from '@/components/EstadoCuentaCard.svelte';
     import { Button } from '@/components/ui/button';
     import Building2 from '@lucide/svelte/icons/building-2';
     import UserCog from '@lucide/svelte/icons/user-cog';
@@ -143,16 +144,7 @@
 
     <RolesUsuario />
 
-    {#if user?.reputation_score !== undefined}
-        <Card>
-            <CardHeader>
-                <CardDescription>Tu reputacion</CardDescription>
-                <CardTitle class="text-3xl font-bold text-primary">
-                    {user.reputation_score} pts
-                </CardTitle>
-            </CardHeader>
-        </Card>
-    {/if}
+    <EstadoCuentaCard />
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {#each statCards as card (card.title)}
@@ -244,7 +236,7 @@
             <CardHeader>
                 <CardTitle>Estado de mis informes por programa</CardTitle>
                 <CardDescription>
-                    El avance de cada informe: enviado, revisión del moderador, validación y pago.
+                    El avance de cada informe: enviado, revisión del moderador, validación, reparación y cierre.
                     Cada decisión del moderador aparece aquí.
                 </CardDescription>
             </CardHeader>

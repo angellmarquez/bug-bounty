@@ -92,7 +92,9 @@ class DashboardController extends Controller
                 'reportes_recibidos' => $reportesEmpresa->count(),
             ];
         } elseif ($isModerador) {
-            $reportesModerador = Reporte::query()->where('estado', '!=', 'borrador');
+            $reportesModerador = Reporte::query()
+                ->where('estado', '!=', 'borrador')
+                ->whereIn('programa_id', $user->idsProgramasModerados());
             $roleStats = [
                 'tipo' => 'moderador',
                 'pendientes_revision' => (clone $reportesModerador)->whereIn('estado', ['enviado', 'en_revision'])->count(),
