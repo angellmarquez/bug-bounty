@@ -265,7 +265,7 @@
             <div>
                 <DialogTitle>Apelar sanción</DialogTitle>
                 <DialogDescription>
-                    Explica por qué consideras que la sanción no corresponde. Un administrador revisará tu caso.
+                    Explica por qué consideras que la sanción no corresponde. Otro moderador o el administrador revisará tu caso (nunca quien la aplicó) y podrás seguirlo en Apelaciones.
                 </DialogDescription>
             </div>
 

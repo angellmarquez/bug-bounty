@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Abac\AccionesAbac;
 use App\Enums\EstadoEmpresa;
 use App\Mail\EmpresaEstadoMail;
-use App\Models\Apelacion;
 use App\Models\Auditoria;
 use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
@@ -388,50 +387,6 @@ class AdminController extends Controller
     // ------------------------------------------------------------------
     // Apelaciones
     // ------------------------------------------------------------------
-
-    public function apelaciones(Request $request): InertiaResponse
-    {
-        Gate::authorize('abac', [AccionesAbac::ApelacionResolver]);
-
-        $query = Apelacion::query()->with(['sancion.usuario', 'usuario', 'resueltaPor']);
-
-        if ($request->filled('estado')) {
-            $query->where('estado', $request->input('estado'));
-        }
-
-        $apelaciones = $query->latest()->paginate(15)->withQueryString();
-
-        return Inertia::render('admin/apelaciones/Index', [
-            'apelaciones' => $apelaciones,
-            'filtros' => $request->only(['estado']),
-        ]);
-    }
-
-    public function resolverApelacion(Apelacion $apelacion, Request $request, ReputationService $reputacion): RedirectResponse
-    {
-        Gate::authorize('abac', [AccionesAbac::ApelacionResolver]);
-
-        $validated = $request->validate([
-            'aprobada' => ['required', 'boolean'],
-            'nota' => ['required', 'string', 'max:2000'],
-        ]);
-
-        try {
-            $reputacion->resolverApelacion(
-                $apelacion,
-                $validated['aprobada'],
-                $request->user(),
-                $validated['nota'],
-            );
-        } catch (InvalidArgumentException $e) {
-            return redirect()->route('admin.apelaciones')->with('error', $e->getMessage());
-        }
-
-        $texto = $validated['aprobada'] ? 'aprobada' : 'rechazada';
-
-        return redirect()->route('admin.apelaciones')
-            ->with('success', "Apelacion {$texto}. {$apelacion->sancion->usuario->name}.");
-    }
 
     // ------------------------------------------------------------------
     // Auditoria

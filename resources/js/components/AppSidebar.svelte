@@ -8,6 +8,7 @@
     import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
     import Settings from '@lucide/svelte/icons/settings';
     import Users from '@lucide/svelte/icons/users';
+    import MessageSquare from '@lucide/svelte/icons/message-square';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavMain from '@/components/NavMain.svelte';
@@ -57,6 +58,11 @@
                 href: '/moderacion',
                 icon: ClipboardCheck,
             });
+            items.push({
+                title: 'Apelaciones',
+                href: '/moderacion/apelaciones',
+                icon: MessageSquare,
+            });
         }
 
         if (isInvestigador || isAdmin || isEmpresa || isModerador) {
@@ -94,6 +100,11 @@
                 title: 'Mi reputación',
                 href: '/reputacion',
                 icon: Award,
+            });
+            items.push({
+                title: 'Mis apelaciones',
+                href: '/reputacion/apelaciones',
+                icon: MessageSquare,
             });
         }
 

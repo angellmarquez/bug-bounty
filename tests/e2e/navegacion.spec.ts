@@ -17,11 +17,13 @@ const menuEsperado: Record<Rol, string[]> = {
         'Empresas',
         'Usuarios',
         'Moderadores',
+        'Apelaciones',
     ],
-    moderador: ['Dashboard', 'Moderación', 'Todos los reportes'],
-    investigador: ['Dashboard', 'Mis Reportes', 'Programas'],
+    moderador: ['Dashboard', 'Moderación', 'Apelaciones', 'Todos los reportes'],
+    investigador: ['Dashboard', 'Mis Reportes', 'Programas', 'Mi reputación', 'Mis apelaciones'],
+    sancionado: ['Dashboard', 'Mis Reportes', 'Programas', 'Mi reputación', 'Mis apelaciones'],
     empresa: ['Dashboard', 'Reportes recibidos', 'Panel empresa'],
-    doble: ['Dashboard', 'Moderación', 'Todos los reportes', 'Programas'],
+    doble: ['Dashboard', 'Moderación', 'Apelaciones', 'Todos los reportes', 'Programas'],
 };
 
 /** Páginas que cada rol debe poder abrir (ids de los datos de ejemplo de seed.php). */
@@ -39,7 +41,7 @@ const recorrido: Record<Rol, string[]> = {
         '/admin/usuarios',
         '/admin/moderadores',
         '/admin/sanciones',
-        '/admin/apelaciones',
+        '/moderacion/apelaciones',
         '/admin/auditoria',
         '/admin/config/reputacion',
         '/admin/pgp',
@@ -48,9 +50,17 @@ const recorrido: Record<Rol, string[]> = {
         '/dashboard',
         '/moderacion',
         '/moderacion/programas/1',
+        '/moderacion/apelaciones',
         '/reportes',
         '/reportes/1',
         '/programas/1',
+    ],
+    sancionado: [
+        '/dashboard',
+        '/reputacion',
+        '/reputacion/sanciones',
+        '/reputacion/apelaciones',
+        '/programas',
     ],
     investigador: [
         '/dashboard',
@@ -61,6 +71,8 @@ const recorrido: Record<Rol, string[]> = {
         '/reportes/crear?programa=1',
         '/programas',
         '/programas/1',
+        '/reputacion',
+        '/reputacion/apelaciones',
     ],
     empresa: [
         '/dashboard',
@@ -75,6 +87,7 @@ const recorrido: Record<Rol, string[]> = {
     doble: [
         '/dashboard',
         '/moderacion',
+        '/moderacion/apelaciones',
         '/reportes',
         '/programas',
         '/programas/1',

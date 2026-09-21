@@ -362,6 +362,26 @@ return [
             'decision' => 'denegar',
         ],
         // Una suspensión vigente impide presentar informes nuevos hasta que termine.
+        // Juez y parte: quien aplicó la sanción no resuelve su apelación (la resuelve otro moderador o un
+        // administrador) y nadie resuelve la apelación que él mismo presentó.
+        [
+            'id' => 'denegar-resolver-apelacion-de-sancion-propia-al-moderador',
+            'prioridad' => 5,
+            'acciones' => ['apelaciones.resolver'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => ['sancion.aplicada_por' => ['=' => '@sujeto.id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-resolver-apelacion-propia',
+            'prioridad' => 5,
+            'acciones' => ['apelaciones.resolver'],
+            'sujeto' => ['autenticado' => ['=' => true]],
+            'objeto' => ['usuario_id' => ['=' => '@sujeto.id']],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
         [
             'id' => 'denegar-reportar-si-esta-suspendido',
             'prioridad' => 5,

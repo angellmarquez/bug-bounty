@@ -630,6 +630,7 @@ class ReporteController extends Controller
                 $gravedad,
                 $reporte,
                 metadata: ['origen' => 'triaje', 'actor_id' => $request->user()->id],
+                aplicadaPor: $request->user(),
             );
             if (config('mail.enabled')) {
                 Mail::to($reporte->investigador->email)->send(new SancionAplicadaMail($sancion));

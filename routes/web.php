@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ApelacionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
@@ -79,8 +80,11 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::put('admin/usuarios/{user}', [AdminController::class, 'updateUsuario'])->name('admin.usuarios.update');
     Route::get('admin/sanciones', [AdminController::class, 'sanciones'])->name('admin.sanciones');
     Route::post('admin/sanciones/{sancion}/revocar', [AdminController::class, 'revocarSancion'])->name('admin.sanciones.revocar');
-    Route::get('admin/apelaciones', [AdminController::class, 'apelaciones'])->name('admin.apelaciones');
-    Route::post('admin/apelaciones/{apelacion}/resolver', [AdminController::class, 'resolverApelacion'])->name('admin.apelaciones.resolver');
+    // Las apelaciones las resuelven los moderadores y el administrador (nunca quien aplicó la sanción).
+    Route::redirect('admin/apelaciones', '/moderacion/apelaciones')->name('admin.apelaciones');
+    Route::get('moderacion/apelaciones', [ApelacionController::class, 'index'])->name('apelaciones.index');
+    Route::get('moderacion/apelaciones/{apelacion}', [ApelacionController::class, 'show'])->name('apelaciones.show');
+    Route::post('moderacion/apelaciones/{apelacion}/resolver', [ApelacionController::class, 'resolver'])->name('apelaciones.resolver');
     Route::get('admin/auditoria', [AdminController::class, 'auditoria'])->name('admin.auditoria');
 
     // Config reputacion
@@ -95,6 +99,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('reputacion', [ReputacionController::class, 'ledger'])->name('reputacion.ledger');
     Route::get('reputacion/sanciones', [ReputacionController::class, 'sanciones'])->name('reputacion.sanciones');
     Route::get('reputacion/apelaciones', [ReputacionController::class, 'apelaciones'])->name('reputacion.apelaciones');
+    Route::get('reputacion/apelaciones/{apelacion}', [ReputacionController::class, 'apelacion'])->name('reputacion.apelacion');
     Route::post('reputacion/sanciones/{sancion}/apelar', [ReputacionController::class, 'apelar'])->name('reputacion.apelar');
 });
 

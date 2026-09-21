@@ -37,6 +37,7 @@
     }
 
     function puedeApelar(sancion: Sancion): boolean {
+        if (sancion.puede_apelar !== undefined) return sancion.puede_apelar;
         if (sancion.estado !== 'aplicada') return false;
         if (!sancion.plazo_apelacion) return false;
         return new Date(sancion.plazo_apelacion) > new Date();

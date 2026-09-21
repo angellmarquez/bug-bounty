@@ -4,6 +4,7 @@
 // (base SQLite aislada); nunca contra la base real.
 
 use App\Enums\EstadoPrograma;
+use App\Enums\GravedadSancion;
 use App\Models\Empresa;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
@@ -11,6 +12,7 @@ use App\Models\Reporte;
 use App\Models\Rol;
 use App\Models\User;
 use App\Services\Pgp\PgpService;
+use App\Services\Reputacion\ReputationService;
 use Illuminate\Contracts\Console\Kernel;
 
 chdir(dirname(__DIR__, 2));
@@ -46,6 +48,10 @@ $admin = $crear('Admin E2E', 'admin@e2e.test', ['administrador']);
 $moderador = $crear('Moderador E2E', 'moderador@e2e.test', ['moderador']);
 $investigador = $crear('Investigador E2E', 'investigador@e2e.test', ['investigador'], 40);
 $dobleRol = $crear('Investigador Moderador E2E', 'doble@e2e.test', ['investigador', 'moderador'], 25);
+$sancionado = $crear('Investigador Sancionado E2E', 'sancionado@e2e.test', ['investigador']);
+
+// Una sanción leve (sin suspensión) aplicada por el moderador: sirve para probar el ciclo de apelación.
+app(ReputationService::class)->aplicarSancion($sancionado, 'falso_positivo', GravedadSancion::Leve, null, [], null, $moderador);
 $duenoEmpresa = $crear('Empresa E2E', 'empresa@e2e.test', ['empresa']);
 
 $empresa = Empresa::factory()->aprobada()->create(['razon_social' => 'Acme E2E S.A.', 'nombre_comercial' => 'Acme E2E']);
@@ -70,7 +76,7 @@ $programa->moderadores()->attach([
     $dobleRol->id => ['asignado_por' => $admin->id],
 ]);
 
-$borrador =Programa::factory()->create([
+$borrador = Programa::factory()->create([
     'empresa_id' => $empresa->id,
     'creado_por' => $duenoEmpresa->id,
     'nombre' => 'Programa en borrador E2E',
