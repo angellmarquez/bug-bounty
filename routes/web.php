@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\ModeracionController;
+use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProgramaController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ReputacionController;
@@ -20,6 +21,12 @@ Route::middleware('auth')->get('empresa/invitacion/{token}', [EmpresaController:
 Route::middleware('auth')->post('empresa/invitacion/{token}/aceptar', [EmpresaController::class, 'aceptarInvitacion'])->name('empresa.invitacion.aceptar');
 
 Route::middleware('auth')->group(function () {
+    // La campana de avisos: la ven todos los roles, también una empresa aún pendiente de aprobación.
+    Route::get('notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::post('notificaciones/leer-todas', [NotificacionController::class, 'leerTodas'])->name('notificaciones.leer-todas');
+    Route::get('notificaciones/{id}/abrir', [NotificacionController::class, 'abrir'])->name('notificaciones.abrir');
+    Route::post('notificaciones/{id}/leer', [NotificacionController::class, 'leer'])->name('notificaciones.leer');
+
     Route::get('empresa', [EmpresaController::class, 'dashboard'])->name('empresa.dashboard');
     Route::get('empresa/reportes', [EmpresaController::class, 'reportes'])->name('empresa.reportes');
     Route::post('empresa/miembros', [EmpresaController::class, 'agregarMiembro'])->name('empresa.miembros.agregar');

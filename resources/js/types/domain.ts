@@ -202,6 +202,22 @@ export type Sancion = {
     puede_apelar?: boolean;
 };
 
+/** Un aviso de la campana (notificación interna). */
+export type Notificacion = {
+    id: string;
+    tipo: 'informe' | 'sancion' | 'apelacion' | 'empresa' | 'moderacion' | 'reputacion' | 'invitacion' | string;
+    titulo: string;
+    mensaje: string;
+    url: string | null;
+    leida: boolean;
+    created_at: string | null;
+};
+
+export type ResumenNotificaciones = {
+    no_leidas: number;
+    recientes: Notificacion[];
+};
+
 /** Un paso del registro de control de una apelación (con su huella SHA-256 encadenada). */
 export type PasoApelacion = {
     id: number;

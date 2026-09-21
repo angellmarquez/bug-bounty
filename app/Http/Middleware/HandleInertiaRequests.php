@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\NotificacionController;
 use App\Models\User;
 use App\Services\Reputacion\Rangos;
 use Illuminate\Http\Request;
@@ -52,6 +53,7 @@ class HandleInertiaRequests extends Middleware
             'reputacionConfig' => fn () => app(Rangos::class)->paraInterfaz(),
             // Qué es esta cuenta hoy: roles, rango, suspensión, alcance de moderador y empresa.
             'cuenta' => fn () => $this->estadoCuenta($request->user()),
+            'notificaciones' => fn () => $this->resumenNotificaciones($request->user()),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
@@ -122,6 +124,25 @@ class HandleInertiaRequests extends Middleware
                 'motivo' => $empresa->motivo_estado,
                 'rol_interno' => data_get($empresa->pivot, 'rol_interno'),
             ],
+        ];
+    }
+
+    /**
+     * Los avisos de la campana: cuántos hay sin leer y los últimos, para el desplegable.
+     *
+     * @return array{no_leidas: int, recientes: array<int, array<string, mixed>>}|null
+     */
+    private function resumenNotificaciones(?User $usuario): ?array
+    {
+        if ($usuario === null) {
+            return null;
+        }
+
+        return [
+            'no_leidas' => $usuario->unreadNotifications()->count(),
+            'recientes' => $usuario->notifications()->latest()->limit(6)->get()
+                ->map(fn ($aviso) => NotificacionController::formato($aviso))
+                ->all(),
         ];
     }
 }

@@ -12,6 +12,7 @@ use App\Models\Programa;
 use App\Models\Rol;
 use App\Models\Sancion;
 use App\Models\User;
+use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
 use Illuminate\Http\RedirectResponse;
@@ -69,6 +70,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.aprobada');
+        app(Notificador::class)->empresaDecidida($empresa, 'aprobada');
         if (config('mail.enabled')) {
             Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
         }
@@ -92,6 +94,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.rechazada');
+        app(Notificador::class)->empresaDecidida($empresa, 'rechazada');
         if (config('mail.enabled')) {
             Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'rechazada'));
         }
@@ -113,6 +116,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.suspendida');
+        app(Notificador::class)->empresaDecidida($empresa, 'suspendida');
         if (config('mail.enabled')) {
             Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'suspendida'));
         }
@@ -132,6 +136,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionEmpresa($request, $empresa, 'admin.empresa.reactivada');
+        app(Notificador::class)->empresaDecidida($empresa, 'aprobada');
         if (config('mail.enabled')) {
             Mail::to($empresa->email)->send(new EmpresaEstadoMail($empresa, 'aprobada'));
         }
@@ -203,6 +208,7 @@ class AdminController extends Controller
         $user->roles()->syncWithoutDetaching([$rol->id]);
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.asignado');
+        app(Notificador::class)->moderadorRol($user, true);
 
         return redirect()->route('admin.moderadores')->with('success', 'Moderador asignado correctamente.');
     }
@@ -220,6 +226,7 @@ class AdminController extends Controller
         $user->programasModerados()->detach();
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.revocado');
+        app(Notificador::class)->moderadorRol($user, false);
 
         return redirect()->route('admin.moderadores')->with('success', 'Rol de moderador revocado.');
     }
@@ -240,6 +247,7 @@ class AdminController extends Controller
         ]);
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.programa.asignado');
+        app(Notificador::class)->moderadorPrograma($user, $programa, true);
 
         return redirect()->route('admin.moderadores')->with('success', 'Moderador asignado al programa.');
     }
@@ -250,6 +258,7 @@ class AdminController extends Controller
         $programa->moderadores()->detach($user->id);
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.programa.revocado');
+        app(Notificador::class)->moderadorPrograma($user, $programa, false);
 
         return redirect()->route('admin.moderadores')->with('success', 'Moderador retirado del programa.');
     }
