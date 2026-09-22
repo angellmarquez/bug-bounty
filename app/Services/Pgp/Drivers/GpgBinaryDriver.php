@@ -413,6 +413,30 @@ class GpgBinaryDriver implements PgpDriver
         if (! is_dir($dir) && ! @mkdir($dir, 0700, true) && ! is_dir($dir)) {
             throw new RuntimeException("No se pudo crear el homedir de GnuPG [{$dir}].");
         }
+
+        $this->ensureAgentConf($dir);
+    }
+
+    /**
+     * gpg-agent, por defecto, intenta arrancar scdaemon (soporte de tarjetas
+     * inteligentes) al recibir la primera petición. En Windows esa detección
+     * puede colgarse varios segundos (o fallar al crear el socket) en máquinas
+     * sin lector, que es la inmensa mayoría de los entornos de desarrollo.
+     * Se desactiva de una para que el agente arranque rápido y confiable.
+     */
+    private function ensureAgentConf(string $dir): void
+    {
+        $conf = $dir.DIRECTORY_SEPARATOR.'gpg-agent.conf';
+
+        $requeridas = ['disable-scdaemon', 'allow-loopback-pinentry'];
+        $actuales = is_file($conf) ? (array) file($conf, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
+        $faltantes = array_diff($requeridas, array_map('trim', $actuales));
+
+        if ($faltantes === []) {
+            return;
+        }
+
+        file_put_contents($conf, implode("\n", [...$actuales, ...$faltantes])."\n");
     }
 
     private function ringHasKey(string $dir, string $fingerprint): bool
