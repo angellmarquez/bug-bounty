@@ -18,6 +18,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Detrás de un proxy que termina TLS (Render, y cualquier PaaS similar): el
+        // contenedor recibe el tráfico en HTTP plano, así que sin esto Laravel genera
+        // URLs "http://" (assets, redirects) aunque el visitante esté en HTTPS. El
+        // contenedor no es accesible directo desde internet más que a través de ese
+        // proxy, así que confiar en todos ("*") es seguro acá.
+        $middleware->trustProxies(at: '*');
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([
