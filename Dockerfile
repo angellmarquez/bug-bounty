@@ -34,7 +34,9 @@ RUN cp .env.example .env \
 RUN npm ci \
     && npm run build
 
-RUN rm -f .env
+# Ya están compilados en public/build: no hace falta node_modules en runtime.
+RUN rm -f .env \
+    && rm -rf node_modules
 
 
 FROM php:8.3-cli-bookworm AS runtime
