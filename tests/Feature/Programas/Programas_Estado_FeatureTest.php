@@ -85,7 +85,7 @@ test('investigador cannot change estado', function () {
     $response->assertForbidden();
 });
 
-test('admin can change estado of any program', function () {
+test('admin cannot change estado of a program: es cosa de la empresa dueña', function () {
     $user = administrador();
     $this->actingAs($user);
 
@@ -95,8 +95,8 @@ test('admin can change estado of any program', function () {
         'estado' => 'activo',
     ]);
 
-    $response->assertRedirect();
-    $this->assertDatabaseHas('programas', ['id' => $programa->id, 'estado' => 'activo']);
+    $response->assertForbidden();
+    $this->assertDatabaseHas('programas', ['id' => $programa->id, 'estado' => 'borrador']);
 });
 
 test('estado change is recorded in program', function () {

@@ -67,4 +67,22 @@ final class AccionesAbac
     public const ModeradorRevocar = 'moderadores.revocar';
 
     public const ModeracionVer = 'moderacion.ver';
+
+    public const ReputacionVer = 'reputacion.ver';
+
+    public const UsuarioVer = 'usuarios.ver';
+
+    public const UsuarioActualizarRol = 'usuarios.actualizar_rol';
+
+    public const SancionVer = 'sanciones.ver';
+
+    public const SancionRevocar = 'sanciones.revocar';
+
+    public const AuditoriaVer = 'auditoria.ver';
+
+    public const ConfigReputacionVer = 'config_reputacion.ver';
+
+    public const ConfigReputacionActualizar = 'config_reputacion.actualizar';
+
+    public const ClavePgpPlataformaVer = 'claves_pgp_plataforma.ver';
 }

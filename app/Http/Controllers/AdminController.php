@@ -287,7 +287,7 @@ class AdminController extends Controller
 
     public function usuarios(Request $request): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
+        Gate::authorize('abac', [AccionesAbac::UsuarioVer]);
 
         $query = User::query()->with('roles');
 
@@ -316,7 +316,7 @@ class AdminController extends Controller
 
     public function updateUsuario(Request $request, User $user): RedirectResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
+        Gate::authorize('abac', [AccionesAbac::UsuarioActualizarRol]);
 
         $request->validate([
             'rol' => ['required', 'string', 'exists:roles,slug'],
@@ -363,7 +363,7 @@ class AdminController extends Controller
 
     public function sanciones(Request $request): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
+        Gate::authorize('abac', [AccionesAbac::SancionVer]);
 
         $query = Sancion::query()->with(['usuario', 'reporte']);
 
@@ -389,7 +389,7 @@ class AdminController extends Controller
 
     public function revocarSancion(Sancion $sancion, Request $request, ReputationService $reputacion): RedirectResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
+        Gate::authorize('abac', [AccionesAbac::SancionRevocar]);
 
         $request->validate([
             'nota' => ['required', 'string', 'max:2000'],
@@ -402,7 +402,7 @@ class AdminController extends Controller
         }
 
         return redirect()->route('admin.sanciones')
-            ->with('success', 'Sancion revocada exitosamente. Puntos devueltos al ledger.');
+            ->with('success', 'Sanción revocada exitosamente. Puntos devueltos al ledger.');
     }
 
     // ------------------------------------------------------------------
@@ -415,7 +415,7 @@ class AdminController extends Controller
 
     public function auditoria(Request $request): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
+        Gate::authorize('abac', [AccionesAbac::AuditoriaVer]);
 
         $query = Auditoria::query()->with('usuario');
 
@@ -451,7 +451,7 @@ class AdminController extends Controller
 
     public function configReputacion(): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
+        Gate::authorize('abac', [AccionesAbac::ConfigReputacionVer]);
 
         return Inertia::render('admin/config/Reputacion', [
             'config' => config('reputacion'),
@@ -460,7 +460,7 @@ class AdminController extends Controller
 
     public function updateConfigReputacion(Request $request): RedirectResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
+        Gate::authorize('abac', [AccionesAbac::ConfigReputacionActualizar]);
 
         $validated = $request->validate([
             'puntos_inicial' => ['required', 'integer', 'min:0'],
@@ -484,7 +484,7 @@ class AdminController extends Controller
         ]);
 
         return redirect()->route('admin.config.reputacion')
-            ->with('success', 'Configuracion de reputacion actualizada.');
+            ->with('success', 'Configuración de reputación actualizada.');
     }
 
     // ------------------------------------------------------------------
@@ -493,7 +493,7 @@ class AdminController extends Controller
 
     public function pgpEstado(): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ReporteCrear]);
+        Gate::authorize('abac', [AccionesAbac::ClavePgpPlataformaVer]);
 
         $claveActiva = ClavePgpPlataforma::query()->where('activa', true)->first();
         $pgpService = app(PgpService::class);

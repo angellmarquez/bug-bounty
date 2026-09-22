@@ -28,8 +28,6 @@ class StoreProgramaRequest extends FormRequest
             'requiere_poc' => ['boolean'],
             'es_publico' => ['boolean'],
             'nivel_acceso' => ['sometimes', Rule::enum(NivelAcceso::class)],
-            // Solo lo usa un administrador para crear el programa en nombre de una empresa aprobada.
-            'empresa_id' => ['nullable', 'integer', Rule::exists('empresas', 'id')->where('estado', 'aprobada')],
             'poc_schema' => ['nullable', 'array'],
             'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
             'poc_schema.*.label' => ['required_with:poc_schema', 'string', 'max:255'],
@@ -44,7 +42,7 @@ class StoreProgramaRequest extends FormRequest
             'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en'],
             // Una empresa no puede crear un programa sin alcance: necesita al menos un objetivo.
             'objetivos' => [
-                Rule::requiredIf(fn () => $this->filled('empresa_id') || (bool) $this->user()?->empresas()->wherePivot('estado', 'activo')->exists()),
+                Rule::requiredIf(fn () => (bool) $this->user()?->empresas()->wherePivot('estado', 'activo')->exists()),
                 'nullable',
                 'array',
                 'min:1',
@@ -63,9 +61,9 @@ class StoreProgramaRequest extends FormRequest
             'objetivos.*.valor.required' => 'Indica el objetivo (por ejemplo un dominio, una API o una aplicación).',
             'nombre.required' => 'El nombre es obligatorio.',
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
-            'descripcion.required' => 'La descripcion es obligatoria.',
-            'descripcion.max' => 'La descripcion no puede exceder 5000 caracteres.',
-            'inicia_en.date' => 'La fecha de inicio debe ser una fecha valida.',
+            'descripcion.required' => 'La descripción es obligatoria.',
+            'descripcion.max' => 'La descripción no puede exceder 5000 caracteres.',
+            'inicia_en.date' => 'La fecha de inicio debe ser una fecha válida.',
             'termina_en.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la de inicio.',
         ];
     }

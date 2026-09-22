@@ -4,7 +4,7 @@
     export const layout = {
         breadcrumbs: [
             { title: 'Programas', href: programasIndex() },
-            { title: 'Gestion', href: programasGestion() },
+            { title: 'Gestión', href: programasGestion() },
         ],
     };
 </script>
@@ -118,21 +118,23 @@
     const totalProgramas = $derived(programasData.total);
 </script>
 
-<AppHead title="Gestion de Programas" />
+<AppHead title="Gestión de Programas" />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <PageHeader
-        title="Gestion de Programas"
+        title="Gestión de Programas"
         description="{totalProgramas} programa{totalProgramas !== 1 ? 's' : ''}"
     >
-        <Button asChild>
-            {#snippet children(props)}
-                <Link href={programaCreate()} {...props}>
-                    <Plus class="mr-1 h-4 w-4" />
-                    Crear Programa
-                </Link>
-            {/snippet}
-        </Button>
+        {#if !esAdmin}
+            <Button asChild>
+                {#snippet children(props)}
+                    <Link href={programaCreate()} {...props}>
+                        <Plus class="mr-1 h-4 w-4" />
+                        Crear Programa
+                    </Link>
+                {/snippet}
+            </Button>
+        {/if}
     </PageHeader>
 
     <Card>
@@ -142,7 +144,7 @@
                     <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         type="text"
-                        placeholder="Buscar por nombre o descripcion..."
+                        placeholder="Buscar por nombre o descripción..."
                         bind:value={busqueda}
                         onkeydown={(e) => { if (e.key === 'Enter') buscar(); }}
                         class="pl-9"
@@ -175,14 +177,16 @@
             title="No se encontraron programas"
             description="Crea tu primer programa para comenzar a recibir reportes."
         >
-        <Button asChild>
-            {#snippet children(props)}
-                <Link href={programaCreate()} {...props}>
-                    <Plus class="mr-1 h-4 w-4" />
-                    Crear Programa
-                </Link>
-            {/snippet}
-        </Button>
+        {#if !esAdmin}
+            <Button asChild>
+                {#snippet children(props)}
+                    <Link href={programaCreate()} {...props}>
+                        <Plus class="mr-1 h-4 w-4" />
+                        Crear Programa
+                    </Link>
+                {/snippet}
+            </Button>
+        {/if}
         </EmptyState>
     {:else}
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

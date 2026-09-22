@@ -80,12 +80,12 @@ test('la pagina del programa solo ofrece editar a la empresa duena', function (s
     'moderador' => ['moderador', false],
 ]);
 
-test('el administrador puede publicar y archivar pero no editar el programa', function () {
+test('el administrador no puede publicar, archivar ni editar el programa de una empresa', function () {
     $programa = conObjetivo(Programa::factory()->create(['estado' => EstadoPrograma::Borrador]));
     $this->actingAs(administrador());
 
-    $this->post(route('programas.cambiar-estado', $programa), ['estado' => 'activo'])->assertSessionHasNoErrors();
-    expect($programa->fresh()->estado)->toBe(EstadoPrograma::Activo);
+    $this->post(route('programas.cambiar-estado', $programa), ['estado' => 'activo'])->assertForbidden();
+    expect($programa->fresh()->estado)->toBe(EstadoPrograma::Borrador);
     $this->put(route('programas.update', $programa), datosDeEdicion())->assertForbidden();
 });
 

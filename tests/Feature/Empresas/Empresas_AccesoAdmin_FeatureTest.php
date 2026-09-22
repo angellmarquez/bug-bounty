@@ -90,7 +90,7 @@ test('un publicador no ve las invitaciones que hizo el propietario', function ()
         ->assertRedirect(route('programas.gestion'));
 });
 
-test('el administrador crea un programa a nombre de una empresa aprobada', function () {
+test('el administrador no puede crear un programa, ni siquiera a nombre de una empresa aprobada', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $this->actingAs(administrador());
 
@@ -99,23 +99,12 @@ test('el administrador crea un programa a nombre de una empresa aprobada', funct
         'descripcion' => 'Creado por el administrador.',
         'empresa_id' => $empresa->id,
         'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
-    ])->assertRedirect();
+    ])->assertForbidden();
 
-    $this->assertDatabaseHas('programas', ['nombre' => 'Programa del admin', 'empresa_id' => $empresa->id, 'estado' => 'borrador']);
-});
+    expect(Programa::where('nombre', 'Programa del admin')->exists())->toBeFalse();
 
-test('el administrador no puede crear un programa para una empresa no aprobada', function () {
-    $empresa = Empresa::factory()->create(['estado' => 'pendiente']);
-    $this->actingAs(administrador());
-
-    $this->post(route('programas.store'), [
-        'nombre' => 'Programa inválido',
-        'descripcion' => 'x',
-        'empresa_id' => $empresa->id,
-        'objetivos' => [['tipo' => 'web', 'valor' => 'x.test']],
-    ])->assertSessionHasErrors('empresa_id');
-
-    expect(Programa::where('nombre', 'Programa inválido')->exists())->toBeFalse();
+    // Crear el formulario también queda vedado, no solo el envío.
+    $this->get(route('programas.create'))->assertForbidden();
 });
 
 test('una empresa no puede asignar su programa a otra empresa enviando empresa_id', function () {

@@ -18,6 +18,8 @@ class ReputacionController extends Controller
 {
     public function ledger(Request $request, ReputationService $reputacion): InertiaResponse
     {
+        Gate::authorize('abac', [AccionesAbac::ReputacionVer]);
+
         $user = $request->user();
 
         $saldo = $reputacion->saldo($user);
@@ -41,6 +43,8 @@ class ReputacionController extends Controller
 
     public function sanciones(Request $request): InertiaResponse
     {
+        Gate::authorize('abac', [AccionesAbac::ReputacionVer]);
+
         $user = $request->user();
 
         $sanciones = Sancion::query()
@@ -68,6 +72,7 @@ class ReputacionController extends Controller
      */
     public function apelacion(Request $request, Apelacion $apelacion): InertiaResponse
     {
+        Gate::authorize('abac', [AccionesAbac::ReputacionVer]);
         abort_unless((int) $apelacion->usuario_id === (int) $request->user()->id, 403, 'Esta apelación no es tuya.');
 
         $apelacion->load(['sancion.reporte', 'sancion.aplicadaPor', 'eventos']);
@@ -107,6 +112,8 @@ class ReputacionController extends Controller
 
     public function apelaciones(Request $request): InertiaResponse
     {
+        Gate::authorize('abac', [AccionesAbac::ReputacionVer]);
+
         $user = $request->user();
 
         $apelaciones = Apelacion::query()

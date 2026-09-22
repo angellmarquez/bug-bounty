@@ -125,6 +125,15 @@ return [
         // 2. Investigador: apelaciones propias en plazo.
         // ------------------------------------------------------------------
         [
+            'id' => 'inv-ver-reputacion-propia',
+            'prioridad' => 20,
+            'acciones' => ['reputacion.ver'],
+            'sujeto' => ['roles' => ['contains' => 'investigador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
             'id' => 'inv-apelar-sancion-propia-en-plazo',
             'prioridad' => 20,
             'acciones' => ['apelaciones.crear'],
@@ -139,14 +148,15 @@ return [
         ],
 
         // ------------------------------------------------------------------
-        // 3. Programas: quién NO edita. (El antiguo rol "Gestión" lo absorbió el moderador.)
+        // 3. Programas: quién NO edita, crea ni publica. (El antiguo rol "Gestión" lo absorbió el moderador.)
         // ------------------------------------------------------------------
-        // Editar un programa es cosa de la empresa dueña (y de sus publicadores).
-        // El deny gana sobre cualquier permiso, también sobre el bypass del administrador.
+        // Crear, editar y publicar (cambiar de estado) un programa es cosa de la empresa dueña
+        // (y de sus publicadores), nunca del administrador: el admin aprueba/rechaza empresas,
+        // no actúa en su nombre. El deny gana sobre cualquier permiso, también sobre el bypass.
         [
-            'id' => 'denegar-edicion-de-programas-al-administrador',
+            'id' => 'denegar-crear-editar-o-publicar-programas-al-administrador',
             'prioridad' => 5,
-            'acciones' => ['programas.editar'],
+            'acciones' => ['programas.crear', 'programas.editar', 'programas.cambiar_estado'],
             'sujeto' => ['roles' => ['contains' => 'administrador']],
             'objeto' => [],
             'entorno' => [],
