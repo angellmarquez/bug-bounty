@@ -97,6 +97,19 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Supabase (y pgbouncer en general) expone el puerto 6543 en modo "transaction
+            // pooling": cada transacción puede caer en una conexión física distinta del pool,
+            // así que los prepared statements con nombre de PDO quedan huérfanos y fallan con
+            // "prepared statement ... does not exist" (golpea sessions/cache/jobs en casi todo
+            // request). EMULATE_PREPARES hace que PDO arme el statement del lado del cliente
+            // en vez de pedirle al servidor que lo nombre y lo recuerde entre queries.
+            // No usamos el helper 'pooled' de Laravel porque requiere un endpoint 'direct'
+            // (sin pooler) para migraciones, y este proyecto de Supabase no expone uno
+            // alcanzable desde esta red (el puerto 5432 del pooler cierra la conexión y el
+            // host dedicado db.<ref>.supabase.co no resuelve sin el add-on IPv4).
+            'options' => [
+                PDO::ATTR_EMULATE_PREPARES => env('DB_POOLED', true),
+            ],
         ],
 
         'sqlsrv' => [
