@@ -8,7 +8,7 @@
 #  2) runtime: imagen final, solo con lo necesario para servir la app +
 #     el binario de gpg para cifrado PGP real.
 
-FROM php:8.3-cli-bookworm AS builder
+FROM php:8.4-cli-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git unzip curl ca-certificates \
@@ -39,7 +39,7 @@ RUN rm -f .env \
     && rm -rf node_modules
 
 
-FROM php:8.3-cli-bookworm AS runtime
+FROM php:8.4-cli-bookworm AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev libzip-dev libonig-dev libxml2-dev gnupg2 ca-certificates \
