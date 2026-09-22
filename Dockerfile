@@ -39,7 +39,7 @@ RUN rm -f .env
 FROM php:8.3-cli-bookworm AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libpq-dev gnupg2 ca-certificates \
+        libpq-dev libzip-dev libonig-dev libxml2-dev gnupg2 ca-certificates \
     && docker-php-ext-install pdo pdo_pgsql pgsql mbstring xml bcmath zip \
     && rm -rf /var/lib/apt/lists/*
 
