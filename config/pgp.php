@@ -31,7 +31,7 @@ return [
         'algorithms' => ['ed25519', 'rsa4096'],
         'algorithm' => env('PGP_ALGORITHM', 'ed25519'),
         'passphrase' => env('PGP_KEY_PASSWORD', ''),
-        'timeout' => 120,
+        'timeout' => 15,
     ],
 
     /*

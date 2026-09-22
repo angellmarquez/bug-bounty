@@ -309,34 +309,56 @@ class GpgBinaryDriver implements PgpDriver
     {
         $this->ensureHomedir($homedir);
 
-        $process = $this->gpgProcess([...$this->baseArgs($homedir), ...$arguments]);
-        $process->setTimeout($this->timeout);
-        $process->setInput($input);
+        // El primer gpg-agent que arranca en un homedir crea su socket; si dos
+        // procesos gpg piden uno a la vez (p. ej. dos campos cifrados del mismo
+        // request), el segundo puede pisar la creación del socket y fallar con
+        // "no se puede crear el socket" / "can't connect to the agent". Es una
+        // carrera transitoria de arranque, no un fallo real: se reintenta unas
+        // pocas veces con una pausa corta antes de darlo por perdido.
+        $intentos = 3;
 
-        try {
-            $process->run();
-        } catch (Throwable $e) {
-            throw new PgpException("No se pudo ejecutar el binario de GnuPG [{$this->binary}]: {$e->getMessage()}", 0, $e);
-        }
+        for ($intento = 1; $intento <= $intentos; $intento++) {
+            $process = $this->gpgProcess([...$this->baseArgs($homedir), ...$arguments]);
+            $process->setTimeout($this->timeout);
+            $process->setInput($input);
 
-        $output = $process->getOutput();
-        $error = $process->getErrorOutput();
+            try {
+                $process->run();
+            } catch (Throwable $e) {
+                throw new PgpException("No se pudo ejecutar el binario de GnuPG [{$this->binary}]: {$e->getMessage()}", 0, $e);
+            }
 
-        if ($process->getExitCode() !== 0) {
-            throw new PgpException(
-                sprintf(
-                    'gpg falló con código %d: %s',
-                    $process->getExitCode() ?? -1,
-                    Str::limit(trim($error) !== '' ? $error : $output, 500),
-                ),
+            $output = $process->getOutput();
+            $error = $process->getErrorOutput();
+
+            if ($process->getExitCode() === 0) {
+                return [
+                    'exitCode' => $process->getExitCode(),
+                    'output' => $output,
+                    'error' => $error,
+                ];
+            }
+
+            $esCarreraDeAgente = str_contains($error, 'gpg-agent') && (
+                str_contains($error, 'no se puede crear el socket')
+                || str_contains($error, "can't connect")
+                || str_contains($error, 'failed to start')
             );
+
+            if (! $esCarreraDeAgente || $intento === $intentos) {
+                throw new PgpException(
+                    sprintf(
+                        'gpg falló con código %d: %s',
+                        $process->getExitCode() ?? -1,
+                        Str::limit(trim($error) !== '' ? $error : $output, 500),
+                    ),
+                );
+            }
+
+            usleep(300_000 * $intento);
         }
 
-        return [
-            'exitCode' => $process->getExitCode(),
-            'output' => $output,
-            'error' => $error,
-        ];
+        throw new PgpException('gpg falló: no se pudo conectar con gpg-agent tras varios intentos.');
     }
 
     /**
