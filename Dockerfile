@@ -22,13 +22,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY . .
 
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
 # .env "de mentira" solo para que artisan pueda arrancar durante el build
-# (wayfinder necesita leer las rutas). No lleva secretos y se borra al final;
-# en runtime, Render inyecta las variables reales como entorno del contenedor.
+# (wayfinder necesita leer las rutas; requiere vendor/autoload.php, por eso
+# va después de composer install). No lleva secretos y se borra al final; en
+# runtime, Render inyecta las variables reales como entorno del contenedor.
 RUN cp .env.example .env \
     && php artisan key:generate --ansi
-
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
 
 RUN npm ci \
     && npm run build
