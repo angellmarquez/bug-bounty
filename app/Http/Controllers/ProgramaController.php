@@ -9,6 +9,7 @@ use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Services\Moderacion\ColaDeInformes;
+use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\Rangos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,11 +50,8 @@ class ProgramaController extends Controller
         }
 
         if ($request->filled('busqueda')) {
-            $busqueda = $request->input('busqueda');
-            $query->where(function ($q) use ($busqueda) {
-                $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('descripcion', 'like', "%{$busqueda}%");
-            });
+            // La descripcion queda cifrada en la base: no se puede buscar por ella con LIKE.
+            $query->where('nombre', 'like', '%'.$request->input('busqueda').'%');
         }
 
         $programas = $query->orderBy('nombre')->paginate(15)->withQueryString();
@@ -67,7 +65,7 @@ class ProgramaController extends Controller
         ]);
     }
 
-    public function show(Request $request, Programa $programa, ColaDeInformes $cola): InertiaResponse|RedirectResponse
+    public function show(Request $request, Programa $programa, ColaDeInformes $cola, PgpService $pgp): InertiaResponse|RedirectResponse
     {
         // Un programa público al que el rango del investigador aún no llega se explica en lugar de dar un 403 seco.
         $rangos = app(Rangos::class);
@@ -108,6 +106,10 @@ class ProgramaController extends Controller
         $puedeModerar = $request->user()->puedeModerarPrograma($programa);
         $filtroInformes = ColaDeInformes::filtro($request->input('filtro'));
 
+        // El alcance (descripcion, bugs_buscados y objetivos) queda cifrado en la base:
+        // se descifra recién acá, al entrar al detalle de este programa puntual.
+        $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados);
+
         return Inertia::render('programas/Show', [
             'puedeEditar' => $puedeEditar,
             'puedeModerar' => $puedeModerar,
@@ -119,13 +121,19 @@ class ProgramaController extends Controller
                 : [],
             'programa' => [
                 ...$programa->toArray(),
+                'descripcion' => $descifrado['descripcion'],
+                'bugs_buscados' => $descifrado['bugs_buscados'],
                 'empresa' => $programa->empresa === null ? null : [
                     'nombre' => $programa->empresa->nombre_comercial ?? $programa->empresa->razon_social,
                     'sitio_web' => $programa->empresa->sitio_web,
                 ],
                 // El autor solo es relevante para quien gestiona el programa.
                 'creador' => $puedeGestionar ? $programa->creador?->only(['id', 'name']) : null,
-                'objetivos' => $programa->objetivos->map(fn (ObjetivoPrograma $o) => $o->toArray()),
+                'objetivos' => $programa->objetivos->map(function (ObjetivoPrograma $o) use ($pgp): array {
+                    $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion);
+
+                    return [...$o->toArray(), ...$objetivoDescifrado];
+                }),
             ],
             'puedeReportar' => $puedeReportar,
             // Un moderador no puede reportar en el programa que modera: se le explica en lugar de ocultar el botón sin más.
@@ -146,17 +154,28 @@ class ProgramaController extends Controller
         return Inertia::render('programas/gestion/Create');
     }
 
-    public function edit(Programa $programa): InertiaResponse
+    public function edit(Programa $programa, PgpService $pgp): InertiaResponse
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaEditar, $programa);
         $programa->load(['objetivos']);
 
+        $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados);
+
         return Inertia::render('programas/gestion/Edit', [
-            'programa' => $programa,
+            'programa' => [
+                ...$programa->toArray(),
+                'descripcion' => $descifrado['descripcion'],
+                'bugs_buscados' => $descifrado['bugs_buscados'],
+                'objetivos' => $programa->objetivos->map(function (ObjetivoPrograma $o) use ($pgp): array {
+                    $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion);
+
+                    return [...$o->toArray(), ...$objetivoDescifrado];
+                }),
+            ],
         ]);
     }
 
-    public function store(StoreProgramaRequest $request): RedirectResponse
+    public function store(StoreProgramaRequest $request, PgpService $pgp): RedirectResponse
     {
         $validated = $request->validated();
         $user = $request->user();
@@ -166,12 +185,17 @@ class ProgramaController extends Controller
         // nadie elige la empresa por otro (ver ABAC: crear/editar/publicar es cosa de la empresa dueña).
         unset($validated['empresa_id']);
 
-        $programa = DB::transaction(function () use ($validated, $user) {
+        $programa = DB::transaction(function () use ($validated, $user, $pgp) {
             $objetivos = $validated['objetivos'] ?? [];
             unset($validated['objetivos']);
 
             $validated['creado_por'] = $user->id;
             $validated['estado'] = 'borrador';
+
+            // El alcance queda cifrado en la base: solo se descifra al abrir el detalle o editar.
+            $cifrado = $pgp->cifrarPrograma($validated['descripcion'], $validated['bugs_buscados'] ?? null);
+            $validated['descripcion'] = $cifrado['descripcion'];
+            $validated['bugs_buscados'] = $cifrado['bugs_buscados'];
 
             if ($user->empresas()->wherePivot('estado', 'activo')->exists()) {
                 $empresa = $user->empresas()
@@ -186,7 +210,10 @@ class ProgramaController extends Controller
             $programa = Programa::create($validated);
 
             foreach ($objetivos as $objetivo) {
-                $programa->objetivos()->create($objetivo);
+                $programa->objetivos()->create([
+                    ...$objetivo,
+                    ...$pgp->cifrarObjetivo($objetivo['valor'], $objetivo['descripcion'] ?? null),
+                ]);
             }
 
             return $programa;
@@ -196,13 +223,19 @@ class ProgramaController extends Controller
             ->with('success', 'Programa creado exitosamente.');
     }
 
-    public function update(UpdateProgramaRequest $request, Programa $programa): RedirectResponse
+    public function update(UpdateProgramaRequest $request, Programa $programa, PgpService $pgp): RedirectResponse
     {
         $validated = $request->validated();
         $objetivos = $validated['objetivos'] ?? null;
         unset($validated['objetivos']);
 
-        DB::transaction(function () use ($programa, $validated, $objetivos) {
+        if (array_key_exists('descripcion', $validated)) {
+            $cifrado = $pgp->cifrarPrograma($validated['descripcion'], $validated['bugs_buscados'] ?? null);
+            $validated['descripcion'] = $cifrado['descripcion'];
+            $validated['bugs_buscados'] = $cifrado['bugs_buscados'];
+        }
+
+        DB::transaction(function () use ($programa, $validated, $objetivos, $pgp) {
             $programa->update($validated);
 
             if ($objetivos !== null) {
@@ -212,6 +245,8 @@ class ProgramaController extends Controller
                 foreach ($objetivos as $datos) {
                     $id = $datos['id'] ?? null;
                     unset($datos['id']);
+
+                    $datos = [...$datos, ...$pgp->cifrarObjetivo($datos['valor'], $datos['descripcion'] ?? null)];
 
                     $objetivo = $id === null ? null : $programa->objetivos()->whereKey($id)->first();
 
@@ -322,11 +357,8 @@ class ProgramaController extends Controller
         }
 
         if ($request->filled('busqueda')) {
-            $busqueda = $request->input('busqueda');
-            $query->where(function ($q) use ($busqueda) {
-                $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('descripcion', 'like', "%{$busqueda}%");
-            });
+            // La descripcion queda cifrada en la base: no se puede buscar por ella con LIKE.
+            $query->where('nombre', 'like', '%'.$request->input('busqueda').'%');
         }
 
         $programas = $query->withCount('reportes')->orderBy('nombre')->paginate(15)->withQueryString();

@@ -189,8 +189,8 @@
                             </div>
                         </CardHeader>
                         <CardContent class="space-y-3">
-                            <p class="line-clamp-2 text-xs text-muted-foreground">
-                                {programa.descripcion}
+                            <p class="text-xs text-muted-foreground">
+                                {programa.empresa ? (programa.empresa.nombre_comercial ?? programa.empresa.razon_social) : 'Programa de la plataforma'}
                             </p>
 
                             <div class="flex items-center gap-2">

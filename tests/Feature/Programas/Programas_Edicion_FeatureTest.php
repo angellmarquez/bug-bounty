@@ -5,6 +5,7 @@ use App\Models\Empresa;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Services\Pgp\PgpService;
 
 function datosDeEdicion(array $extra = []): array
 {
@@ -118,7 +119,11 @@ test('editar los objetivos conserva los existentes, crea los nuevos y borra solo
         ['tipo' => 'api', 'valor' => 'api.acme.test'],
     ]]))->assertRedirect();
 
-    $valores = $programa->objetivos()->orderBy('id')->pluck('valor', 'id')->all();
+    // El valor queda cifrado en la base: se descifra para comparar el contenido real.
+    $pgp = app(PgpService::class);
+    $valores = $programa->objetivos()->orderBy('id')->pluck('valor', 'id')
+        ->map(fn (string $valor) => $pgp->descifrarObjetivo($valor)['valor'])
+        ->all();
 
     expect($valores)->toHaveCount(2)
         ->and($valores[$queSeQueda->id])->toBe('a-editado.acme.test')

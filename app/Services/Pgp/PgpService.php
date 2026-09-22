@@ -283,6 +283,76 @@ class PgpService
     }
 
     /**
+     * Cifra el contenido sensible de un programa (descripcion y bugs_buscados)
+     * con la clave pública de la plataforma para su custodia en la base de datos.
+     * El alcance (objetivos) se cifra aparte con {@see cifrarObjetivo()}, porque
+     * vive en su propia tabla, una fila por objetivo.
+     *
+     * @return array{descripcion: string, bugs_buscados: string|null, clave_huella: string}
+     */
+    public function cifrarPrograma(string $descripcion, ?string $bugsBuscados = null): array
+    {
+        $plataforma = $this->platformKey() ?? $this->asegurarClave();
+
+        return [
+            'descripcion' => $this->encrypt($descripcion, $plataforma->huella),
+            'bugs_buscados' => ($bugsBuscados === null || $bugsBuscados === '')
+                ? $bugsBuscados
+                : $this->encrypt($bugsBuscados, $plataforma->huella),
+            'clave_huella' => $plataforma->huella,
+        ];
+    }
+
+    /**
+     * Descifra el contenido de un programa custodiado en la base de datos.
+     * Los valores que no sean bloques PGP (datos legacy en claro, como los de
+     * los seeders de demo) se devuelven tal cual.
+     *
+     * @return array{descripcion: string, bugs_buscados: string|null}
+     */
+    public function descifrarPrograma(string $descripcion, ?string $bugsBuscados = null): array
+    {
+        return [
+            'descripcion' => $this->esMensajeCifrado($descripcion) ? $this->decrypt($descripcion) : $descripcion,
+            'bugs_buscados' => ($bugsBuscados !== null && $this->esMensajeCifrado($bugsBuscados))
+                ? $this->decrypt($bugsBuscados)
+                : $bugsBuscados,
+        ];
+    }
+
+    /**
+     * Cifra el valor (dominio/IP/API) y la descripción de un objetivo de programa.
+     *
+     * @return array{valor: string, descripcion: string|null}
+     */
+    public function cifrarObjetivo(string $valor, ?string $descripcion = null): array
+    {
+        $plataforma = $this->platformKey() ?? $this->asegurarClave();
+
+        return [
+            'valor' => $this->encrypt($valor, $plataforma->huella),
+            'descripcion' => ($descripcion === null || $descripcion === '')
+                ? $descripcion
+                : $this->encrypt($descripcion, $plataforma->huella),
+        ];
+    }
+
+    /**
+     * Descifra el valor y la descripción de un objetivo de programa.
+     *
+     * @return array{valor: string, descripcion: string|null}
+     */
+    public function descifrarObjetivo(string $valor, ?string $descripcion = null): array
+    {
+        return [
+            'valor' => $this->esMensajeCifrado($valor) ? $this->decrypt($valor) : $valor,
+            'descripcion' => ($descripcion !== null && $this->esMensajeCifrado($descripcion))
+                ? $this->decrypt($descripcion)
+                : $descripcion,
+        ];
+    }
+
+    /**
      * Firma un mensaje con la clave de la plataforma.
      */
     public function sign(string $message): string

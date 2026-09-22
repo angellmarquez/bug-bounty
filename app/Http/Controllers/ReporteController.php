@@ -217,9 +217,12 @@ class ReporteController extends Controller
                         ? null
                         : ($reporte->programa->empresa->nombre_comercial ?? $reporte->programa->empresa->razon_social),
                     // El alcance solo le hace falta a quien revisa: comprueba que el hallazgo esté en él.
+                    // Queda cifrado en la base, así que se descifra recién acá, para quien modera.
                     ...($puedeModerar ? [
-                        'bugs_buscados' => $reporte->programa->bugs_buscados,
-                        'objetivos' => $reporte->programa->objetivos()->get(['id', 'tipo', 'valor', 'descripcion'])->all(),
+                        'bugs_buscados' => app(PgpService::class)->descifrarPrograma($reporte->programa->descripcion, $reporte->programa->bugs_buscados)['bugs_buscados'],
+                        'objetivos' => $reporte->programa->objetivos()->get(['id', 'tipo', 'valor', 'descripcion'])
+                            ->map(fn ($o) => [...$o->toArray(), ...app(PgpService::class)->descifrarObjetivo($o->valor, $o->descripcion)])
+                            ->all(),
                     ] : []),
                 ],
                 'investigador' => $reporte->investigador->only(['id', 'name']),

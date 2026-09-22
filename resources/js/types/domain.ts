@@ -90,6 +90,7 @@ export type Programa = {
     creador?: User;
     objetivos?: ObjetivoPrograma[];
     reportes_count?: number;
+    empresa?: { id: number; razon_social: string; nombre_comercial: string | null } | null;
 };
 
 export type Reporte = {

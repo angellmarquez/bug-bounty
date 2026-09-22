@@ -5,6 +5,7 @@ use App\Models\Empresa;
 use App\Models\EventoReporte;
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Services\Pgp\PgpService;
 
 test('un investigador recien registrado ve el programa, reporta y sigue su informe', function () {
     $empresa = Empresa::factory()->aprobada()->create();
@@ -84,7 +85,10 @@ test('la empresa puede indicar que bugs busca al crear el programa', function ()
         'bugs_buscados' => 'XSS almacenado',
     ])->assertRedirect();
 
-    expect(Programa::where('nombre', 'Programa con bugs')->value('bugs_buscados'))->toBe('XSS almacenado');
+    // bugs_buscados queda cifrado en la base: se descifra para comparar el contenido real.
+    $cifrado = Programa::where('nombre', 'Programa con bugs')->value('bugs_buscados');
+    $descifrado = app(PgpService::class)->descifrarPrograma('', $cifrado)['bugs_buscados'];
+    expect($descifrado)->toBe('XSS almacenado');
 });
 
 test('el panel del investigador trae el ultimo movimiento de cada informe', function () {
