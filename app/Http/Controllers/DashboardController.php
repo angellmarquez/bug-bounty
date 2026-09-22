@@ -29,17 +29,22 @@ class DashboardController extends Controller
             $query->where('investigador_id', $user->id);
         }
 
+        // Un solo conteo condicional en vez de 4 consultas COUNT secuenciales.
+        $bindingsAbiertos = array_fill(0, count(Reporte::ESTADOS_ABIERTOS), '?');
+        /** @var array<string, int|string|null> $conteos */
+        $conteos = (clone $query)->selectRaw(
+            'count(*) as total, '
+            .'sum(case when estado in ('.implode(',', $bindingsAbiertos).') then 1 else 0 end) as abiertos, '
+            .'sum(case when estado = ? then 1 else 0 end) as cerrados, '
+            .'sum(case when estado = ? then 1 else 0 end) as borrador',
+            [...Reporte::ESTADOS_ABIERTOS, 'cerrado', 'borrador'],
+        )->first()?->toArray() ?? [];
+
         $stats = [
-            'reportes_total' => $query->count(),
-            'reportes_abiertos' => (clone $query)
-                ->whereIn('estado', Reporte::ESTADOS_ABIERTOS)
-                ->count(),
-            'reportes_cerrados' => (clone $query)
-                ->where('estado', 'cerrado')
-                ->count(),
-            'reportes_borrador' => (clone $query)
-                ->where('estado', 'borrador')
-                ->count(),
+            'reportes_total' => (int) ($conteos['total'] ?? 0),
+            'reportes_abiertos' => (int) ($conteos['abiertos'] ?? 0),
+            'reportes_cerrados' => (int) ($conteos['cerrados'] ?? 0),
+            'reportes_borrador' => (int) ($conteos['borrador'] ?? 0),
             'programas_activos' => $isAdmin
                 ? Programa::where('estado', 'activo')->count()
                 : Programa::where('estado', 'activo')

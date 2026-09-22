@@ -100,4 +100,16 @@ test.describe('Ciclo de una apelación', () => {
         const respuesta = await page.goto('/moderacion/apelaciones');
         expect(respuesta?.status()).toBe(403);
     });
+
+    test('el moderador que aplicó la sanción no puede ver el detalle por URL directa', async ({ page }) => {
+        await iniciarSesion(page, 'admin');
+        await page.goto('/moderacion/apelaciones');
+        await page.locator('[data-test="ver-apelacion"]').first().click();
+        await page.waitForURL(/\/moderacion\/apelaciones\/\d+$/);
+        const url = page.url();
+
+        await iniciarSesion(page, 'moderador');
+        const respuesta = await page.goto(url);
+        expect(respuesta?.status()).toBe(403);
+    });
 });

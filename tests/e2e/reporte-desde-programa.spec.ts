@@ -26,10 +26,19 @@ test.describe('Reportar desde un programa', () => {
         await page.getByRole('button', { name: /Siguiente/ }).click();
         await expect(page.getByText('Debe seleccionar un programa')).toHaveCount(0);
         await page.getByRole('button', { name: /Siguiente/ }).click();
+
+        // Paso PoC: el programa tiene poc_schema, se llenan los campos requeridos y se revisa el preview.
+        await page.locator('#url').fill('https://app.acme.test/buscar');
+        await page.locator('#pasos').fill('1) abrir el buscador 2) enviar <script>alert(1)</script>');
+        await page.getByRole('button', { name: 'Ver' }).click();
+        const preview = page.locator('pre');
+        await expect(preview).toContainText('Prueba de Concepto');
+        await expect(preview).toContainText('app.acme.test/buscar');
+
         await page.getByRole('button', { name: /Siguiente/ }).click();
 
         // Revisión: el programa es el del que se venía.
-        await expect(page.getByText('Revision del reporte')).toBeVisible();
+        await expect(page.getByText('Revisión del reporte')).toBeVisible();
         await expect(page.getByText('Programa Acme E2E').first()).toBeVisible();
 
         await page.getByRole('button', { name: /Guardar borrador/ }).click();

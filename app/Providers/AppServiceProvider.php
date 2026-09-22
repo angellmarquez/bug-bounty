@@ -69,6 +69,10 @@ class AppServiceProvider extends ServiceProvider
             (int) config('reportes.limites_envio.peticiones_por_minuto', 20),
         )->by('reportes|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
+        // Freno HTTP a interacciones frecuentes (comentarios en timeline, invitaciones): evita spam/saturación.
+        RateLimiter::for('interacciones', fn (Request $request) => Limit::perMinute(30)
+            ->by('interacciones|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
         if (config('app.vite_hot_file')) {
             Vite::useHotFile((string) config('app.vite_hot_file'));
         }

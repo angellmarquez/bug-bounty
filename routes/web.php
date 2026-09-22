@@ -29,7 +29,7 @@ Route::middleware('auth')->group(function () {
     Route::get('empresa', [EmpresaController::class, 'dashboard'])->name('empresa.dashboard');
     Route::get('empresa/reportes', [EmpresaController::class, 'reportes'])->name('empresa.reportes');
     // El propietario invita a investigadores registrados (por su correo) y los retira.
-    Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarInvestigador'])->name('empresa.invitaciones.crear');
+    Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarInvestigador'])->name('empresa.invitaciones.crear')->middleware('throttle:interacciones');
     Route::delete('empresa/invitaciones/{invitacion}', [EmpresaController::class, 'cancelarInvitacion'])->name('empresa.invitaciones.cancelar');
     Route::delete('empresa/miembros/{user}', [EmpresaController::class, 'retirarMiembro'])->name('empresa.miembros.eliminar');
 
@@ -57,7 +57,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('reportes/{reporte}/marcar-duplicado', [ReporteController::class, 'marcarDuplicado'])->name('reportes.marcar-duplicado');
     Route::post('reportes/{reporte}/reparacion', [ReporteController::class, 'reparacion'])->name('reportes.reparacion');
     Route::post('reportes/{reporte}/cerrar', [ReporteController::class, 'cerrar'])->name('reportes.cerrar');
-    Route::post('reportes/{reporte}/comentar', [ReporteController::class, 'comentar'])->name('reportes.comentar');
+    Route::post('reportes/{reporte}/comentar', [ReporteController::class, 'comentar'])->name('reportes.comentar')->middleware('throttle:interacciones');
 
     Route::get('reportes/{reporte}', [ReporteController::class, 'show'])->name('reportes.show');
 

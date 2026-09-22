@@ -68,6 +68,10 @@ $programa = Programa::factory()->create([
     'es_publico' => true,
     'nivel_acceso' => 'bajo',
     'bugs_buscados' => 'Inyecciones y XSS',
+    'poc_schema' => [
+        ['name' => 'url', 'label' => 'URL afectada', 'type' => 'url', 'required' => true, 'placeholder' => 'https://app.acme.test/ruta'],
+        ['name' => 'pasos', 'label' => 'Pasos para reproducir', 'type' => 'textarea', 'required' => true],
+    ],
 ]);
 ObjetivoPrograma::factory()->create(['programa_id' => $programa->id, 'tipo' => 'web', 'valor' => 'app.acme.test']);
 

@@ -224,7 +224,7 @@
                     </CardHeader>
                     {#if previewVisible}
                         <CardContent>
-                            <pre class="whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs font-mono">{renderPreview()}</pre>
+                            <pre class="whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs font-mono">{@render renderPreview()}</pre>
                         </CardContent>
                     {/if}
                 </Card>

@@ -8,6 +8,8 @@ async function guardarYEnviar(page: Page, titulo: string): Promise<void> {
     await page.locator('#descripcion').fill(`Descripción de "${titulo}" para la prueba de envío masivo.`);
     await page.getByRole('button', { name: /Siguiente/ }).click();
     await page.getByRole('button', { name: /Siguiente/ }).click();
+    await page.locator('#url').fill('https://app.acme.test/masivo');
+    await page.locator('#pasos').fill('Pasos de la prueba de envio masivo.');
     await page.getByRole('button', { name: /Siguiente/ }).click();
     await page.getByRole('button', { name: /Guardar y enviar/ }).click();
 }

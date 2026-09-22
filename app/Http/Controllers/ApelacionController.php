@@ -48,7 +48,8 @@ class ApelacionController extends Controller
 
     public function show(Request $request, Apelacion $apelacion): InertiaResponse
     {
-        Gate::authorize('abac', [AccionesAbac::ApelacionResolver]);
+        // Se evalúa con la apelación concreta: así ABAC aplica "juez y parte" también al ver el detalle.
+        Gate::authorize('abac', [AccionesAbac::ApelacionResolver, $apelacion]);
 
         $apelacion->load(['sancion.aplicadaPor', 'sancion.reporte', 'usuario', 'resueltaPor', 'eventos']);
 
