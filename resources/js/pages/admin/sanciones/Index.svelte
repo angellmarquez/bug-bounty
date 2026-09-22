@@ -203,7 +203,7 @@
 
                         {#if sancion.suspension_desde && sancion.suspension_hasta}
                             <div class="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                                Suspension: {formatearFecha(sancion.suspension_desde)} - {formatearFecha(sancion.suspension_hasta)}
+                                Suspensión: {formatearFecha(sancion.suspension_desde)} - {formatearFecha(sancion.suspension_hasta)}
                             </div>
                         {/if}
 

@@ -97,7 +97,7 @@
 
     const greeting = $derived.by(() => {
         const hour = new Date().getHours();
-        if (hour < 12) return 'Buenos dias';
+        if (hour < 12) return 'Buenos días';
         if (hour < 19) return 'Buenas tardes';
         return 'Buenas noches';
     });
@@ -142,7 +142,7 @@
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <PageHeader
         title="{greeting}, {user?.name ?? 'Usuario'}"
-        description="Panel de control de la plataforma de divulgacion coordinada"
+        description="Panel de control de la plataforma de divulgación coordinada"
     />
 
     <RolesUsuario />

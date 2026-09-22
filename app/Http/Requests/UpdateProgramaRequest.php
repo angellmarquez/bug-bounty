@@ -66,8 +66,8 @@ class UpdateProgramaRequest extends FormRequest
         return [
             'nombre.required' => 'El nombre es obligatorio.',
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
-            'descripcion.required' => 'La descripcion es obligatoria.',
-            'descripcion.max' => 'La descripcion no puede exceder 5000 caracteres.',
+            'descripcion.required' => 'La descripción es obligatoria.',
+            'descripcion.max' => 'La descripción no puede exceder 5000 caracteres.',
             'termina_en.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la de inicio.',
         ];
     }

@@ -46,7 +46,7 @@ export function validarPoc(
             try {
                 new URL(value);
             } catch {
-                errors[field.name] = `${field.label} debe ser una URL valida`;
+                errors[field.name] = `${field.label} debe ser una URL válida`;
             }
         }
     }

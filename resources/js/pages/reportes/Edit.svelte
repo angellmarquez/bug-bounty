@@ -77,8 +77,8 @@
     function validarPasoActual(): boolean {
         erroresPaso = {};
         if (pasoActual === 1) {
-            if (!formulario.titulo.trim()) erroresPaso.titulo = 'El titulo es obligatorio';
-            if (!formulario.descripcion.trim()) erroresPaso.descripcion = 'La descripcion es obligatoria';
+            if (!formulario.titulo.trim()) erroresPaso.titulo = 'El título es obligatorio';
+            if (!formulario.descripcion.trim()) erroresPaso.descripcion = 'La descripción es obligatoria';
         } else if (pasoActual === 3 && pocSchema.length > 0) {
             erroresPaso = validarPoc(formulario.poc, pocSchema);
         }
@@ -122,12 +122,12 @@
         <BotonVolver href={reportesShow(reporte.id)} etiqueta="Volver al informe" />
         <PageHeader
             title="Editar {reporte.numero_reporte}"
-            description={esEnviado ? 'Editando reporte enviado (solo titulo, descripcion y PoC)' : 'Edite los campos del reporte'}
+            description={esEnviado ? 'Editando reporte enviado (solo título, descripción y PoC)' : 'Edite los campos del reporte'}
         />
     </div>
 
     <WizardSteps
-        pasos={esEnviado ? ['Detalles', 'CVSS', 'PoC'] : ['Detalles', 'CVSS', 'PoC', 'Revision']}
+        pasos={esEnviado ? ['Detalles', 'CVSS', 'PoC'] : ['Detalles', 'CVSS', 'PoC', 'Revisión']}
         {pasoActual}
     />
 
@@ -155,7 +155,7 @@
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="titulo">Titulo *</Label>
+                            <Label for="titulo">Título *</Label>
                             <Input
                                 id="titulo"
                                 name="titulo"
@@ -169,7 +169,7 @@
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="descripcion">Descripcion *</Label>
+                            <Label for="descripcion">Descripción *</Label>
                             <textarea
                                 id="descripcion"
                                 name="descripcion"
@@ -185,14 +185,14 @@
 
                         {#if !esEnviado}
                             <div class="space-y-2">
-                                <Label for="categoria">Categoria</Label>
+                                <Label for="categoria">Categoría</Label>
                                 <Select
                                     value={formulario.categoria}
                                     onValueChange={(v) => (formulario.categoria = v)}
                                     items={CATEGORIAS_REPORTE}
                                 >
                                     <SelectTrigger class="w-full">
-                                        <SelectValue placeholder="Seleccionar categoria..." />
+                                        <SelectValue placeholder="Seleccionar categoría..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {#each CATEGORIAS_REPORTE as categoria (categoria.value)}
@@ -235,7 +235,7 @@
             {:else if pasoActual === 4}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Revision del reporte</CardTitle>
+                        <CardTitle>Revisión del reporte</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div class="grid gap-4 sm:grid-cols-2">
@@ -244,14 +244,14 @@
                                 <p class="text-sm">{reporte.programa?.nombre ?? 'N/A'}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-muted-foreground">Titulo</p>
-                                <p class="text-sm">{formulario.titulo || 'Sin titulo'}</p>
+                                <p class="text-xs text-muted-foreground">Título</p>
+                                <p class="text-sm">{formulario.titulo || 'Sin título'}</p>
                             </div>
                         </div>
 
                         <div>
-                            <p class="text-xs text-muted-foreground">Descripcion</p>
-                            <p class="whitespace-pre-wrap text-sm">{formulario.descripcion || 'Sin descripcion'}</p>
+                            <p class="text-xs text-muted-foreground">Descripción</p>
+                            <p class="whitespace-pre-wrap text-sm">{formulario.descripcion || 'Sin descripción'}</p>
                         </div>
 
                         {#if formulario.vector_cvss}

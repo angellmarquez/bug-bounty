@@ -7,7 +7,7 @@
             'CVSS',
             'PoC',
             'PGP',
-            'Revision',
+            'Revisión',
         ],
         pasoActual = 1,
     }: {

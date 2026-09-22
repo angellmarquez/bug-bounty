@@ -65,12 +65,12 @@ class StoreReporteRequest extends FormRequest
         return [
             'programa_id.required' => 'Debe seleccionar un programa.',
             'programa_id.exists' => 'El programa seleccionado no existe.',
-            'titulo.required' => 'El titulo es obligatorio.',
-            'titulo.max' => 'El titulo no puede exceder 255 caracteres.',
-            'descripcion.required' => 'La descripcion es obligatoria.',
-            'descripcion.max' => 'La descripcion no puede exceder 50000 caracteres.',
-            'puntuacion_cvss.min' => 'La puntuacion CVSS debe ser entre 0 y 10.',
-            'puntuacion_cvss.max' => 'La puntuacion CVSS debe ser entre 0 y 10.',
+            'titulo.required' => 'El título es obligatorio.',
+            'titulo.max' => 'El título no puede exceder 255 caracteres.',
+            'descripcion.required' => 'La descripción es obligatoria.',
+            'descripcion.max' => 'La descripción no puede exceder 50000 caracteres.',
+            'puntuacion_cvss.min' => 'La puntuación CVSS debe ser entre 0 y 10.',
+            'puntuacion_cvss.max' => 'La puntuación CVSS debe ser entre 0 y 10.',
         ];
     }
 }

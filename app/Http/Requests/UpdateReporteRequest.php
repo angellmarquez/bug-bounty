@@ -54,10 +54,10 @@ class UpdateReporteRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'titulo.max' => 'El titulo no puede exceder 255 caracteres.',
-            'descripcion.max' => 'La descripcion no puede exceder 50000 caracteres.',
-            'puntuacion_cvss.min' => 'La puntuacion CVSS debe ser entre 0 y 10.',
-            'puntuacion_cvss.max' => 'La puntuacion CVSS debe ser entre 0 y 10.',
+            'titulo.max' => 'El título no puede exceder 255 caracteres.',
+            'descripcion.max' => 'La descripción no puede exceder 50000 caracteres.',
+            'puntuacion_cvss.min' => 'La puntuación CVSS debe ser entre 0 y 10.',
+            'puntuacion_cvss.max' => 'La puntuación CVSS debe ser entre 0 y 10.',
         ];
     }
 }

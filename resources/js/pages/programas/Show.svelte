@@ -113,10 +113,10 @@
         const labels: Record<string, string> = {
             text: 'Texto',
             textarea: 'Texto largo',
-            select: 'Seleccion',
-            number: 'Numero',
+            select: 'Selección',
+            number: 'Número',
             url: 'URL',
-            code: 'Codigo',
+            code: 'Código',
         };
         return labels[type] ?? type;
     }
@@ -197,7 +197,7 @@
                 </Card>
             {:else}
                 <Card>
-                    <CardHeader><CardTitle>Descripcion</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Descripción</CardTitle></CardHeader>
                     <CardContent>
                         <p class="whitespace-pre-wrap text-sm">{programa.descripcion}</p>
                     </CardContent>

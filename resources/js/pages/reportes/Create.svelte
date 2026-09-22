@@ -97,8 +97,8 @@
     function validarPasoActual(): boolean {
         erroresPaso = {};
         if (pasoActual === 1) {
-            if (!formulario.titulo.trim()) erroresPaso.titulo = 'El titulo es obligatorio';
-            if (!formulario.descripcion.trim()) erroresPaso.descripcion = 'La descripcion es obligatoria';
+            if (!formulario.titulo.trim()) erroresPaso.titulo = 'El título es obligatorio';
+            if (!formulario.descripcion.trim()) erroresPaso.descripcion = 'La descripción es obligatoria';
             if (!formulario.programa_id) erroresPaso.programa_id = 'Debe seleccionar un programa';
         } else if (pasoActual === 3 && pocSchema.length > 0) {
             erroresPaso = validarPoc(formulario.poc, pocSchema);
@@ -158,7 +158,7 @@
         </div>
     {/if}
 
-    <WizardSteps pasos={['Detalles', 'CVSS', 'PoC', 'Revision']} {pasoActual} />
+    <WizardSteps pasos={['Detalles', 'CVSS', 'PoC', 'Revisión']} {pasoActual} />
 
     <Form
         {...store.form()}
@@ -219,7 +219,7 @@
                         {/if}
 
                         <div class="space-y-2">
-                            <Label for="titulo">Titulo *</Label>
+                            <Label for="titulo">Título *</Label>
                             <Input
                                 id="titulo"
                                 name="titulo"
@@ -233,7 +233,7 @@
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="descripcion">Descripcion *</Label>
+                            <Label for="descripcion">Descripción *</Label>
                             <textarea
                                 id="descripcion"
                                 name="descripcion"
@@ -249,14 +249,14 @@
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="categoria">Categoria</Label>
+                            <Label for="categoria">Categoría</Label>
                             <Select
                                 value={formulario.categoria}
                                 onValueChange={(v) => (formulario.categoria = v)}
                                 items={CATEGORIAS_REPORTE}
                             >
                                 <SelectTrigger class="w-full">
-                                    <SelectValue placeholder="Seleccionar categoria..." />
+                                    <SelectValue placeholder="Seleccionar categoría..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {#each CATEGORIAS_REPORTE as categoria (categoria.value)}
@@ -290,7 +290,7 @@
             {:else if pasoActual === 4}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Revision del reporte</CardTitle>
+                        <CardTitle>Revisión del reporte</CardTitle>
                     </CardHeader>
                     <CardContent class="space-y-4">
                         <div class="grid gap-4 sm:grid-cols-2">
@@ -299,14 +299,14 @@
                                 <p class="text-sm">{programas.find((p) => String(p.id) === formulario.programa_id)?.nombre ?? 'No seleccionado'}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-muted-foreground">Titulo</p>
-                                <p class="text-sm">{formulario.titulo || 'Sin titulo'}</p>
+                                <p class="text-xs text-muted-foreground">Título</p>
+                                <p class="text-sm">{formulario.titulo || 'Sin título'}</p>
                             </div>
                         </div>
 
                         <div>
-                            <p class="text-xs text-muted-foreground">Descripcion</p>
-                            <p class="whitespace-pre-wrap text-sm">{formulario.descripcion || 'Sin descripcion'}</p>
+                            <p class="text-xs text-muted-foreground">Descripción</p>
+                            <p class="whitespace-pre-wrap text-sm">{formulario.descripcion || 'Sin descripción'}</p>
                         </div>
 
                         {#if formulario.vector_cvss}

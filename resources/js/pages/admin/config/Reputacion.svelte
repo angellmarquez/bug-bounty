@@ -5,7 +5,7 @@
                 title: 'Admin',
             },
             {
-                title: 'Config Reputacion',
+                title: 'Config Reputación',
                 href: '/admin/config/reputacion',
             },
         ],
@@ -95,12 +95,12 @@
     }
 </script>
 
-<AppHead title="Configuracion de Reputacion" />
+<AppHead title="Configuración de Reputación" />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <PageHeader
-        title="Configuracion de Reputacion"
-        description="Ajusta los parametros del sistema de reputacion y penalizacion"
+        title="Configuración de Reputación"
+        description="Ajusta los parámetros del sistema de reputación y penalización"
     />
 
     <form onsubmit={guardar} class="space-y-6">
@@ -132,7 +132,7 @@
             <CardHeader>
                 <CardTitle class="text-lg">Puntos Positivos</CardTitle>
                 <CardDescription>
-                    Recompensa en puntos por acciones validas
+                    Recompensa en puntos por acciones válidas
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -158,7 +158,7 @@
                         />
                     </div>
                     <div>
-                        <Label for="calidad_documentacion">Calidad documentacion</Label>
+                        <Label for="calidad_documentacion">Calidad documentación</Label>
                         <Input
                             id="calidad_documentacion"
                             type="number"
@@ -168,7 +168,7 @@
                         />
                     </div>
                     <div>
-                        <Label for="participacion">Participacion</Label>
+                        <Label for="participacion">Participación</Label>
                         <Input
                             id="participacion"
                             type="number"
@@ -183,9 +183,9 @@
 
         <Card>
             <CardHeader>
-                <CardTitle class="text-lg">Penalizacion Base</CardTitle>
+                <CardTitle class="text-lg">Penalización Base</CardTitle>
                 <CardDescription>
-                    Puntos negativos aplicados por cada sancion
+                    Puntos negativos aplicados por cada sanción
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -226,15 +226,15 @@
 
         <Card>
             <CardHeader>
-                <CardTitle class="text-lg">Suspension</CardTitle>
+                <CardTitle class="text-lg">Suspensión</CardTitle>
                 <CardDescription>
-                    Dias de suspension por gravedad de sancion
+                    Días de suspensión por gravedad de sanción
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <div class="grid gap-4 sm:grid-cols-3">
                     <div>
-                        <Label for="suspension_leve_dias">Leve (dias)</Label>
+                        <Label for="suspension_leve_dias">Leve (días)</Label>
                         <Input
                             id="suspension_leve_dias"
                             type="number"
@@ -244,7 +244,7 @@
                         />
                     </div>
                     <div>
-                        <Label for="suspension_media_dias">Media (dias)</Label>
+                        <Label for="suspension_media_dias">Media (días)</Label>
                         <Input
                             id="suspension_media_dias"
                             type="number"
@@ -254,7 +254,7 @@
                         />
                     </div>
                     <div>
-                        <Label for="suspension_grave_dias">Grave (dias)</Label>
+                        <Label for="suspension_grave_dias">Grave (días)</Label>
                         <Input
                             id="suspension_grave_dias"
                             type="number"
@@ -271,12 +271,12 @@
             <CardHeader>
                 <CardTitle class="text-lg">Apelaciones</CardTitle>
                 <CardDescription>
-                    Tiempo limite para presentar una apelacion
+                    Tiempo límite para presentar una apelación
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <div class="max-w-xs">
-                    <Label for="plazo_apelacion_dias">Plazo apelacion (dias)</Label>
+                    <Label for="plazo_apelacion_dias">Plazo apelación (días)</Label>
                     <Input
                         id="plazo_apelacion_dias"
                         type="number"
@@ -290,7 +290,7 @@
 
         <div class="flex justify-end">
             <Button type="submit" size="lg">
-                Guardar configuracion
+                Guardar configuración
             </Button>
         </div>
     </form>

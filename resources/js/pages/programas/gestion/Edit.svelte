@@ -92,7 +92,7 @@
                     </div>
 
                     <div class="space-y-2">
-                        <Label for="descripcion">Descripcion *</Label>
+                        <Label for="descripcion">Descripción *</Label>
                         <textarea
                             id="descripcion"
                             name="descripcion"
@@ -150,7 +150,7 @@
 
                         <Label class="flex items-center space-x-3">
                             <Checkbox name="es_publico" value="1" checked={programa.es_publico} />
-                            <span>Publico</span>
+                            <span>Público</span>
                         </Label>
                     </div>
 
@@ -224,7 +224,7 @@
                                 />
 
                                 <Input
-                                    placeholder="Descripcion (opcional)"
+                                    placeholder="Descripción (opcional)"
                                     bind:value={objetivos[i].descripcion}
                                 />
 

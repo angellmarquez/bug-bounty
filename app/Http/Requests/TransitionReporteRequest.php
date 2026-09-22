@@ -34,7 +34,7 @@ class TransitionReporteRequest extends FormRequest
             'nota.max' => 'La nota no puede exceder 2000 caracteres.',
             'reporte_duplicado_id.exists' => 'El reporte duplicado no existe.',
             'asignado_a.exists' => 'El usuario seleccionado no existe.',
-            'gravedad_sancion.in' => 'La gravedad de la sancion no es valida.',
+            'gravedad_sancion.in' => 'La gravedad de la sanción no es válida.',
         ];
     }
 }
