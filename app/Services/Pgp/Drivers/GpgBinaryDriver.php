@@ -104,6 +104,35 @@ class GpgBinaryDriver implements PgpDriver
 
     /**
      * {@inheritDoc}
+     *
+     * La exportación de una clave secreta (--export-secret-keys) trae también
+     * los paquetes de la clave pública, así que un solo --import al homedir
+     * reconstruye el par completo (sirve tanto para firmar/descifrar como
+     * para cifrar hacia la propia plataforma).
+     */
+    public function importPrivateKey(string $armoredPrivateKey): PgpKeyInfo
+    {
+        $this->assertAvailable();
+
+        $this->run(['--import'], $this->normalizeArmored($armoredPrivateKey), $this->homedir);
+
+        $info = $this->primaryKeyInfo($this->homedir);
+        if ($info === null) {
+            throw new PgpException('No se pudo importar la clave privada PGP.');
+        }
+
+        // A diferencia de una clave generada en el propio keyring (confianza
+        // "ultimate" automática), una recién importada queda con confianza
+        // desconocida y --encrypt la rechaza ("no hay seguridad de que esta
+        // clave pertenezca..."). Es la propia clave de la plataforma (tenemos
+        // su secreta): la marcamos de confianza última a mano.
+        $this->run(['--import-ownertrust'], "{$info->fingerprint}:6:\n", $this->homedir);
+
+        return $info;
+    }
+
+    /**
+     * {@inheritDoc}
      */
     public function exportPublicKey(string $fingerprint): string
     {

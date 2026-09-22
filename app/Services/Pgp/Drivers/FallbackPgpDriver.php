@@ -112,6 +112,25 @@ class FallbackPgpDriver implements PgpDriver
     /**
      * {@inheritDoc}
      */
+    public function importPrivateKey(string $armoredPrivateKey): PgpKeyInfo
+    {
+        $this->assertAvailable();
+
+        $fields = $this->parseBlock($this->normalizeArmored($armoredPrivateKey), self::PRIVATE_HEADER);
+
+        if ($fields === null) {
+            throw new PgpException('La cadena no parece una clave privada PGP de respaldo.');
+        }
+
+        $this->ensureStore();
+        File::put($this->store.'/platform_private.asc', $this->normalizeArmored($armoredPrivateKey));
+
+        return $this->keyInfoFromFields($fields);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function exportPublicKey(string $fingerprint): string
     {
         $this->assertAvailable();

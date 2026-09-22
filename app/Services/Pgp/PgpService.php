@@ -184,6 +184,31 @@ class PgpService
     }
 
     /**
+     * Reimporta la clave activa de la plataforma en el keyring local del
+     * driver a partir de lo persistido en la base de datos.
+     *
+     * Necesario cuando el proceso arranca con el keyring vacío (disco
+     * efímero: un contenedor recién creado sin disco persistente) aunque la
+     * clave siga activa en {@see ClavePgpPlataforma}: sin este paso,
+     * cifrar/descifrar fallaría con "no se encontró la clave" pese a que la
+     * fila en base de datos sigue ahí.
+     *
+     * @return bool si había una clave activa que reimportar
+     */
+    public function restaurarEnKeyring(): bool
+    {
+        $clave = $this->platformKey();
+
+        if ($clave === null) {
+            return false;
+        }
+
+        $this->driver->importPrivateKey($clave->clave_privada);
+
+        return true;
+    }
+
+    /**
      * Cifra un mensaje para un destinatario (huella o clave pública armored).
      */
     public function encrypt(string $message, string $recipient): string

@@ -35,6 +35,16 @@ interface PgpDriver
     public function importKey(string $armoredPublicKey): PgpKeyInfo;
 
     /**
+     * Importa una clave privada ASCII-armored (par completo) al keyring local
+     * y devuelve su información. Permite reconstruir el keyring en un disco
+     * efímero (p. ej. un contenedor recién arrancado) a partir de la clave
+     * persistida en la base de datos.
+     *
+     * @throws PgpException si la clave no es válida
+     */
+    public function importPrivateKey(string $armoredPrivateKey): PgpKeyInfo;
+
+    /**
      * Exporta la clave pública (ASCII-armored) correspondiente a una huella.
      *
      * @throws PgpException si la clave no es local

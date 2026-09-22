@@ -16,6 +16,12 @@ php artisan view:cache
 
 php artisan migrate --force
 
+# Reimporta la clave de la plataforma (persistida en la base de datos) al
+# keyring local: en disco efímero (Render sin disco persistente) el keyring
+# de GnuPG se pierde en cada reinicio del contenedor, aunque la clave siga
+# activa en claves_pgp_plataforma.
+php artisan pgp:restore || true
+
 # No falla el arranque si la clave PGP no se puede crear todavía (por ejemplo,
 # el binario de gpg no está disponible): la plataforma la crea sola al recibir
 # el primer reporte (ver PgpService::asegurarClave).

@@ -159,6 +159,55 @@ test('pgp:check falla cuando no hay clave de plataforma', function () {
     expect(Artisan::call('pgp:check'))->toBe(1);
 });
 
+test('restaurarEnKeyring reimporta la clave activa en un keyring nuevo', function () {
+    $clave = pgpService()->generatePlatformKeyPair();
+
+    // Simula un disco efímero: el keyring local desaparece, la fila en BD no.
+    (new Filesystem)->deleteDirectory($this->storePgp);
+    expect(is_dir($this->storePgp))->toBeFalse();
+
+    expect(pgpService()->restaurarEnKeyring())->toBeTrue();
+
+    $cifrado = pgpService()->encrypt('tras-restaurar', $clave->huella);
+    expect(pgpService()->decrypt($cifrado))->toBe('tras-restaurar');
+});
+
+test('restaurarEnKeyring no hace nada si no hay clave activa', function () {
+    expect(pgpService()->restaurarEnKeyring())->toBeFalse();
+});
+
+test('pgp:restore reimporta la clave y es un no-op sin clave activa', function () {
+    expect(Artisan::call('pgp:restore'))->toBe(0)
+        ->and(Artisan::output())->toContain('nada que restaurar');
+
+    pgpService()->generatePlatformKeyPair();
+    (new Filesystem)->deleteDirectory($this->storePgp);
+
+    expect(Artisan::call('pgp:restore'))->toBe(0)
+        ->and(Artisan::output())->toContain('reimportada');
+});
+
+test('el driver binario reconstruye su keyring real desde una clave exportada', function () {
+    $binario = (string) config('pgp.gpg.binary', 'gpg');
+    $driver = new GpgBinaryDriver($binario, sys_get_temp_dir().'/pgp_gpg_test_'.uniqid());
+
+    if (! $driver->available()) {
+        test()->markTestSkipped('No hay binario de GnuPG disponible en este entorno.');
+    }
+
+    $info = $driver->generateKeyPair(['identity' => 'Prueba Restore <restore@localhost>', 'expires_in' => '1d']);
+    $privada = $driver->exportPrivateKey($info->fingerprint);
+
+    // Un keyring "nuevo" (homedir distinto) simula el disco efímero.
+    $driverNuevo = new GpgBinaryDriver($binario, sys_get_temp_dir().'/pgp_gpg_test_'.uniqid());
+    $restaurada = $driverNuevo->importPrivateKey($privada);
+
+    expect($restaurada->fingerprint)->toBe($info->fingerprint);
+
+    $cifrado = $driverNuevo->encrypt('mensaje-real', $info->fingerprint);
+    expect($driverNuevo->decrypt($cifrado))->toBe('mensaje-real');
+});
+
 test('la clave de plataforma se puede crear por factory', function () {
     $activa = ClavePgpPlataforma::factory()->create();
     $inactiva = ClavePgpPlataforma::factory()->inactiva()->create();
