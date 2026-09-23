@@ -6,11 +6,13 @@ use App\Models\Empresa;
 use App\Models\Programa;
 use App\Models\Rol;
 use App\Models\User;
+use App\Services\Pgp\PgpService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Arr;
 
 class EmpresaDemoSeeder extends Seeder
 {
-    public function run(): void
+    public function run(PgpService $pgp): void
     {
         $administrador = User::updateOrCreate(
             ['email' => 'admin@bugbounty.local'],
@@ -56,7 +58,8 @@ class EmpresaDemoSeeder extends Seeder
             ['slug' => 'empresa-demo-programa'],
             [
                 'nombre' => 'Empresa Demo Programa',
-                'descripcion' => 'Programa de demostración para probar el flujo empresarial.',
+                // Cifrada como en ProgramaController (clave de la empresa + custodia).
+                ...Arr::only($pgp->cifrarPrograma('Programa de demostración para probar el flujo empresarial.', null, $empresa), ['descripcion']),
                 'estado' => 'activo',
                 'es_publico' => true,
                 'nivel_acceso' => 'bajo',
