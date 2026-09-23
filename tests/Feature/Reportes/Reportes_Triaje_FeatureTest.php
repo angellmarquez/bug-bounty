@@ -390,13 +390,16 @@ test('show page does not pass triaje for investigador', function () {
     $this->assertFalse($props['puedeTriar']);
 });
 
-test('validar suma al investigador los puntos de reputación del evento reporte_validado', function () {
-    $programaModerado = Programa::factory()->create();
-    $this->actingAs(moderadorDe($programaModerado));
+test('validar no da puntos: los da la empresa al confirmar el informe', function () {
+    $propietario = propietarioDeEmpresa();
+    $programa = programaDeEmpresa($propietario);
     $investigador = investigador();
-    $reporte = reporteDe($investigador, $programaModerado, ['estado' => 'enviado']);
+    $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado']);
 
-    $this->post(route('reportes.validar', $reporte))->assertRedirect();
+    $this->actingAs(moderadorDe($programa))->post(route('reportes.validar', $reporte))->assertRedirect();
+    expect($investigador->fresh()->reputation_score)->toBe(0);
+
+    $this->actingAs($propietario)->post(route('reportes.reparacion', $reporte))->assertRedirect();
 
     expect($investigador->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_validado'));
     $this->assertDatabaseHas('ledger_reputacion', [
@@ -415,7 +418,9 @@ test('cerrar un informe suma al investigador los puntos de reputación del event
 
     $this->post(route('reportes.cerrar', $reporte))->assertRedirect();
 
-    expect($investigador->fresh()->reputation_score)->toBe((int) config('reputacion.puntos.reporte_resuelto'));
+    // Cerrar directamente desde "validado" es también la confirmación: suma ambos eventos.
+    expect($investigador->fresh()->reputation_score)
+        ->toBe((int) config('reputacion.puntos.reporte_validado') + (int) config('reputacion.puntos.reporte_resuelto'));
     $this->assertDatabaseHas('ledger_reputacion', [
         'usuario_id' => $investigador->id,
         'reporte_id' => $reporte->id,

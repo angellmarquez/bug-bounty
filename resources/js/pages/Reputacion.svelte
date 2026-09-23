@@ -68,7 +68,7 @@
     ] as const;
 
     const MOTIVOS: Record<string, string> = {
-        reporte_validado: 'Reporte validado',
+        reporte_validado: 'Reporte confirmado por la empresa',
         reporte_resuelto: 'Informe resuelto',
         // Movimientos antiguos, de cuando la plataforma todavía registraba pagos.
         reporte_pagado: 'Informe pagado (histórico)',
@@ -206,7 +206,7 @@
             <EmptyState
                 icon={History}
                 title="Todavía no tienes movimientos"
-                description="Cuando un reporte tuyo sea validado o resuelto, verás aquí los puntos ganados."
+                description="Cuando la empresa confirme o resuelva un reporte tuyo, verás aquí los puntos ganados."
             />
         {:else}
             <div class="flex flex-col gap-2">

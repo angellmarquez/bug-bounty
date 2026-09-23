@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Rules\PocCumpleSchema;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
+use App\Services\Reportes\ColaDeValidacion;
 use App\Services\Reportes\LimiteDeEnvios;
 use App\Services\Reputacion\Rangos;
 use App\Services\Reputacion\ReputationService;
@@ -190,16 +191,34 @@ class ReporteController extends Controller
         $puedeMarcarEnReparacion = Gate::allows('abac', [AccionesAbac::ReporteMarcarEnReparacion, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'en_reparacion');
         $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'cerrado');
 
+        // Orden de llegada: la misma regla que aplican validar(), reparacion() y cerrar(), para no
+        // ofrecer un botón que el servidor rechazaría. Se explica por qué hay que esperar.
+        $esperaTurno = null;
+        $cola = app(ColaDeValidacion::class);
+        if ($puedeValidar && ($anterior = $cola->anteriorPendiente($reporte, ColaDeValidacion::PENDIENTES_DE_TRIAJE)) !== null) {
+            $puedeValidar = false;
+            $esperaTurno = $this->mensajeDeTurno($anterior);
+        }
+        if (($puedeMarcarEnReparacion || $puedeCerrar) && $reporte->estado === EstadoReporte::Validado
+            && ($anterior = $cola->anteriorPendiente($reporte, ColaDeValidacion::PENDIENTES_DE_CONFIRMAR)) !== null) {
+            $puedeMarcarEnReparacion = false;
+            $puedeCerrar = false;
+            $esperaTurno = $this->mensajeDeTurno($anterior);
+        }
+
         // Capa 2: Candidatos a duplicado restringidos a reportes anteriores en el tiempo (prioridad temporal anti-robo)
         $candidatosDuplicado = $puedeMarcarDuplicado
             ? Reporte::query()
                 ->where('programa_id', $reporte->programa_id)
                 ->where('id', '!=', $reporte->id)
                 ->where('estado', '!=', 'borrador')
-                ->where('created_at', '<=', $reporte->created_at)
-                ->orderBy('created_at', 'asc')
+                ->whereRaw('COALESCE(enviado_en, created_at) <= ?', [ColaDeValidacion::prioridad($reporte)])
+                ->orderByRaw('COALESCE(enviado_en, created_at) asc')
+                ->orderBy('id')
                 ->limit(100)
-                ->get(['id', 'numero_reporte', 'titulo', 'estado', 'created_at'])
+                ->get(['id', 'numero_reporte', 'titulo', 'estado', 'enviado_en', 'created_at'])
+                ->filter(fn (Reporte $candidato): bool => ColaDeValidacion::llegoAntes($candidato, $reporte))
+                ->values()
                 ->map(fn (Reporte $candidato) => [
                     'id' => $candidato->id,
                     'numero_reporte' => $candidato->numero_reporte,
@@ -276,6 +295,7 @@ class ReporteController extends Controller
                 'cerrar' => $puedeCerrar,
             ],
             'moderadoresAsignables' => $moderadoresAsignables,
+            'esperaTurno' => $esperaTurno,
         ]);
     }
 
@@ -504,7 +524,8 @@ class ReporteController extends Controller
     {
         $reporte->update([
             'estado' => 'enviado',
-            'enviado_en' => now(),
+            // El turno en la cola es el del primer envío: reenviar tras `needs_info` no lo pierde.
+            'enviado_en' => $reporte->enviado_en ?? now(),
         ]);
 
         $reporte->eventos()->create([
@@ -745,12 +766,13 @@ class ReporteController extends Controller
             ->with('success', 'Reporte asignado exitosamente.');
     }
 
-    public function validar(Reporte $reporte, ReputationService $reputacion): RedirectResponse
+    public function validar(Reporte $reporte, ColaDeValidacion $cola): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
 
         $this->validarTransicion($reporte, 'validado');
+        $this->exigirTurno($reporte, $cola, ColaDeValidacion::PENDIENTES_DE_TRIAJE);
         $estadoAnterior = $reporte->estado->value;
         $reporte->update(['estado' => 'validado']);
 
@@ -763,10 +785,9 @@ class ReporteController extends Controller
 
         Auditoria::registrar('reportes.validado', $reporte, ['estado_anterior' => $estadoAnterior]);
 
-        $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_validado', $reporte);
-
+        // Los puntos no se dan aquí: los da la confirmación de la empresa (ver confirmarPorEmpresa).
         return redirect()->route('reportes.show', $reporte)
-            ->with('success', 'Reporte validado exitosamente.');
+            ->with('success', 'Reporte validado. Queda pendiente de que la empresa lo confirme.');
     }
 
     public function rechazar(TransitionReporteRequest $request, Reporte $reporte, ReputationService $reputacion): RedirectResponse
@@ -823,7 +844,7 @@ class ReporteController extends Controller
         $original = Reporte::find($validated['reporte_duplicado_id']);
         abort_unless($original instanceof Reporte, 404, 'El reporte original no existe.');
         abort_if($original->id === $reporte->id, 422, 'Un reporte no puede ser duplicado de sí mismo.');
-        abort_if($original->created_at->gt($reporte->created_at), 422, 'Un reporte solo puede ser marcado como duplicado de otro reporte recibido con anterioridad.');
+        abort_unless(ColaDeValidacion::llegoAntes($original, $reporte), 422, 'Un reporte solo puede ser marcado como duplicado de otro reporte enviado con anterioridad.');
 
         $this->validarTransicion($reporte, 'duplicado');
         $reporte->update([
@@ -847,12 +868,16 @@ class ReporteController extends Controller
             ->with('success', 'Reporte marcado como duplicado.');
     }
 
-    public function reparacion(Reporte $reporte): RedirectResponse
+    public function reparacion(Reporte $reporte, ColaDeValidacion $cola, ReputationService $reputacion): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteMarcarEnReparacion, $reporte, $this->empresaContexto()]);
 
         $this->validarTransicion($reporte, 'en_reparacion');
+        $confirma = $reporte->estado === EstadoReporte::Validado;
+        if ($confirma) {
+            $this->exigirTurno($reporte, $cola, ColaDeValidacion::PENDIENTES_DE_CONFIRMAR);
+        }
         $estadoAnterior = $reporte->estado->value;
         $reporte->update(['estado' => 'en_reparacion']);
 
@@ -865,16 +890,27 @@ class ReporteController extends Controller
 
         Auditoria::registrar('reportes.marcado_en_reparacion', $reporte, ['estado_anterior' => $estadoAnterior]);
 
+        if ($confirma) {
+            $this->confirmarPorEmpresa($reporte, $reputacion);
+        }
+
         return redirect()->route('reportes.show', $reporte)
-            ->with('success', 'Informe marcado en reparación.');
+            ->with('success', $confirma
+                ? 'Informe confirmado y en reparación. El investigador recibió sus puntos.'
+                : 'Informe marcado en reparación.');
     }
 
-    public function cerrar(Reporte $reporte, ReputationService $reputacion): RedirectResponse
+    public function cerrar(Reporte $reporte, ReputationService $reputacion, ColaDeValidacion $cola): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]);
 
         $this->validarTransicion($reporte, 'cerrado');
+        // Cerrar directamente desde "validado" también es la confirmación de la empresa.
+        $confirma = $reporte->estado === EstadoReporte::Validado;
+        if ($confirma) {
+            $this->exigirTurno($reporte, $cola, ColaDeValidacion::PENDIENTES_DE_CONFIRMAR);
+        }
         $estadoAnterior = $reporte->estado->value;
         $reporte->update([
             'estado' => 'cerrado',
@@ -890,11 +926,48 @@ class ReporteController extends Controller
 
         Auditoria::registrar('reportes.cerrado', $reporte, ['estado_anterior' => $estadoAnterior]);
 
+        if ($confirma) {
+            $this->confirmarPorEmpresa($reporte, $reputacion);
+        }
+
         // La recompensa por un informe válido es la reputación: se otorga al resolverlo.
         $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_resuelto', $reporte);
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Informe cerrado como resuelto. El investigador recibió sus puntos de reputación.');
+    }
+
+    /**
+     * Bloquea la acción si un informe anterior del mismo programa sigue en `$estados`:
+     * la recompensa es para el primero, así que se atienden por orden de llegada.
+     *
+     * @param  array<int, string>  $estados
+     */
+    private function exigirTurno(Reporte $reporte, ColaDeValidacion $cola, array $estados): void
+    {
+        $anterior = $cola->anteriorPendiente($reporte, $estados);
+
+        if ($anterior !== null) {
+            throw ValidationException::withMessages(['estado' => $this->mensajeDeTurno($anterior)]);
+        }
+    }
+
+    /** Solo se nombra el informe anterior si quien pregunta puede verlo (la empresa no ve los aún sin triar). */
+    private function mensajeDeTurno(Reporte $anterior): string
+    {
+        $cual = Gate::allows('abac', [AccionesAbac::ReporteVer, $anterior, $this->empresaContexto()])
+            ? "el informe {$anterior->numero_reporte}"
+            : 'un informe anterior de este programa';
+
+        return "Aún no es su turno: primero hay que resolver {$cual}, que se envió antes. "
+            .'La recompensa es para quien encontró la vulnerabilidad primero, así que se atienden por orden de llegada.';
+    }
+
+    /** La empresa confirmó un informe validado: es el momento en que el investigador gana los puntos. */
+    private function confirmarPorEmpresa(Reporte $reporte, ReputationService $reputacion): void
+    {
+        $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_validado', $reporte);
+        Auditoria::registrar('reportes.confirmado_por_empresa', $reporte, [], request()->user()?->id);
     }
 
     public function comentar(Reporte $reporte, Request $request): RedirectResponse

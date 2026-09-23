@@ -138,7 +138,7 @@
             <CardContent>
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
-                        <Label for="reporte_validado">Reporte validado</Label>
+                        <Label for="reporte_validado">Reporte confirmado por la empresa</Label>
                         <Input
                             id="reporte_validado"
                             type="number"

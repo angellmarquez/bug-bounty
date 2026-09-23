@@ -40,6 +40,8 @@ return [
     */
 
     'puntos' => [
+        // Se otorga cuando la empresa confirma un informe ya validado (en reparación o cerrado),
+        // respetando el orden de llegada: la recompensa es para el primero que lo encontró.
         'reporte_validado' => (int) env('REPUTACION_PUNTOS_VALIDADO', 50),
         'reporte_resuelto' => (int) env('REPUTACION_PUNTOS_RESUELTO', 100),
         'calidad_documentacion' => (int) env('REPUTACION_PUNTOS_CALIDAD', 10),

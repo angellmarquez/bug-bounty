@@ -94,7 +94,8 @@ test('cuando la empresa pone el informe en reparacion y lo cierra, el investigad
 
 test('marcar un informe como duplicado avisa a su autor', function () {
     ['programa' => $programa, 'moderador' => $moderador, 'investigador' => $autor, 'reporte' => $reporte] = escenarioDeInforme();
-    $original = reporteDe(investigador(), $programa, ['estado' => 'validado']);
+    // El original tiene que haberse enviado antes: solo así el otro puede ser su duplicado.
+    $original = reporteDe(investigador(), $programa, ['estado' => 'validado', 'enviado_en' => now()->subHour()]);
 
     $this->actingAs($moderador)->post(route('reportes.marcar-duplicado', $reporte), ['reporte_duplicado_id' => $original->id])->assertRedirect();
 
