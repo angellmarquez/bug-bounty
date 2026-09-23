@@ -5,7 +5,9 @@ import { iniciarSesion, vigilarErrores } from './helpers';
 async function guardarYEnviar(page: Page, titulo: string): Promise<void> {
     await page.goto('/reportes/crear?programa=1');
     await page.locator('#titulo').fill(titulo);
-    await page.locator('#descripcion').fill(`Descripción de "${titulo}" para la prueba de envío masivo.`);
+    await page
+        .locator('#descripcion')
+        .fill(`Descripción de "${titulo}" para la prueba de envío masivo.`);
     await page.getByRole('button', { name: /Siguiente/ }).click();
     await page.getByRole('button', { name: /Siguiente/ }).click();
     await page.locator('#url').fill('https://app.acme.test/masivo');
@@ -14,7 +16,9 @@ async function guardarYEnviar(page: Page, titulo: string): Promise<void> {
     await page.getByRole('button', { name: /Guardar y enviar/ }).click();
 }
 
-test('un investigador no puede enviar informes en masa a un programa', async ({ page }) => {
+test('un investigador no puede enviar informes en masa a un programa', async ({
+    page,
+}) => {
     const errores = vigilarErrores(page);
     await iniciarSesion(page, 'investigador');
 
@@ -22,7 +26,9 @@ test('un investigador no puede enviar informes en masa a un programa', async ({ 
     // el tercero entra (límite: 3 por hora y programa)...
     await guardarYEnviar(page, 'Tercer informe legítimo (E2E antispam)');
     await page.waitForURL(/\/reportes\/\d+$/, { timeout: 15_000 });
-    await expect(page.getByText('Tercer informe legítimo (E2E antispam)').first()).toBeVisible();
+    await expect(
+        page.getByText('Tercer informe legítimo (E2E antispam)').first(),
+    ).toBeVisible();
 
     // ...y el cuarto se bloquea con un aviso claro, sin crear el informe.
     await guardarYEnviar(page, 'Cuarto informe (E2E antispam)');
@@ -35,7 +41,9 @@ test('un investigador no puede enviar informes en masa a un programa', async ({ 
     // Guardarlo como borrador sí está permitido.
     await page.getByRole('button', { name: /Guardar borrador/ }).click();
     await page.waitForURL(/\/reportes\/\d+$/, { timeout: 15_000 });
-    await expect(page.getByText('Cuarto informe (E2E antispam)').first()).toBeVisible();
+    await expect(
+        page.getByText('Cuarto informe (E2E antispam)').first(),
+    ).toBeVisible();
 
     expect(errores, errores.join('\n')).toEqual([]);
 });

@@ -28,15 +28,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('empresa', [EmpresaController::class, 'dashboard'])->name('empresa.dashboard');
     Route::get('empresa/reportes', [EmpresaController::class, 'reportes'])->name('empresa.reportes');
-    // El propietario invita a investigadores registrados (por su correo) y los retira.
-    Route::post('empresa/invitaciones', [EmpresaController::class, 'invitarInvestigador'])->name('empresa.invitaciones.crear')->middleware('throttle:interacciones');
-    Route::delete('empresa/invitaciones/{invitacion}', [EmpresaController::class, 'cancelarInvitacion'])->name('empresa.invitaciones.cancelar');
-    Route::delete('empresa/miembros/{user}', [EmpresaController::class, 'retirarMiembro'])->name('empresa.miembros.eliminar');
 
-    // El invitado decide desde la plataforma (le llega un aviso en la campana).
+    // El investigador invitado a un programa privado decide desde la plataforma.
     Route::get('invitaciones', [InvitacionController::class, 'index'])->name('invitaciones.index');
-    Route::post('invitaciones/{invitacion}/aceptar', [InvitacionController::class, 'aceptar'])->name('invitaciones.aceptar');
-    Route::post('invitaciones/{invitacion}/rechazar', [InvitacionController::class, 'rechazar'])->name('invitaciones.rechazar');
 });
 
 Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
@@ -52,6 +46,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('reportes/{reporte}/vista-rapida', [ReporteController::class, 'vistaRapida'])->name('reportes.vista-rapida');
     Route::post('reportes/{reporte}/revisar', [ReporteController::class, 'revisar'])->name('reportes.revisar');
     Route::post('reportes/{reporte}/asignar', [ReporteController::class, 'asignar'])->name('reportes.asignar');
+    Route::post('reportes/{reporte}/pedir-info', [ReporteController::class, 'pedirInfo'])->name('reportes.pedir-info');
     Route::post('reportes/{reporte}/validar', [ReporteController::class, 'validar'])->name('reportes.validar');
     Route::post('reportes/{reporte}/rechazar', [ReporteController::class, 'rechazar'])->name('reportes.rechazar');
     Route::post('reportes/{reporte}/marcar-duplicado', [ReporteController::class, 'marcarDuplicado'])->name('reportes.marcar-duplicado');
@@ -71,6 +66,10 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::put('programas/{programa}', [ProgramaController::class, 'update'])->name('programas.update');
     Route::delete('programas/{programa}', [ProgramaController::class, 'destroy'])->name('programas.destroy');
     Route::post('programas/{programa}/cambiar-estado', [ProgramaController::class, 'cambiarEstado'])->name('programas.cambiar-estado');
+    Route::post('programas/{programa}/invitaciones', [ProgramaController::class, 'invitarHacker'])->name('programas.invitaciones.crear');
+    Route::delete('programas/{programa}/invitaciones/{user}', [ProgramaController::class, 'cancelarInvitacionHacker'])->name('programas.invitaciones.cancelar');
+    Route::post('invitaciones/programas/{programa}/aceptar', [InvitacionController::class, 'aceptarPrograma'])->name('invitaciones.programas.aceptar');
+    Route::post('invitaciones/programas/{programa}/rechazar', [InvitacionController::class, 'rechazarPrograma'])->name('invitaciones.programas.rechazar');
     Route::get('gestion/programas', [ProgramaController::class, 'gestion'])->name('programas.gestion');
     Route::get('gestion/programas/crear', [ProgramaController::class, 'create'])->name('programas.create');
     Route::get('gestion/programas/{programa}/editar', [ProgramaController::class, 'edit'])->name('programas.edit');

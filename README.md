@@ -4,13 +4,13 @@ Plataforma de Divulgación Coordinada de Vulnerabilidades (bug bounty) en españ
 
 ## Requisitos para probar el programa
 
-| Requisito | Para qué |
-|---|---|
-| **PHP 8.4** + extensiones estándar de Laravel | Backend |
-| **Composer** | Dependencias PHP |
-| **Node 22** + npm | Assets del frontend (Svelte + Vite) |
-| Base de datos **PostgreSQL** (proyecto de Supabase) o **SQLite** local | Persistencia |
-| **[Gpg4win](https://www.gpg4win.org/)** (opcional) | Cifrado PGP *real*. Sin esto, la app funciona igual con un driver de respaldo (`fallback`) que simula el cifrado, sin confidencialidad real — ver [Cifrado PGP](#cifrado-pgp-cómo-funciona-y-qué-cifra) |
+| Requisito                                                              | Para qué                                                                                                                                                                                                |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PHP 8.4** + extensiones estándar de Laravel                          | Backend                                                                                                                                                                                                 |
+| **Composer**                                                           | Dependencias PHP                                                                                                                                                                                        |
+| **Node 22** + npm                                                      | Assets del frontend (Svelte + Vite)                                                                                                                                                                     |
+| Base de datos **PostgreSQL** (proyecto de Supabase) o **SQLite** local | Persistencia                                                                                                                                                                                            |
+| **[Gpg4win](https://www.gpg4win.org/)** (opcional)                     | Cifrado PGP _real_. Sin esto, la app funciona igual con un driver de respaldo (`fallback`) que simula el cifrado, sin confidencialidad real — ver [Cifrado PGP](#cifrado-pgp-cómo-funciona-y-qué-cifra) |
 
 ### Poner el proyecto en marcha
 
@@ -20,7 +20,7 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-Configurá la base de datos en `.env` (por defecto `sqlite`; para Supabase ver el bloque comentado en `.env.example`, que incluye la variable `DB_POOLED` necesaria si usás el *connection pooler* de Supabase).
+Configurá la base de datos en `.env` (por defecto `sqlite`; para Supabase ver el bloque comentado en `.env.example`, que incluye la variable `DB_POOLED` necesaria si usás el _connection pooler_ de Supabase).
 
 ```bash
 php artisan migrate --seed   # crea las tablas y los usuarios/programas demo
@@ -37,13 +37,13 @@ Con eso la app queda en `http://localhost:8000`.
 
 Sembrados por `database/seeders/EmpresaDemoSeeder.php`. Todos con el email como usuario y estas contraseñas:
 
-| Rol | Email | Password | Para qué sirve |
-|---|---|---|---|
-| **Administrador** | `admin@bugbounty.local` | `admin` | Gestiona usuarios, aprueba/rechaza empresas, ve auditoría, sanciones, config de reputación y estado de PGP. **No** puede crear/editar/publicar programas ni ver reportes (eso es exclusivo de la empresa dueña) |
-| **Moderador** | `moderador@bugbounty.local` | `moderador` | Triaja reportes de los programas que se le asignaron (`/moderacion`): asigna, valida, rechaza, marca duplicados |
-| **Investigador** | `investigador@bugbounty.local` | `investigador` | Ve programas públicos, crea y envía reportes, tiene su propio ledger de reputación (`/reputacion`) |
-| **Empresa (propietario)** | `empresa@bugbounty.local` | `empresa` | Dueño de "Empresa Demo Seguridad S.A.": crea/publica/edita sus programas, ve los reportes recibidos, invita investigadores como publicadores |
-| **Empresa (pendiente de aprobación)** | `pendiente@bugbounty.local` | `pendiente` | Para probar el flujo de una empresa que todavía no fue aprobada por un admin |
+| Rol                                   | Email                          | Password       | Para qué sirve                                                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Administrador**                     | `admin@bugbounty.local`        | `admin`        | Gestiona usuarios, aprueba/rechaza empresas, ve auditoría, sanciones, config de reputación y estado de PGP. **No** puede crear/editar/publicar programas ni ver reportes (eso es exclusivo de la empresa dueña) |
+| **Moderador**                         | `moderador@bugbounty.local`    | `moderador`    | Triaja reportes de los programas que se le asignaron (`/moderacion`): asigna, valida, rechaza, marca duplicados                                                                                                 |
+| **Investigador**                      | `investigador@bugbounty.local` | `investigador` | Ve programas públicos, crea y envía reportes, tiene su propio ledger de reputación (`/reputacion`)                                                                                                              |
+| **Empresa (propietario)**             | `empresa@bugbounty.local`      | `empresa`      | Dueño de "Empresa Demo Seguridad S.A.": crea/publica/edita sus programas, ve los reportes recibidos, invita investigadores como publicadores                                                                    |
+| **Empresa (pendiente de aprobación)** | `pendiente@bugbounty.local`    | `pendiente`    | Para probar el flujo de una empresa que todavía no fue aprobada por un admin                                                                                                                                    |
 
 También existe `test@example.com` / `password` (usuario genérico de `DatabaseSeeder`, rol `investigador` por defecto).
 
@@ -69,7 +69,7 @@ php artisan abac:audit --usuario=<id> --accion=<accion> [--programa=<id>|--repor
 
 ### El driver
 
-El cifrado lo maneja `App\Services\Pgp\PgpService`, que delega en uno de dos *drivers* (`App\Services\Pgp\Contracts\PgpDriver`):
+El cifrado lo maneja `App\Services\Pgp\PgpService`, que delega en uno de dos _drivers_ (`App\Services\Pgp\Contracts\PgpDriver`):
 
 - **`gpg`** (`GpgBinaryDriver`): invoca el binario real de GnuPG (Gpg4win en Windows) para cifrar/descifrar de verdad.
 - **`fallback`** (`FallbackPgpDriver`): simula el formato de un mensaje PGP (`-----BEGIN FAKE PGP MESSAGE-----...`) sin cifrado real. Se usa automáticamente si no hay `gpg` disponible, y **está prohibido en producción** — solo sirve para desarrollo local y para que los tests corran rápido sin depender de un binario externo.
@@ -82,17 +82,17 @@ La plataforma genera y gestiona **su propia** clave PGP (no la de cada usuario):
 
 ### Qué se cifra exactamente en la base de datos
 
-| Tabla | Columna | ¿Se cifra? | Motivo |
-|---|---|---|---|
-| `reportes` | `descripcion` | ✅ | Detalle de la vulnerabilidad: lo más sensible del sistema |
-| `reportes` | `poc` | ✅ | Prueba de concepto (pasos, URLs afectadas, evidencia) |
-| `reportes` | `titulo`, `categoria`, `estado`, `vector_cvss`, `puntuacion_cvss`, `severidad` | ❌ | Necesarios en claro para listar, filtrar y ordenar reportes sin descifrar cada fila |
-| `programas` | `descripcion` | ✅ | Puede describir debilidades conocidas de la empresa |
-| `programas` | `bugs_buscados` | ✅ | Lo que la empresa sospecha que está mal — la pista más directa para un atacante si se filtra la base |
-| `objetivos_programa` | `valor` | ✅ | El dominio/IP/API exacto en alcance: la superficie de ataque real |
-| `objetivos_programa` | `descripcion` | ✅ | Contexto adicional de ese objetivo |
-| `programas` | `nombre`, `slug`, `estado`, `es_publico`, `nivel_acceso`, `poc_schema` | ❌ | Necesarios en claro para listar/buscar programas públicos sin descifrar cada fila |
-| `objetivos_programa` | `tipo` | ❌ | Solo una categoría (web/api/móvil/otro), no revela nada por sí sola |
+| Tabla                | Columna                                                                        | ¿Se cifra? | Motivo                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------ | ---------- | ---------------------------------------------------------------------------------------------------- |
+| `reportes`           | `descripcion`                                                                  | ✅         | Detalle de la vulnerabilidad: lo más sensible del sistema                                            |
+| `reportes`           | `poc`                                                                          | ✅         | Prueba de concepto (pasos, URLs afectadas, evidencia)                                                |
+| `reportes`           | `titulo`, `categoria`, `estado`, `vector_cvss`, `puntuacion_cvss`, `severidad` | ❌         | Necesarios en claro para listar, filtrar y ordenar reportes sin descifrar cada fila                  |
+| `programas`          | `descripcion`                                                                  | ✅         | Puede describir debilidades conocidas de la empresa                                                  |
+| `programas`          | `bugs_buscados`                                                                | ✅         | Lo que la empresa sospecha que está mal — la pista más directa para un atacante si se filtra la base |
+| `objetivos_programa` | `valor`                                                                        | ✅         | El dominio/IP/API exacto en alcance: la superficie de ataque real                                    |
+| `objetivos_programa` | `descripcion`                                                                  | ✅         | Contexto adicional de ese objetivo                                                                   |
+| `programas`          | `nombre`, `slug`, `estado`, `es_publico`, `nivel_acceso`, `poc_schema`         | ❌         | Necesarios en claro para listar/buscar programas públicos sin descifrar cada fila                    |
+| `objetivos_programa` | `tipo`                                                                         | ❌         | Solo una categoría (web/api/móvil/otro), no revela nada por sí sola                                  |
 
 **Importante sobre el listado público de programas** (`/programas`): las cards **no muestran la descripción** (antes sí, se sacó a propósito) — solo nombre, empresa, badges de tipo de objetivo y nivel de acceso. Así la página lista 15 programas por página sin tener que descifrar nada; el contenido cifrado (descripción, qué bugs buscan, objetivos) se descifra **una sola vez**, recién al entrar al detalle de un programa puntual (`/programas/{id}`).
 
@@ -147,13 +147,13 @@ Cada acción del sistema tiene un nombre `recurso.accion` (ej. `reportes.crear`,
 
 ### Resumen por rol
 
-| Rol | Puede | No puede |
-|---|---|---|
-| **Administrador** | Todo, vía el bypass `admin-bypass-total` (prioridad 10, acción `*`) — **excepto** lo que un `denegar` le bloquea explícitamente | **Crear, editar ni publicar programas** (regla `denegar-crear-editar-o-publicar-programas-al-administrador`: eso es de la empresa dueña, el admin no actúa en su nombre). Tampoco ve reportes ajenos ni el ledger de reputación de un investigador (`reputacion.ver` es solo para investigadores) |
-| **Investigador** | Crear reportes en programas públicos/activos dentro de su nivel de acceso; ver/editar/enviar/eliminar sus propios reportes en los estados correspondientes; ver su propio ledger de reputación (`reputacion.ver`); apelar sus propias sanciones vigentes y en plazo | Triajar reportes (asignar/validar/rechazar/cerrar) — denegado explícitamente a quien **solo** tiene el rol investigador; reportar en un programa que modera o que pertenece a su propia empresa; reportar si está suspendido |
-| **Moderador** | Ver y triajar reportes de los programas que se le asignaron (`programas_moderados`), tomar uno sin asignar o el que ya tiene asignado; ver esos programas; resolver apelaciones (salvo las de sanciones que él mismo aplicó) | Editar/crear/publicar programas; reportar en un programa que él mismo modera (conflicto de interés); triajar su propio reporte (nadie es juez de sí mismo, ni el admin) |
-| **Empresa (propietario)** | Crear, ver, editar, publicar y eliminar los programas de su empresa; ver los reportes recibidos (no los borradores); marcar en reparación/cerrar reportes validados; gestionar miembros de su empresa | Ver/gestionar programas de otra empresa; reportar a sus propios programas mientras sea miembro |
-| **Publicador** (investigador invitado por una empresa) | Crear, ver, editar y publicar programas de la empresa que lo invitó | Ver los reportes recibidos ni gestionar miembros (eso es solo del propietario) |
+| Rol                                                    | Puede                                                                                                                                                                                                                                                               | No puede                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Administrador**                                      | Todo, vía el bypass `admin-bypass-total` (prioridad 10, acción `*`) — **excepto** lo que un `denegar` le bloquea explícitamente                                                                                                                                     | **Crear, editar ni publicar programas** (regla `denegar-crear-editar-o-publicar-programas-al-administrador`: eso es de la empresa dueña, el admin no actúa en su nombre). Tampoco ve reportes ajenos ni el ledger de reputación de un investigador (`reputacion.ver` es solo para investigadores) |
+| **Investigador**                                       | Crear reportes en programas públicos/activos dentro de su nivel de acceso; ver/editar/enviar/eliminar sus propios reportes en los estados correspondientes; ver su propio ledger de reputación (`reputacion.ver`); apelar sus propias sanciones vigentes y en plazo | Triajar reportes (asignar/validar/rechazar/cerrar) — denegado explícitamente a quien **solo** tiene el rol investigador; reportar en un programa que modera o que pertenece a su propia empresa; reportar si está suspendido                                                                      |
+| **Moderador**                                          | Ver y triajar reportes de los programas que se le asignaron (`programas_moderados`), tomar uno sin asignar o el que ya tiene asignado; ver esos programas; resolver apelaciones (salvo las de sanciones que él mismo aplicó)                                        | Editar/crear/publicar programas; reportar en un programa que él mismo modera (conflicto de interés); triajar su propio reporte (nadie es juez de sí mismo, ni el admin)                                                                                                                           |
+| **Empresa (propietario)**                              | Crear, ver, editar, publicar y eliminar los programas de su empresa; ver los reportes recibidos (no los borradores); marcar en reparación/cerrar reportes validados; gestionar miembros de su empresa                                                               | Ver/gestionar programas de otra empresa; reportar a sus propios programas mientras sea miembro                                                                                                                                                                                                    |
+| **Publicador** (investigador invitado por una empresa) | Crear, ver, editar y publicar programas de la empresa que lo invitó                                                                                                                                                                                                 | Ver los reportes recibidos ni gestionar miembros (eso es solo del propietario)                                                                                                                                                                                                                    |
 
 ### Reglas de "nadie puede" (conflicto de interés, siempre `denegar`)
 

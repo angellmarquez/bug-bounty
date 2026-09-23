@@ -20,7 +20,7 @@
     import { Input } from '@/components/ui/input';
     import type { ReporteCompacto } from '@/types/domain';
 
-    type Filtro = 'todos' | 'pendientes' | 'aprobados' | 'rechazados' | 'cerrados';
+    type Filtro = 'todos' | 'validados' | 'en_reparacion' | 'cerrados';
 
     let {
         empresa,
@@ -43,9 +43,8 @@
 
     const pestanas: { valor: Filtro; etiqueta: string }[] = [
         { valor: 'todos', etiqueta: 'Todos' },
-        { valor: 'pendientes', etiqueta: 'Pendientes de moderación' },
-        { valor: 'aprobados', etiqueta: 'Aprobados por moderadores' },
-        { valor: 'rechazados', etiqueta: 'Rechazados' },
+        { valor: 'validados', etiqueta: 'Validados' },
+        { valor: 'en_reparacion', etiqueta: 'En reparación' },
         { valor: 'cerrados', etiqueta: 'Cerrados' },
     ];
 

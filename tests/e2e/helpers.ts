@@ -4,7 +4,14 @@ import path from 'node:path';
 
 type Cookie = Parameters<BrowserContext['addCookies']>[0][number];
 
-export type Rol = 'admin' | 'moderador' | 'investigador' | 'empresa' | 'doble' | 'sancionado' | 'invitado';
+export type Rol =
+    | 'admin'
+    | 'moderador'
+    | 'investigador'
+    | 'empresa'
+    | 'doble'
+    | 'sancionado'
+    | 'invitado';
 
 export const cuentas: Record<Rol, string> = {
     admin: 'admin@e2e.test',

@@ -139,7 +139,7 @@ test('ver un reporte deja constancia de quien descifro su contenido', function (
     $reporte = Reporte::where('titulo', 'SQLi')->firstOrFail();
     $this->get(route('reportes.show', $reporte))->assertOk();
 
-    expect(Auditoria::where('accion', 'pgp.contenido_descifrado')
+    expect(Auditoria::where('accion', 'reportes.poc_descifrado')
         ->where('entidad_type', 'Reporte')
         ->where('entidad_id', $reporte->id)
         ->where('usuario_id', $autor->id)

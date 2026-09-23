@@ -8,31 +8,52 @@ import {
 
 /** Entradas que el menú lateral debe mostrar a cada rol, en CUALQUIER página. */
 const menuEsperado: Record<Rol, string[]> = {
+    // El admin gestiona usuarios, configuración y auditoría: no participa en el día a día.
     admin: [
         'Dashboard',
-        'Moderación',
-        'Todos los reportes',
-        'Programas',
-        'Gestión Programas',
         'Empresas',
         'Usuarios',
         'Moderadores',
         'Apelaciones',
+        'Sanciones',
+        'Auditoría',
     ],
     moderador: ['Dashboard', 'Moderación', 'Apelaciones', 'Todos los reportes'],
-    investigador: ['Dashboard', 'Mis Reportes', 'Programas', 'Mi reputación', 'Mis apelaciones'],
-    sancionado: ['Dashboard', 'Mis Reportes', 'Programas', 'Mi reputación', 'Mis apelaciones'],
-    invitado: ['Dashboard', 'Mis Reportes', 'Programas', 'Mi reputación', 'Mis apelaciones'],
+    investigador: [
+        'Dashboard',
+        'Mis Reportes',
+        'Programas',
+        'Mi reputación',
+        'Mis apelaciones',
+    ],
+    sancionado: [
+        'Dashboard',
+        'Mis Reportes',
+        'Programas',
+        'Mi reputación',
+        'Mis apelaciones',
+    ],
+    invitado: [
+        'Dashboard',
+        'Mis Reportes',
+        'Programas',
+        'Mi reputación',
+        'Mis apelaciones',
+    ],
     empresa: ['Dashboard', 'Reportes recibidos', 'Panel empresa'],
-    doble: ['Dashboard', 'Moderación', 'Apelaciones', 'Todos los reportes', 'Programas'],
+    doble: [
+        'Dashboard',
+        'Moderación',
+        'Apelaciones',
+        'Todos los reportes',
+        'Programas',
+    ],
 };
 
 /** Páginas que cada rol debe poder abrir (ids de los datos de ejemplo de seed.php). */
 const recorrido: Record<Rol, string[]> = {
     admin: [
         '/dashboard',
-        '/moderacion',
-        '/moderacion/programas/1',
         '/reportes',
         '/reportes/1',
         '/programas',
@@ -56,7 +77,13 @@ const recorrido: Record<Rol, string[]> = {
         '/reportes/1',
         '/programas/1',
     ],
-    invitado: ['/dashboard', '/reportes', '/programas', '/invitaciones', '/reputacion'],
+    invitado: [
+        '/dashboard',
+        '/reportes',
+        '/programas',
+        '/invitaciones',
+        '/reputacion',
+    ],
     sancionado: [
         '/dashboard',
         '/reputacion',
@@ -80,7 +107,8 @@ const recorrido: Record<Rol, string[]> = {
         '/dashboard',
         '/empresa',
         '/empresa/reportes',
-        '/reportes/1',
+        // La empresa solo abre informes ya triados: el 2 está validado (el 1 sigue en pre-triaje).
+        '/reportes/2',
         '/programas/1',
         '/gestion/programas',
         '/gestion/programas/crear',

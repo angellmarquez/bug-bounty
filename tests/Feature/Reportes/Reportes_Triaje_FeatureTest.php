@@ -231,7 +231,8 @@ test('moderador cannot validate reporte already validado', function () {
 
     $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'validado']);
 
-    $this->post(route('reportes.validar', $reporte))->assertSessionHasErrors('estado');
+    // Su labor termina al validar: el ABAC ya no le deja tocar un informe validado.
+    $this->post(route('reportes.validar', $reporte))->assertForbidden();
     expect($reporte->fresh()->estado->value)->toBe('validado');
 });
 
@@ -269,10 +270,11 @@ test('la pagina solo ofrece las acciones validas para el estado actual', functio
         expect($acciones[$accion])->toBe($disponible, "{$estado}: {$accion}");
     }
 })->with([
-    'enviado' => ['enviado', ['revisar' => true, 'validar' => true, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
-    'en_revision' => ['en_revision', ['revisar' => false, 'validar' => true, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
-    // El moderador solo decide si el informe es válido, duplicado o no válido: no repara ni cierra.
-    'validado' => ['validado', ['revisar' => false, 'validar' => false, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
+    'enviado' => ['enviado', ['revisar' => true, 'pedir_info' => true, 'validar' => true, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
+    'en_revision' => ['en_revision', ['revisar' => false, 'pedir_info' => true, 'validar' => true, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
+    'needs_info' => ['needs_info', ['revisar' => true, 'pedir_info' => false, 'validar' => true, 'rechazar' => true, 'reparacion' => false, 'cerrar' => false]],
+    // El moderador solo decide si el informe es válido, duplicado o no válido: tras validar ya no lo toca, ni repara ni cierra.
+    'validado' => ['validado', ['revisar' => false, 'validar' => false, 'rechazar' => false, 'reparacion' => false, 'cerrar' => false]],
     'en_reparacion' => ['en_reparacion', ['validar' => false, 'reparacion' => false, 'cerrar' => false]],
 ]);
 
@@ -352,11 +354,11 @@ test('empresa member can read but not triaje reportes of its programas', functio
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
 
-    $reporte = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'en_revision']);
 
     $this->get(route('reportes.show', $reporte))->assertOk();
     $this->post(route('reportes.validar', $reporte))->assertForbidden();
-    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'enviado']);
+    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'en_revision']);
 });
 
 test('show page passes triaje props for moderador', function () {

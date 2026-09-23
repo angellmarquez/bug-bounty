@@ -2,6 +2,7 @@
 
 namespace App\Abac;
 
+use App\Models\Programa;
 use App\Models\User;
 use App\Services\Reputacion\Rangos;
 use BackedEnum;
@@ -9,6 +10,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * Resuelve los atributos de sujeto, objeto y entorno que alimentan las reglas ABAC.
@@ -43,6 +45,8 @@ class AtributosAbac
             'autenticado' => true,
             'id' => $usuario->id,
             'roles' => $roles,
+            // Cuenta desactivada por el administrador (la suspensión va aparte, en `suspendido`).
+            'is_active' => (bool) ($usuario->is_active ?? true),
             'reputation_score' => $puntos,
             // Niveles de programa a los que su rango de reputación le da acceso.
             'niveles_acceso' => app(Rangos::class)->nivelesAccesibles($puntos),
@@ -116,15 +120,17 @@ class AtributosAbac
             }
         }
 
-        $atributos = $actual->getAttributes();
+        if (array_key_exists($ultimo, $actual->getAttributes())) {
+            $casts = $actual->getCasts();
 
-        if (! array_key_exists($ultimo, $atributos)) {
-            return [false, null];
+            return [true, $this->normalizarValor($actual->getAttributes()[$ultimo], $casts[$ultimo] ?? null)];
         }
 
-        $casts = $actual->getCasts();
+        if (isset($actual->{$ultimo}) || method_exists($actual, 'get'.Str::studly($ultimo).'Attribute')) {
+            return [true, $this->normalizarValor($actual->{$ultimo})];
+        }
 
-        return [true, $this->normalizarValor($atributos[$ultimo], $casts[$ultimo] ?? null)];
+        return [false, null];
     }
 
     /**
@@ -137,6 +143,10 @@ class AtributosAbac
 
         foreach ($modelo->getAttributes() as $clave => $valor) {
             $atributos[$clave] = $this->normalizarValor($valor, $casts[$clave] ?? null);
+        }
+
+        if ($modelo instanceof Programa) {
+            $atributos['invited_hacker_ids'] = $modelo->invited_hacker_ids;
         }
 
         return $atributos;

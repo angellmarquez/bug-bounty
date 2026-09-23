@@ -42,7 +42,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read Collection<int, Apelacion> $apelaciones
  * @property-read Collection<int, Auditoria> $auditorias
  */
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'is_active'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -61,6 +61,7 @@ class User extends Authenticatable implements PasskeyUser
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
             'reputation_score' => 'integer',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -122,6 +123,18 @@ class User extends Authenticatable implements PasskeyUser
     {
         return $this->belongsToMany(Programa::class, 'programa_moderador', 'usuario_id', 'programa_id')
             ->withPivot(['asignado_por'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Programas privados a los que el investigador ha sido invitado.
+     *
+     * @return BelongsToMany<Programa, $this>
+     */
+    public function programasInvitados(): BelongsToMany
+    {
+        return $this->belongsToMany(Programa::class, 'programa_invitados', 'investigador_id', 'programa_id')
+            ->withPivot(['invitado_por', 'estado'])
             ->withTimestamps();
     }
 

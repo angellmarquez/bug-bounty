@@ -2,21 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Abac\AccionesAbac;
 use App\Enums\EstadoEmpresa;
-use App\Models\Auditoria;
 use App\Models\Empresa;
-use App\Models\EmpresaInvitacion;
 use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Empresas\MembresiaEmpresa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use InvalidArgumentException;
 
 class EmpresaController extends Controller
 {
@@ -43,21 +37,15 @@ class EmpresaController extends Controller
 
         $rolInterno = $esAdmin ? 'administrador' : data_get($empresa->pivot, 'rol_interno');
 
-        // Un publicador (investigador invitado) no ve los informes de la empresa: su panel son los programas.
-        if ($rolInterno === MembresiaEmpresa::PUBLICADOR) {
-            return redirect()->route('programas.gestion');
-        }
-        $puedeGestionarMiembros = $empresa->estado === EstadoEmpresa::Aprobada && ($esAdmin || $rolInterno === 'propietario');
-
-        // Los borradores del investigador no cuentan: la empresa solo ve informes enviados.
+        // La empresa solo ve informes triados o en revisión formal: nunca borradores, pre-triaje ('enviado') ni rechazados.
         $programas = $empresa->programas()
             ->withCount([
                 'objetivos',
                 'reportes as reportes_todos',
-                'reportes as reportes_total' => fn ($query) => $query->where('estado', '!=', 'borrador'),
-                'reportes as reportes_pendientes' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_PENDIENTES),
-                'reportes as reportes_aprobados' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_APROBADOS),
-                'reportes as reportes_rechazados' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_RECHAZADOS),
+                'reportes as reportes_total' => fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA),
+                'reportes as reportes_validados' => fn ($query) => $query->where('estado', 'validado'),
+                'reportes as reportes_en_reparacion' => fn ($query) => $query->where('estado', 'en_reparacion'),
+                'reportes as reportes_cerrados' => fn ($query) => $query->where('estado', 'cerrado'),
             ])
             ->latest()
             ->get(['id', 'nombre', 'estado', 'es_publico']);
@@ -71,34 +59,15 @@ class EmpresaController extends Controller
                 'rol_interno' => $rolInterno,
                 'esAdmin' => $esAdmin,
                 'puedeOperar' => $empresa->estado === EstadoEmpresa::Aprobada,
-                'puedeGestionarMiembros' => $puedeGestionarMiembros,
                 'programas' => $programas,
                 'resumen' => [
                     'programas' => $programas->count(),
                     'reportes' => $programas->sum('reportes_total'),
-                    'pendientes' => $programas->sum('reportes_pendientes'),
-                    'aprobados' => $programas->sum('reportes_aprobados'),
-                    'rechazados' => $programas->sum('reportes_rechazados'),
+                    'validados' => $programas->sum('reportes_validados'),
+                    'en_reparacion' => $programas->sum('reportes_en_reparacion'),
+                    'cerrados' => $programas->sum('reportes_cerrados'),
                 ],
                 'reportes' => $this->reportesRecientes($empresa),
-                'usuarios' => $empresa->usuarios()->get(['users.id', 'name', 'email'])
-                    ->map(fn (User $usuario): array => [
-                        'id' => $usuario->id,
-                        'name' => $usuario->name,
-                        'email' => $usuario->email,
-                        'rol_interno' => $usuario->pivot->rol_interno,
-                        'desde' => ($desde = $usuario->pivot->aceptado_en ?? $usuario->pivot->created_at) ? Carbon::parse($desde)->toISOString() : null,
-                    ])->values()->all(),
-                // Solo el propietario ve las invitaciones que hizo y puede cancelarlas.
-                'invitaciones' => $puedeGestionarMiembros
-                    ? $empresa->invitaciones()->with('usuario:id,name')->where('estado', 'pendiente')->where('expira_en', '>', now())->latest()->get()
-                        ->map(fn (EmpresaInvitacion $invitacion): array => [
-                            'id' => $invitacion->id,
-                            'email' => $invitacion->email,
-                            'nombre' => $invitacion->usuario?->name,
-                            'expira_en' => $invitacion->expira_en->toISOString(),
-                        ])->values()->all()
-                    : [],
             ],
         ]);
     }
@@ -122,14 +91,14 @@ class EmpresaController extends Controller
         abort_unless($empresa->estado === EstadoEmpresa::Aprobada, 403, 'Tu empresa todavía no tiene acceso operativo.');
         abort_if(! $esAdmin && data_get($empresa->pivot, 'rol_interno') !== MembresiaEmpresa::PROPIETARIO, 403, 'Solo el propietario de la empresa ve los informes que recibe.');
 
-        $filtro = in_array($request->input('filtro'), ['todos', 'pendientes', 'aprobados', 'rechazados', 'cerrados'], true)
+        $filtro = in_array($request->input('filtro'), ['todos', 'validados', 'en_reparacion', 'cerrados'], true)
             ? (string) $request->input('filtro')
             : 'todos';
         $programaId = $request->filled('programa_id') ? (int) $request->input('programa_id') : null;
 
         $recibidos = fn () => Reporte::query()
             ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
-            ->where('estado', '!=', 'borrador');
+            ->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA);
 
         $reportes = $recibidos()
             ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
@@ -138,9 +107,8 @@ class EmpresaController extends Controller
                 $busqueda = (string) $request->input('busqueda');
                 $query->where(fn ($q) => $q->where('titulo', 'like', "%{$busqueda}%")->orWhere('numero_reporte', 'like', "%{$busqueda}%"));
             })
-            ->when($filtro === 'pendientes', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_PENDIENTES))
-            ->when($filtro === 'aprobados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_APROBADOS))
-            ->when($filtro === 'rechazados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_RECHAZADOS))
+            ->when($filtro === 'validados', fn ($query) => $query->where('estado', 'validado'))
+            ->when($filtro === 'en_reparacion', fn ($query) => $query->where('estado', 'en_reparacion'))
             ->when($filtro === 'cerrados', fn ($query) => $query->where('estado', 'cerrado'))
             ->latest('id')
             ->paginate(20)
@@ -157,9 +125,8 @@ class EmpresaController extends Controller
             ],
             'conteos' => [
                 'todos' => $recibidos()->count(),
-                'pendientes' => $recibidos()->whereIn('estado', Reporte::ESTADOS_PENDIENTES)->count(),
-                'aprobados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_APROBADOS)->count(),
-                'rechazados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_RECHAZADOS)->count(),
+                'validados' => $recibidos()->where('estado', 'validado')->count(),
+                'en_reparacion' => $recibidos()->where('estado', 'en_reparacion')->count(),
                 'cerrados' => $recibidos()->where('estado', 'cerrado')->count(),
             ],
             'reportes' => $reportes,
@@ -175,7 +142,7 @@ class EmpresaController extends Controller
     {
         return Reporte::query()
             ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
-            ->where('estado', '!=', 'borrador')
+            ->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA)
             ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
             ->latest('id')
             ->limit(8)
@@ -208,81 +175,6 @@ class EmpresaController extends Controller
         ];
     }
 
-    public function invitarInvestigador(Request $request, MembresiaEmpresa $membresia): RedirectResponse
-    {
-        [$empresa, $usuarioActual] = $this->empresaActual($request);
-        $this->autorizarMiembros($empresa, $usuarioActual);
-
-        $validated = $request->validate([
-            'email' => ['required', 'email', 'max:255'],
-        ]);
-
-        try {
-            $invitacion = $membresia->invitar($empresa, $usuarioActual, $validated['email']);
-        } catch (InvalidArgumentException $e) {
-            return $this->volverAlPanel($request, $empresa)->with('error', $e->getMessage());
-        }
-
-        $this->auditarMiembro($usuarioActual, $invitacion->usuario, $empresa, 'empresa.invitacion.creada');
-
-        return $this->volverAlPanel($request, $empresa)
-            ->with('success', "Invitación enviada a {$invitacion->usuario->name}: recibirá un aviso y podrá aceptarla o rechazarla (vale ".MembresiaEmpresa::VIGENCIA_DIAS.' días).');
-    }
-
-    public function cancelarInvitacion(Request $request, EmpresaInvitacion $invitacion, MembresiaEmpresa $membresia): RedirectResponse
-    {
-        $empresa = $invitacion->empresa;
-        $this->autorizarMiembros($empresa, $request->user());
-
-        try {
-            $membresia->cancelar($invitacion);
-        } catch (InvalidArgumentException $e) {
-            return $this->volverAlPanel($request, $empresa)->with('error', $e->getMessage());
-        }
-
-        $this->auditarMiembro($request->user(), $invitacion->usuario, $empresa, 'empresa.invitacion.cancelada');
-
-        return $this->volverAlPanel($request, $empresa)->with('success', 'Invitación cancelada.');
-    }
-
-    public function retirarMiembro(Request $request, User $user, MembresiaEmpresa $membresia): RedirectResponse
-    {
-        [$empresa, $usuarioActual] = $this->empresaActual($request);
-        $this->autorizarMiembros($empresa, $usuarioActual);
-
-        try {
-            $membresia->retirar($empresa, $user);
-        } catch (InvalidArgumentException $e) {
-            return $this->volverAlPanel($request, $empresa)->with('error', $e->getMessage());
-        }
-
-        $this->auditarMiembro($usuarioActual, $user, $empresa, 'empresa.miembro.eliminado');
-
-        return $this->volverAlPanel($request, $empresa)->with('success', 'Publicador retirado de la empresa.');
-    }
-
-    /** @return array{0: Empresa, 1: User} */
-    private function empresaActual(Request $request): array
-    {
-        $user = $request->user();
-
-        if ($this->esAdministrador($user)) {
-            $empresa = $this->empresaElegida($request, 'empresa_id');
-            abort_if($empresa === null, 422, 'Indica la empresa sobre la que actúas.');
-
-            return [$empresa, $user];
-        }
-
-        $empresa = $user->empresas()
-            ->where('empresa_usuario.estado', 'activo')
-            ->latest('empresas.created_at')
-            ->first();
-
-        abort_if($empresa === null, 403, 'Tu usuario no pertenece a una empresa activa.');
-
-        return [$empresa, $user];
-    }
-
     private function esAdministrador(User $usuario): bool
     {
         return $usuario->roles()->where('slug', 'administrador')->exists();
@@ -292,31 +184,5 @@ class EmpresaController extends Controller
     private function empresaElegida(Request $request, string $campo): ?Empresa
     {
         return $request->filled($campo) ? Empresa::query()->find((int) $request->input($campo)) : null;
-    }
-
-    private function volverAlPanel(Request $request, Empresa $empresa): RedirectResponse
-    {
-        return redirect()->route('empresa.dashboard', $this->esAdministrador($request->user()) ? ['empresa' => $empresa->id] : []);
-    }
-
-    private function autorizarMiembros(Empresa $empresa, User $usuario): void
-    {
-        abort_if($empresa->estado !== EstadoEmpresa::Aprobada, 403, 'La empresa debe estar aprobada.');
-        abort_if(
-            ! $this->esAdministrador($usuario) && $empresa->usuarios()->whereKey($usuario->id)->wherePivot('rol_interno', 'propietario')->doesntExist(),
-            403,
-            'Solo el propietario puede gestionar miembros.',
-        );
-
-        Gate::authorize('abac', [
-            AccionesAbac::EmpresaGestionarMiembros,
-            $empresa,
-            ['empresa_id' => $empresa->id],
-        ]);
-    }
-
-    private function auditarMiembro(User $actor, User $miembro, Empresa $empresa, string $accion): void
-    {
-        Auditoria::registrar($accion, $empresa, ['usuario_id' => $miembro->id, 'email' => $miembro->email], $actor->id);
     }
 }

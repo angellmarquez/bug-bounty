@@ -27,6 +27,7 @@
     import NivelAccesoBadge from '@/components/NivelAccesoBadge.svelte';
     import { Badge } from '@/components/ui/badge';
     import { Button } from '@/components/ui/button';
+    import { Input } from '@/components/ui/input';
     import {
         Card,
         CardContent,
@@ -49,6 +50,8 @@
         puedeEditar = false,
         puedeCambiarEstado = false,
         puedeEliminar = false,
+        puedeInvitarHackers = false,
+        hackersInvitados = [],
         transicionesPermitidas = [],
         puedeModerar = false,
         moderaEstePrograma = false,
@@ -68,6 +71,8 @@
         puedeEditar?: boolean;
         puedeCambiarEstado?: boolean;
         puedeEliminar?: boolean;
+        puedeInvitarHackers?: boolean;
+        hackersInvitados?: { id: number; name: string; email: string; reputation_score: number; estado: string }[];
         transicionesPermitidas?: string[];
         puedeModerar?: boolean;
         moderaEstePrograma?: boolean;
@@ -76,6 +81,22 @@
         conteosInformes?: Record<'por_revisar' | 'en_revision' | 'aprobados' | 'rechazados' | 'todos', number> | null;
         informes?: ReporteCompacto[];
     } = $props();
+
+    let emailHacker = $state('');
+
+    function invitarHacker() {
+        router.post(`/programas/${programa.id}/invitaciones`, { email: emailHacker }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                emailHacker = '';
+            },
+        });
+    }
+
+    function retirarHacker(userId: number, nombre: string) {
+        if (!confirm(`¿Remover a ${nombre} de este programa privado?`)) return;
+        router.delete(`/programas/${programa.id}/invitaciones/${userId}`, { preserveScroll: true });
+    }
 
     function cambiarEstado(estado: string) {
         if (estado === 'archivado' && !confirm('¿Archivar este programa? Dejará de aceptar nuevos reportes.')) return;
@@ -264,6 +285,45 @@
                                 </div>
                             {/each}
                         </div>
+                    </CardContent>
+                </Card>
+            {/if}
+
+            {#if puedeInvitarHackers && !programa.es_publico}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Investigadores invitados (Programa Privado)</CardTitle>
+                        <CardDescription>
+                            Solo los investigadores que invites aquí podrán ver el alcance y enviar reportes a este programa.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <form class="flex gap-2" onsubmit={(e) => { e.preventDefault(); invitarHacker(); }}>
+                            <Input
+                                type="email"
+                                bind:value={emailHacker}
+                                placeholder="Correo del investigador registrado..."
+                                required
+                            />
+                            <Button type="submit">Invitar</Button>
+                        </form>
+                        {#if hackersInvitados.length === 0}
+                            <p class="text-sm text-muted-foreground">Aún no has invitado a ningún investigador a este programa.</p>
+                        {:else}
+                            <div class="space-y-2">
+                                {#each hackersInvitados as hacker (hacker.id)}
+                                    <div class="flex items-center justify-between gap-2 rounded-md border p-2 text-sm">
+                                        <div>
+                                            <p class="font-medium">{hacker.name}</p>
+                                            <p class="text-xs text-muted-foreground">{hacker.email} · {hacker.reputation_score} pts · {hacker.estado}</p>
+                                        </div>
+                                        <Button size="sm" variant="destructive" onclick={() => retirarHacker(hacker.id, hacker.name)}>
+                                            Retirar
+                                        </Button>
+                                    </div>
+                                {/each}
+                            </div>
+                        {/if}
                     </CardContent>
                 </Card>
             {/if}

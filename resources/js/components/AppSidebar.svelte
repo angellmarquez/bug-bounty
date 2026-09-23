@@ -49,8 +49,6 @@
     const isEmpresa = $derived(userRoles.includes('empresa'));
     const isModerador = $derived(userRoles.includes('moderador'));
     const cuenta = $derived(page.props.cuenta as CuentaEstado | null | undefined);
-    const esPublicador = $derived(cuenta?.empresa?.rol_interno === 'publicador');
-    const invitacionesPendientes = $derived(cuenta?.invitaciones_pendientes ?? 0);
 
     const mainNavItems = $derived.by(() => {
         const items: NavItem[] = [
@@ -122,16 +120,7 @@
             });
         }
 
-        // Un investigador invitado por una empresa publica sus programas desde aquí.
-        if (esPublicador) {
-            items.push({
-                title: 'Mi empresa',
-                href: '/gestion/programas',
-                icon: Building2,
-            });
-        }
-
-        if (invitacionesPendientes > 0) {
+        if (isInvestigador) {
             items.push({
                 title: 'Invitaciones',
                 href: '/invitaciones',

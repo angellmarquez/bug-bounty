@@ -80,10 +80,13 @@ test('empresa dashboard summarizes reportes per programa with a compact list', f
     $this->actingAs(miembroDeEmpresa($empresa));
 
     reporteDe($autor, $programa, ['estado' => 'validado']);
+    reporteDe(investigador(), $programa, ['estado' => 'en_reparacion']);
+    reporteDe(investigador(), $programa, ['estado' => 'en_revision']);
+    // Pre-triaje, descartados y borradores no llegan a la empresa.
     reporteDe(investigador(), $programa, ['estado' => 'enviado']);
     reporteDe(investigador(), $programa, ['estado' => 'rechazado']);
     reporteDe(investigador(), $programa, ['estado' => 'borrador']);
-    reporteDe(investigador(), $ajeno, ['estado' => 'enviado']);
+    reporteDe(investigador(), $ajeno, ['estado' => 'validado']);
 
     $this->get(route('empresa.dashboard'))
         ->assertOk()
@@ -91,11 +94,11 @@ test('empresa dashboard summarizes reportes per programa with a compact list', f
             ->where('empresa.resumen', [
                 'programas' => 1,
                 'reportes' => 3,
-                'pendientes' => 1,
-                'aprobados' => 1,
-                'rechazados' => 1,
+                'validados' => 1,
+                'en_reparacion' => 1,
+                'cerrados' => 0,
             ])
-            ->where('empresa.programas.0.reportes_aprobados', 1)
+            ->where('empresa.programas.0.reportes_validados', 1)
             ->has('empresa.reportes', 3)
             // La lista es compacta: sin descripción ni PoC.
             ->missing('empresa.reportes.0.descripcion')
@@ -112,8 +115,9 @@ test('empresa reportes page is paginated and filterable', function () {
     $this->actingAs(miembroDeEmpresa($empresa));
 
     foreach (range(1, 25) as $i) {
-        reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+        reporteDe(investigador(), $programa, ['estado' => 'en_revision']);
     }
+    reporteDe(investigador(), $programa, ['estado' => 'enviado']);
     $validado = reporteDe(investigador(), $otro, ['estado' => 'validado', 'titulo' => 'Bug validado unico']);
     reporteDe(investigador(), $programa, ['estado' => 'borrador']);
     reporteDe(investigador(), programaBorradorDe(Empresa::factory()->aprobada()->create()), ['estado' => 'enviado']);
@@ -124,9 +128,9 @@ test('empresa reportes page is paginated and filterable', function () {
             ->component('empresa/Reportes')
             ->has('reportes.data', 20)
             ->where('reportes.total', 26)
-            ->where('conteos.aprobados', 1));
+            ->where('conteos.validados', 1));
 
-    $this->get(route('empresa.reportes', ['filtro' => 'aprobados']))
+    $this->get(route('empresa.reportes', ['filtro' => 'validados']))
         ->assertInertia(fn ($page) => $page->has('reportes.data', 1)->where('reportes.data.0.id', $validado->id));
 
     $this->get(route('empresa.reportes', ['programa_id' => $otro->id]))

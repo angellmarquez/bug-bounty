@@ -34,6 +34,10 @@ final class AccionesAbac
 
     public const ReporteEliminar = 'reportes.eliminar';
 
+    public const ReporteDecryptPoc = 'reportes.decrypt_poc';
+
+    public const ProgramaInvitarHacker = 'programas.invitar_hacker';
+
     public const ProgramaVer = 'programas.ver';
 
     public const ProgramaCrear = 'programas.crear';

@@ -133,6 +133,138 @@ dataset('matriz_abac', [
     'invitado no ve programas públicos' => ['programas.ver', fn () => [null, programaDe(investigador())], false],
     'un usuario investigador+moderador triaja en el programa que modera' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null], ['investigador', 'moderador']), true],
     'un usuario investigador+moderador sigue sin ver borradores ajenos' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value], ['investigador', 'moderador']), false],
+
+    // ------------------------------------------------------------------
+    // Estado de cuenta inactivo (U.is_active = false)
+    // ------------------------------------------------------------------
+    'usuario inactivo denegado globalmente aunque sea admin' => ['reportes.ver', fn () => [administrador(['is_active' => false]), reporteDe(investigador())], false],
+    'investigador inactivo no ve su propio reporte' => ['reportes.ver', fn () => [($inv = investigador(['is_active' => false])), reporteDe($inv)], false],
+    'investigador inactivo no crea reportes' => ['reportes.crear', fn () => [investigador(['is_active' => false]), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])], false],
+
+    // Suspensión vigente: todo bloqueado salvo defenderse (ver su reputación y apelar).
+    'suspendido sigue pudiendo apelar su sanción' => ['apelaciones.crear', fn () => [($inv = investigador()), apelacionDe($inv, ['suspension_desde' => now()->subDay(), 'suspension_hasta' => now()->addDays(5)])], true],
+    'suspendido no crea reportes' => ['reportes.crear', function () {
+        $inv = investigador();
+        apelacionDe($inv, ['suspension_desde' => now()->subDay(), 'suspension_hasta' => now()->addDays(5)]);
+
+        return [$inv, programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])];
+    }, false],
+
+    // El administrador supervisa: la reparación y el cierre son de la empresa dueña.
+    'admin no marca en reparación' => ['reportes.marcar_en_reparacion', fn () => [administrador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Validado->value])], false],
+    'moderador no ve programas públicos que no modera' => ['programas.ver', fn () => [moderador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value, 'es_publico' => true])], false],
+
+    // ------------------------------------------------------------------
+    // Programas privados e invitaciones (P.invited_hacker_ids)
+    // ------------------------------------------------------------------
+    'hacker invitado ve programa privado activo' => ['programas.ver', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario, ['estado' => EstadoPrograma::Activo->value, 'es_publico' => false]);
+        $hacker = investigador();
+        $programa->hackersInvitados()->attach($hacker->id, ['invitado_por' => $propietario->id, 'estado' => 'aceptada']);
+
+        return [$hacker, $programa];
+    }, true],
+    'hacker no invitado no ve programa privado activo' => ['programas.ver', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario, ['estado' => EstadoPrograma::Activo->value, 'es_publico' => false]);
+        $hacker = investigador();
+
+        return [$hacker, $programa];
+    }, false],
+    'hacker invitado crea reporte en programa privado activo' => ['reportes.crear', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario, ['estado' => EstadoPrograma::Activo->value, 'es_publico' => false]);
+        $hacker = investigador();
+        $programa->hackersInvitados()->attach($hacker->id, ['invitado_por' => $propietario->id, 'estado' => 'aceptada']);
+
+        return [$hacker, $programa];
+    }, true],
+    'hacker no invitado no crea reporte en programa privado activo' => ['reportes.crear', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario, ['estado' => EstadoPrograma::Activo->value, 'es_publico' => false]);
+        $hacker = investigador();
+
+        return [$hacker, $programa];
+    }, false],
+    'empresa invita hackers a su programa' => ['programas.invitar_hacker', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, $programa];
+    }, true],
+    'moderador no invita hackers a un programa' => ['programas.invitar_hacker', fn () => [moderador(), programaDe(investigador())], false],
+
+    // ------------------------------------------------------------------
+    // Separación de funciones (SoD) y Prevención de Robo
+    // ------------------------------------------------------------------
+    'moderador no crea reportes' => ['reportes.crear', fn () => [moderador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])], false],
+    'moderador no envía reportes' => ['reportes.enviar', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value]), false],
+    'empresa no crea reportes' => ['reportes.crear', function () {
+        $propietario = propietarioDeEmpresa();
+
+        return [$propietario, programaDeEmpresa($propietario, ['estado' => EstadoPrograma::Activo->value])];
+    }, false],
+    'empresa no envía reportes' => ['reportes.enviar', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Borrador->value])];
+    }, false],
+
+    // ------------------------------------------------------------------
+    // Descifrado de PoC (reportes.decrypt_poc)
+    // ------------------------------------------------------------------
+    'investigador descifra PoC de su propio reporte' => ['reportes.decrypt_poc', fn () => [($inv = investigador()), reporteDe($inv)], true],
+    'investigador no descifra PoC ajeno' => ['reportes.decrypt_poc', fn () => [investigador(), reporteDe(investigador())], false],
+    'moderador descifra PoC de reporte de su programa' => ['reportes.decrypt_poc', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value]), true],
+    'moderador no descifra PoC de programa que no modera' => ['reportes.decrypt_poc', fn () => [moderador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], false],
+    'empresa descifra PoC de reporte validado' => ['reportes.decrypt_poc', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Validado->value])];
+    }, true],
+    'empresa no descifra PoC de reporte en revisión' => ['reportes.decrypt_poc', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::EnRevision->value])];
+    }, false],
+    'empresa no descifra PoC de reporte enviado' => ['reportes.decrypt_poc', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Enviado->value])];
+    }, false],
+
+    // ------------------------------------------------------------------
+    // Invisibilidad de reportes no triajados/rechazados para empresa
+    // ------------------------------------------------------------------
+    'empresa no ve reporte enviado en su programa' => ['reportes.ver', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Enviado->value])];
+    }, false],
+    'empresa no ve reporte rechazado en su programa' => ['reportes.ver', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Rechazado->value])];
+    }, false],
+    'empresa ve reporte en revisión en su programa' => ['reportes.ver', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::EnRevision->value])];
+    }, true],
+    'empresa ve reporte validado en su programa' => ['reportes.ver', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Validado->value])];
+    }, true],
 ]);
 
 /**

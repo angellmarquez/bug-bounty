@@ -27,6 +27,7 @@
     import Edit from '@lucide/svelte/icons/edit';
     import Send from '@lucide/svelte/icons/send';
     import Eye from '@lucide/svelte/icons/eye';
+    import HelpCircle from '@lucide/svelte/icons/help-circle';
     import { page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
@@ -84,7 +85,7 @@
     const auth = $derived(page.props.auth);
 
     let transitionOpen = $state(false);
-    let transitionAccion = $state<'asignar' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'reparacion' | 'cerrar'>('validar');
+    let transitionAccion = $state<'asignar' | 'pedir_info' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'reparacion' | 'cerrar'>('validar');
 
     function openTransition(accion: typeof transitionAccion) {
         transitionAccion = accion;
@@ -238,6 +239,12 @@
                                 <Button variant="outline" size="sm" onclick={() => openTransition('asignar')}>
                                     <UserPlus class="mr-1 h-3 w-3" />
                                     Asignar
+                                </Button>
+                            {/if}
+                            {#if accionesDisponibles.pedir_info}
+                                <Button variant="outline" size="sm" onclick={() => openTransition('pedir_info')}>
+                                    <HelpCircle class="mr-1 h-3 w-3" />
+                                    Pedir información
                                 </Button>
                             {/if}
                             {#if accionesDisponibles.validar}

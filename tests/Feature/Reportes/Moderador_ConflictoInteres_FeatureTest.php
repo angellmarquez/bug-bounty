@@ -25,15 +25,14 @@ test('un moderador que también es investigador no puede reportar en el programa
     $this->assertDatabaseMissing('reportes', ['titulo' => 'Trampa']);
 });
 
-test('ese mismo usuario sí puede reportar en los programas que no modera', function () {
+test('ese mismo usuario tampoco reporta en los programas que no modera: un moderador nunca reporta', function () {
     $moderado = programaAbierto();
     $otro = programaAbierto();
-    $usuario = moderadorInvestigador($moderado);
-    $this->actingAs($usuario);
+    $this->actingAs(moderadorInvestigador($moderado));
 
-    $this->post(route('reportes.store'), ['programa_id' => $otro->id, 'titulo' => 'Legítimo', 'descripcion' => 'x'])->assertRedirect();
+    $this->post(route('reportes.store'), ['programa_id' => $otro->id, 'titulo' => 'Tampoco', 'descripcion' => 'x'])->assertForbidden();
 
-    $this->assertDatabaseHas('reportes', ['titulo' => 'Legítimo', 'investigador_id' => $usuario->id]);
+    $this->assertDatabaseMissing('reportes', ['titulo' => 'Tampoco']);
 });
 
 test('el formulario de reporte no ofrece los programas que el usuario modera', function () {
@@ -54,10 +53,10 @@ test('la página del programa avisa que lo modera y no ofrece reportar', functio
     $this->get(route('programas.show', $moderado))
         ->assertInertia(fn ($page) => $page->where('moderaEstePrograma', true)->where('puedeReportar', false)->where('puedeModerar', true));
     $this->get(route('programas.show', $otro))
-        ->assertInertia(fn ($page) => $page->where('moderaEstePrograma', false)->where('puedeReportar', true)->where('puedeModerar', false));
+        ->assertInertia(fn ($page) => $page->where('moderaEstePrograma', false)->where('puedeReportar', false)->where('puedeModerar', false));
 });
 
-test('un moderador investigador sigue viendo y enviando sus propios informes de otros programas', function () {
+test('un moderador investigador sigue viendo sus informes antiguos pero ya no los envía', function () {
     $otro = programaAbierto();
     $usuario = moderadorInvestigador(programaAbierto());
     $propio = reporteDe($usuario, $otro, [
@@ -67,8 +66,8 @@ test('un moderador investigador sigue viendo y enviando sus propios informes de 
     $this->actingAs($usuario);
 
     $this->get(route('reportes.show', $propio))->assertOk();
-    $this->post(route('reportes.enviar', $propio))->assertRedirect();
-    expect($propio->fresh()->estado->value)->toBe('enviado');
+    $this->post(route('reportes.enviar', $propio))->assertForbidden();
+    expect($propio->fresh()->estado->value)->toBe('borrador');
 });
 
 test('no se puede asignar como moderador de un programa a quien ya reportó en él', function () {

@@ -9,6 +9,7 @@ use App\Models\Auditoria;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Models\User;
 use App\Services\Moderacion\ColaDeInformes;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\Rangos;
@@ -98,6 +99,7 @@ class ProgramaController extends Controller
         $puedeEditar = $this->puedeProgramAction(AccionesAbac::ProgramaEditar, $programa);
         $puedeCambiarEstado = $this->puedeProgramAction(AccionesAbac::ProgramaCambiarEstado, $programa);
         $puedeEliminar = $this->puedeProgramAction(AccionesAbac::ProgramaEliminar, $programa);
+        $puedeInvitarHackers = $this->puedeProgramAction(AccionesAbac::ProgramaInvitarHacker, $programa);
 
         $transicionesPermitidas = $puedeCambiarEstado
             ? self::TRANSICIONES_VALIDAS[$programa->estado->value]
@@ -106,6 +108,18 @@ class ProgramaController extends Controller
         // Los moderadores y admins ven ahí mismo los informes del programa para revisarlos.
         $puedeModerar = $request->user()->puedeModerarPrograma($programa);
         $filtroInformes = ColaDeInformes::filtro($request->input('filtro'));
+
+        // Investigadores invitados al programa privado (para la empresa que gestiona el programa)
+        $hackersInvitados = $puedeInvitarHackers
+            ? $programa->hackersInvitados()->get(['users.id', 'users.name', 'users.email', 'users.reputation_score'])
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'reputation_score' => $u->reputation_score,
+                    'estado' => $u->pivot->estado,
+                ])->all()
+            : [];
 
         // El alcance (descripcion, bugs_buscados y objetivos) queda cifrado en la base:
         // se descifra recién acá, al entrar al detalle de este programa puntual.
@@ -144,6 +158,8 @@ class ProgramaController extends Controller
             'puedeGestionar' => $puedeGestionar,
             'puedeCambiarEstado' => $puedeCambiarEstado,
             'puedeEliminar' => $puedeEliminar && ! $programa->reportes()->exists(),
+            'puedeInvitarHackers' => $puedeInvitarHackers,
+            'hackersInvitados' => $hackersInvitados,
             'transicionesPermitidas' => $transicionesPermitidas,
         ]);
     }
@@ -385,15 +401,57 @@ class ProgramaController extends Controller
             ),
         );
 
-        // Solo el propietario y el administrador ven cuántos informes reciben los programas.
-        if (! $isAdmin && $user->rolEnEmpresa() === 'publicador') {
-            $programas->getCollection()->each(fn (Programa $programa) => $programa->setAttribute('reportes_count', null));
-        }
-
         return Inertia::render('programas/gestion/Index', [
             'programas' => $programas,
             'filtros' => $request->only(['estado', 'busqueda']),
             'esAdmin' => $isAdmin,
         ]);
+    }
+
+    public function invitarHacker(Request $request, Programa $programa): RedirectResponse
+    {
+        $this->authorizeProgramAction(AccionesAbac::ProgramaInvitarHacker, $programa);
+
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $investigador = User::where('email', $validated['email'])->first();
+        if (! $investigador || ! $investigador->tieneRol('investigador')) {
+            throw ValidationException::withMessages([
+                'email' => 'No se encontró ningún investigador registrado con ese correo electrónico.',
+            ]);
+        }
+
+        if ($programa->hackersInvitados()->where('users.id', $investigador->id)->exists()) {
+            throw ValidationException::withMessages([
+                'email' => 'Este investigador ya tiene una invitación para este programa.',
+            ]);
+        }
+
+        $programa->hackersInvitados()->attach($investigador->id, [
+            'invitado_por' => $request->user()->id,
+            'estado' => 'pendiente',
+        ]);
+
+        Auditoria::registrar('programas.hacker_invitado', $programa, [
+            'investigador_id' => $investigador->id,
+            'investigador_email' => $investigador->email,
+        ], $request->user()->id);
+
+        return redirect()->back()->with('success', "Investigador {$investigador->name} invitado al programa privado exitosamente.");
+    }
+
+    public function cancelarInvitacionHacker(Programa $programa, User $user): RedirectResponse
+    {
+        $this->authorizeProgramAction(AccionesAbac::ProgramaInvitarHacker, $programa);
+
+        $programa->hackersInvitados()->detach($user->id);
+
+        Auditoria::registrar('programas.hacker_invitacion_cancelada', $programa, [
+            'investigador_id' => $user->id,
+        ], request()->user()->id);
+
+        return redirect()->back()->with('success', 'Invitación removida exitosamente.');
     }
 }

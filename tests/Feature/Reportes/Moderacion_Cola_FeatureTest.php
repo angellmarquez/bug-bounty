@@ -136,7 +136,8 @@ test('solo se puede iniciar la revision de un informe enviado', function () {
     $programaModerado = programaConEmpresa();
     $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'validado']);
 
-    $this->actingAs(moderadorDe($programaModerado))->post(route('reportes.revisar', $reporte))->assertSessionHasErrors('estado');
+    // Tras la validación el moderador ya no tría ese informe: el ABAC lo corta antes.
+    $this->actingAs(moderadorDe($programaModerado))->post(route('reportes.revisar', $reporte))->assertForbidden();
     $this->actingAs(investigador())->post(route('reportes.revisar', $reporte))->assertForbidden();
 });
 
@@ -233,7 +234,12 @@ test('guardar y enviar deja el informe visible para el moderador y la empresa', 
     $this->actingAs(moderadorDe($programa))->get(route('moderacion.index'))
         ->assertInertia(fn ($page) => $page->has('porRevisar', 1)->where('porRevisar.0.id', $enviado->id));
 
+    // La empresa no ve el pre-triaje: le llega cuando el moderador lo toma.
     $this->actingAs(miembroDeEmpresa($empresa))->get(route('empresa.reportes'))
+        ->assertInertia(fn ($page) => $page->has('reportes.data', 0));
+
+    $enviado->update(['estado' => 'en_revision']);
+    $this->get(route('empresa.reportes'))
         ->assertInertia(fn ($page) => $page->has('reportes.data', 1)->where('reportes.data.0.id', $enviado->id));
 });
 
@@ -267,6 +273,11 @@ test('la vista rapida devuelve el contenido descifrado a quien puede ver el info
         'autor' => $autor,
         'empresa duena' => miembroDeEmpresa($empresa),
     };
+
+    // La empresa solo lee (y descifra la PoC de) lo que el moderador ya validó.
+    if ($lector === 'empresa duena') {
+        $reporte->update(['estado' => 'validado']);
+    }
 
     $this->actingAs($usuario)
         ->getJson(route('reportes.vista-rapida', $reporte))
@@ -310,6 +321,8 @@ test('el revisor ve el alcance del programa y el historial del investigador en e
     reporteDe($autor, $programa, ['estado' => 'validado']);
     reporteDe($autor, $programa, ['estado' => 'rechazado']);
     $reporte = informeEnviadoConContenido($programa, $autor);
+    // En 'enviado' el triaje es ciego; el historial aparece al tomarlo en revisión.
+    $reporte->update(['estado' => 'en_revision']);
 
     $this->actingAs(moderadorDe($programaModerado))->get(route('reportes.show', $reporte))
         ->assertInertia(fn ($page) => $page

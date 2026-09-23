@@ -9,7 +9,6 @@
     import PageHeader from '@/components/PageHeader.svelte';
     import { page, router } from '@inertiajs/svelte';
     import { Button } from '@/components/ui/button';
-    import { Input } from '@/components/ui/input';
     import { Link } from '@inertiajs/svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
@@ -34,9 +33,6 @@
             rol_interno: string;
             esAdmin: boolean;
             puedeOperar: boolean;
-            puedeGestionarMiembros: boolean;
-            usuarios: { id: number; name: string; email: string; rol_interno: string; desde: string | null }[];
-            invitaciones: { id: number; email: string; nombre: string | null; expira_en: string }[];
             programas: {
                 id: number;
                 nombre: string;
@@ -45,16 +41,16 @@
                 objetivos_count: number;
                 reportes_todos: number;
                 reportes_total: number;
-                reportes_pendientes: number;
-                reportes_aprobados: number;
-                reportes_rechazados: number;
+                reportes_validados: number;
+                reportes_en_reparacion: number;
+                reportes_cerrados: number;
             }[];
             resumen: {
                 programas: number;
                 reportes: number;
-                pendientes: number;
-                aprobados: number;
-                rechazados: number;
+                validados: number;
+                en_reparacion: number;
+                cerrados: number;
             };
             reportes: ReporteCompacto[];
         };
@@ -74,29 +70,8 @@
     // Errores del servidor al publicar o eliminar un programa.
     const errorPrograma = $derived(page.props.errors?.estado ?? page.props.errors?.programa);
 
-    let emailInvitacion = $state('');
-
     // Un administrador opera cualquier empresa: hay que decir sobre cuál.
-    const contexto = $derived(empresa.esAdmin ? { empresa_id: empresa.id } : {});
     const sufijoAdmin = $derived(empresa.esAdmin ? `?empresa=${empresa.id}` : '');
-
-    function eliminarMiembro(userId: number, nombre: string) {
-        if (!confirm(`¿Retirar a ${nombre} de la empresa? Dejará de poder publicar sus programas.`)) return;
-        router.delete(`/empresa/miembros/${userId}${empresa.esAdmin ? `?empresa_id=${empresa.id}` : ''}`, { preserveState: true });
-    }
-
-    function cancelarInvitacion(id: number) {
-        router.delete(`/empresa/invitaciones/${id}${empresa.esAdmin ? `?empresa_id=${empresa.id}` : ''}`, { preserveState: true });
-    }
-
-    function invitarMiembro() {
-        router.post('/empresa/invitaciones', { email: emailInvitacion, ...contexto }, {
-            preserveState: true,
-            onSuccess: () => {
-                emailInvitacion = '';
-            },
-        });
-    }
 </script>
 
 <AppHead title="Empresa" />
@@ -136,66 +111,6 @@
         </CardContent>
     </Card>
 
-    <div data-test="equipo"><Card>
-        <CardHeader>
-            <CardTitle>Investigadores de la empresa</CardTitle>
-            <CardDescription>
-                Los investigadores que invitas publican y gestionan tus programas, pero no ven los informes: eso es solo tuyo. Mientras sean
-                miembros no pueden reportar a tus programas.
-            </CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-4">
-            {#if empresa.puedeGestionarMiembros}
-                <form class="flex gap-2" onsubmit={(event) => { event.preventDefault(); invitarMiembro(); }}>
-                    <Input
-                        type="email"
-                        bind:value={emailInvitacion}
-                        placeholder="Correo con el que se registró el investigador"
-                        aria-label="Correo del investigador"
-                        required
-                        data-test="correo-invitacion"
-                    />
-                    <Button type="submit" data-test="invitar-investigador">Invitar</Button>
-                </form>
-                <p class="text-xs text-muted-foreground">
-                    Debe estar registrado como investigador. Le llegará un aviso y decidirá si acepta; no se le añade sin su permiso.
-                </p>
-                {#if empresa.invitaciones.length > 0}
-                    <div class="space-y-2">
-                        <p class="text-sm font-medium">Invitaciones pendientes</p>
-                        {#each empresa.invitaciones as invitacion (invitacion.id)}
-                            <div class="flex items-center justify-between gap-2 rounded-md bg-muted p-2 text-xs" data-test="invitacion-pendiente">
-                                <div class="min-w-0">
-                                    <p class="font-medium">{invitacion.nombre ?? invitacion.email}</p>
-                                    <p class="text-muted-foreground">{invitacion.email} · vence el {new Date(invitacion.expira_en).toLocaleDateString('es-ES')}</p>
-                                </div>
-                                <Button size="sm" variant="outline" type="button" onclick={() => cancelarInvitacion(invitacion.id)}>Cancelar</Button>
-                            </div>
-                        {/each}
-                    </div>
-                {/if}
-            {/if}
-            <div class="space-y-2">
-                {#each empresa.usuarios as usuario (usuario.id)}
-                    <div class="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0" data-test="miembro">
-                        <div>
-                            <p class="text-sm font-medium">
-                                {usuario.name}
-                                <span class="ml-2 rounded-full bg-muted px-2 py-0.5 text-[11px] font-normal capitalize text-muted-foreground">
-                                    {usuario.rol_interno}
-                                </span>
-                            </p>
-                            <p class="text-xs text-muted-foreground">{usuario.email}</p>
-                        </div>
-                        {#if empresa.puedeGestionarMiembros && usuario.rol_interno !== 'propietario'}
-                            <Button size="sm" variant="destructive" onclick={() => eliminarMiembro(usuario.id, usuario.name)}>Retirar</Button>
-                        {/if}
-                    </div>
-                {/each}
-            </div>
-        </CardContent>
-    </Card></div>
-
     {#if empresa.puedeOperar}
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Card>
@@ -207,16 +122,16 @@
                 <CardContent><p class="text-2xl font-bold">{empresa.resumen.reportes}</p></CardContent>
             </Card>
             <Card>
-                <CardHeader class="pb-2"><CardDescription>Pendientes de moderación</CardDescription></CardHeader>
-                <CardContent><p class="text-2xl font-bold text-chart-4">{empresa.resumen.pendientes}</p></CardContent>
+                <CardHeader class="pb-2"><CardDescription>Validados</CardDescription></CardHeader>
+                <CardContent><p class="text-2xl font-bold text-chart-1">{empresa.resumen.validados}</p></CardContent>
             </Card>
             <Card>
-                <CardHeader class="pb-2"><CardDescription>Aprobados por moderadores</CardDescription></CardHeader>
-                <CardContent><p class="text-2xl font-bold text-chart-1">{empresa.resumen.aprobados}</p></CardContent>
+                <CardHeader class="pb-2"><CardDescription>En reparación</CardDescription></CardHeader>
+                <CardContent><p class="text-2xl font-bold text-chart-4">{empresa.resumen.en_reparacion}</p></CardContent>
             </Card>
             <Card>
-                <CardHeader class="pb-2"><CardDescription>Rechazados</CardDescription></CardHeader>
-                <CardContent><p class="text-2xl font-bold text-muted-foreground">{empresa.resumen.rechazados}</p></CardContent>
+                <CardHeader class="pb-2"><CardDescription>Cerrados</CardDescription></CardHeader>
+                <CardContent><p class="text-2xl font-bold text-muted-foreground">{empresa.resumen.cerrados}</p></CardContent>
             </Card>
         </div>
 
@@ -252,10 +167,7 @@
                                     {/if}
                                 </div>
                                 <p class="text-xs text-muted-foreground">
-                                    {programa.reportes_total} informes ·
-                                    <span class="text-chart-1">{programa.reportes_aprobados} aprobados</span> ·
-                                    {programa.reportes_pendientes} pendientes ·
-                                    {programa.reportes_rechazados} rechazados
+                                    {programa.reportes_total} informes recibidos
                                 </p>
                             </div>
                             <div class="flex flex-wrap gap-2">

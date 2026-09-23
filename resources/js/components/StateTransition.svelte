@@ -20,6 +20,7 @@
 
     type TransicionAccion =
         | 'asignar'
+        | 'pedir_info'
         | 'validar'
         | 'rechazar'
         | 'marcar_duplicado'
@@ -53,6 +54,7 @@
 
     const rutaMap: Record<TransicionAccion, string> = {
         asignar: 'asignar',
+        pedir_info: 'pedir-info',
         validar: 'validar',
         rechazar: 'rechazar',
         marcar_duplicado: 'marcar-duplicado',
@@ -65,6 +67,11 @@
             asignar: {
                 titulo: 'Asignar reporte',
                 descripcion: 'Selecciona el analista que se encargara del triaje de este reporte.',
+                variante: 'default',
+            },
+            pedir_info: {
+                titulo: 'Solicitar más información',
+                descripcion: 'Pide al investigador que aclare o aporte detalles adicionales para completar el triaje.',
                 variante: 'default',
             },
             validar: {
@@ -201,11 +208,11 @@
 
             {#if accion !== 'validar' && accion !== 'cerrar'}
                 <div class="space-y-2">
-                    <Label for="nota">Nota {accion === 'rechazar' ? '(recomendada)' : '(opcional)'}</Label>
+                    <Label for="nota">Nota {accion === 'pedir_info' ? '(requerida)' : (accion === 'rechazar' ? '(recomendada)' : '(opcional)')}</Label>
                     <textarea
                         id="nota"
                         bind:value={nota}
-                        placeholder="Agrega una nota o justificacion..."
+                        placeholder={accion === 'pedir_info' ? 'Describe qué información o evidencia adicional necesitas del investigador...' : 'Agrega una nota o justificacion...'}
                         class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     ></textarea>
                 </div>
@@ -219,7 +226,7 @@
             <Button
                 variant={accionConfig.variante}
                 onclick={submit}
-                disabled={processing || (accion === 'asignar' && !asignadoA) || (accion === 'marcar_duplicado' && !reporteDuplicadoId)}
+                disabled={processing || (accion === 'asignar' && !asignadoA) || (accion === 'marcar_duplicado' && !reporteDuplicadoId) || (accion === 'pedir_info' && !nota.trim())}
             >
                 {#if processing}
                     Procesando...

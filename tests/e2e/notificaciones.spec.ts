@@ -17,7 +17,9 @@ async function abrirCampana(page: Page): Promise<void> {
 }
 
 test.describe('Campana de notificaciones', () => {
-    test('el sancionado ve los avisos de su sanción y de su apelación, y al abrir uno baja el contador', async ({ page }) => {
+    test('el sancionado ve los avisos de su sanción y de su apelación, y al abrir uno baja el contador', async ({
+        page,
+    }) => {
         const errores = vigilarErrores(page);
         await iniciarSesion(page, 'sancionado');
 
@@ -30,15 +32,23 @@ test.describe('Campana de notificaciones', () => {
         await expect(panel).toContainText('Tu apelación fue aprobada');
 
         // Abrir el aviso de la apelación lleva a su seguimiento y lo marca como leído.
-        await panel.locator('[data-test="campana-aviso"]', { hasText: 'Tu apelación fue aprobada' }).click();
+        await panel
+            .locator('[data-test="campana-aviso"]', {
+                hasText: 'Tu apelación fue aprobada',
+            })
+            .click();
         await page.waitForURL(/\/reputacion\/apelaciones\/\d+$/);
-        await expect(page.locator('[data-test="estado-apelacion"]')).toHaveText('Aprobada');
+        await expect(page.locator('[data-test="estado-apelacion"]')).toHaveText(
+            'Aprobada',
+        );
         expect(await sinLeer(page)).toBe(antes - 1);
 
         expect(errores, errores.join('\n')).toEqual([]);
     });
 
-    test('la página de notificaciones filtra las no leídas y permite marcarlas todas', async ({ page }) => {
+    test('la página de notificaciones filtra las no leídas y permite marcarlas todas', async ({
+        page,
+    }) => {
         await iniciarSesion(page, 'sancionado');
         await page.goto('/notificaciones');
 
@@ -55,29 +65,43 @@ test.describe('Campana de notificaciones', () => {
         }
 
         await page.locator('[data-test="marcar-todas-pagina"]').click();
-        await expect(page.locator('[data-test="campana-contador"]')).toHaveCount(0);
+        await expect(
+            page.locator('[data-test="campana-contador"]'),
+        ).toHaveCount(0);
 
         // Sin avisos pendientes, el filtro lo dice.
         await expect(page.getByText('No tienes avisos sin leer')).toBeVisible();
     });
 
-    test('el administrador recibe el aviso de la apelación pendiente y lleva a su detalle', async ({ page }) => {
+    test('el administrador recibe el aviso de la apelación pendiente y lleva a su detalle', async ({
+        page,
+    }) => {
         await iniciarSesion(page, 'admin');
         await page.goto('/notificaciones');
 
-        const aviso = page.locator('[data-test="aviso"]', { hasText: 'Nueva apelación pendiente' }).first();
+        const aviso = page
+            .locator('[data-test="aviso"]', {
+                hasText: 'Nueva apelación pendiente',
+            })
+            .first();
         await expect(aviso).toBeVisible();
-        await aviso.getByRole('link', { name: 'Nueva apelación pendiente' }).click();
+        await aviso
+            .getByRole('link', { name: 'Nueva apelación pendiente' })
+            .click();
 
         await page.waitForURL(/\/moderacion\/apelaciones\/\d+$/);
         await expect(page.locator('[data-test="traza"]')).toBeVisible();
     });
 
-    test('el moderador que sancionó se entera de cómo terminó la apelación', async ({ page }) => {
+    test('el moderador que sancionó se entera de cómo terminó la apelación', async ({
+        page,
+    }) => {
         await iniciarSesion(page, 'moderador');
         await abrirCampana(page);
 
-        await expect(page.locator('[data-test="campana-panel"]')).toContainText('Apelación aprobada');
+        await expect(page.locator('[data-test="campana-panel"]')).toContainText(
+            'Apelación aprobada',
+        );
     });
 
     test('quien no tiene avisos ve la campana vacía', async ({ page }) => {
@@ -85,10 +109,14 @@ test.describe('Campana de notificaciones', () => {
 
         expect(await sinLeer(page)).toBe(0);
         await abrirCampana(page);
-        await expect(page.locator('[data-test="campana-vacia"]')).toHaveText('No tienes notificaciones.');
+        await expect(page.locator('[data-test="campana-vacia"]')).toHaveText(
+            'No tienes notificaciones.',
+        );
 
         // Escape cierra el panel.
         await page.keyboard.press('Escape');
-        await expect(page.locator('[data-test="campana-panel"]')).toHaveCount(0);
+        await expect(page.locator('[data-test="campana-panel"]')).toHaveCount(
+            0,
+        );
     });
 });

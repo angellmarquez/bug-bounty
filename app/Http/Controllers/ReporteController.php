@@ -57,7 +57,7 @@ class ReporteController extends Controller
             $query->where(function ($scope) use ($user, $idsModerados) {
                 $scope->where('investigador_id', $user->id)
                     ->orWhere(function (Builder $empresa) use ($user) {
-                        $empresa->where('estado', '!=', 'borrador')
+                        $empresa->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA)
                             ->whereHas('programa.empresa.usuarios', function ($usuarios) use ($user) {
                                 $usuarios->whereKey($user->id)
                                     ->where('empresa_usuario.estado', 'activo')
@@ -151,9 +151,14 @@ class ReporteController extends Controller
             'actor' => $evento->actor?->only(['id', 'name']),
         ]);
 
-        // El contenido confidencial se descifra con la clave privada de la
-        // plataforma y nunca se expone el ciphertext al frontend.
-        $contenido = $this->contenidoDescifrado($reporte);
+        $puedeDescifrarPoc = Gate::allows('abac', [
+            AccionesAbac::ReporteDecryptPoc,
+            $reporte,
+            $this->empresaContexto(),
+        ]);
+
+        $user = request()->user();
+        $contenido = $this->contenidoParaLector($reporte, $puedeDescifrarPoc);
         $cifradoIndisponible = $contenido['indisponible'];
         $claveHuella = $contenido['clave_huella'];
         $descripcion = $contenido['descripcion'];
@@ -167,6 +172,7 @@ class ReporteController extends Controller
         $puedeAsignar = Gate::allows('abac', [AccionesAbac::ReporteAsignar, $reporte]);
         $puedeValidar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'validado');
         $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
+        $puedePedirInfo = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'needs_info');
         $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
         $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
         // Marcar en reparación y cerrar corresponden a la empresa dueña del programa (y al admin),
@@ -174,20 +180,22 @@ class ReporteController extends Controller
         $puedeMarcarEnReparacion = Gate::allows('abac', [AccionesAbac::ReporteMarcarEnReparacion, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'en_reparacion');
         $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'cerrado');
 
-        // Originales posibles para marcar un duplicado: otros informes del mismo programa.
+        // Capa 2: Candidatos a duplicado restringidos a reportes anteriores en el tiempo (prioridad temporal anti-robo)
         $candidatosDuplicado = $puedeMarcarDuplicado
             ? Reporte::query()
                 ->where('programa_id', $reporte->programa_id)
                 ->where('id', '!=', $reporte->id)
                 ->where('estado', '!=', 'borrador')
-                ->orderBy('id')
+                ->where('created_at', '<=', $reporte->created_at)
+                ->orderBy('created_at', 'asc')
                 ->limit(100)
-                ->get(['id', 'numero_reporte', 'titulo', 'estado'])
+                ->get(['id', 'numero_reporte', 'titulo', 'estado', 'created_at'])
                 ->map(fn (Reporte $candidato) => [
                     'id' => $candidato->id,
                     'numero_reporte' => $candidato->numero_reporte,
                     'titulo' => $candidato->titulo,
                     'estado' => $candidato->estado->value,
+                    'created_at' => $candidato->created_at?->toISOString(),
                 ])
                 ->all()
             : [];
@@ -206,8 +214,16 @@ class ReporteController extends Controller
 
         $puedeModerar = request()->user()->puedeModerarPrograma($reporte->programa_id);
 
-        // Historial del autor: ayuda a valorar cuánto confiar en el informe.
-        $historialInvestigador = $puedeModerar ? $this->historialInvestigador($reporte->investigador) : null;
+        // Capa 3: Triaje Ciego (Blind Triage)
+        // Mientras el reporte está en estado 'enviado', se enmascara la identidad e historial
+        // del investigador para moderadores (excepto administradores o el autor).
+        $estadoVal = $reporte->estado->value;
+        $esCiego = $estadoVal === EstadoReporte::Enviado->value && ! ($user?->tieneRol('administrador') || (int) $user?->id === (int) $reporte->investigador_id);
+        $investigadorPayload = $esCiego
+            ? ['id' => 0, 'name' => 'Investigador Anónimo (Triaje Ciego)', 'reputation_score' => null]
+            : $reporte->investigador->only(['id', 'name', 'reputation_score']);
+
+        $historialInvestigador = ($puedeModerar && ! $esCiego) ? $this->historialInvestigador($reporte->investigador) : null;
 
         return Inertia::render('reportes/Show', [
             'historialInvestigador' => $historialInvestigador,
@@ -228,7 +244,7 @@ class ReporteController extends Controller
                             ->all(),
                     ] : []),
                 ],
-                'investigador' => $reporte->investigador->only(['id', 'name']),
+                'investigador' => $investigadorPayload,
                 'asignadoA' => $reporte->asignadoA?->only(['id', 'name']),
                 'duplicadoDe' => $reporte->duplicadoDe?->only(['id', 'numero_reporte', 'titulo']),
                 'eventos' => $eventos,
@@ -238,10 +254,11 @@ class ReporteController extends Controller
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
             'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
-            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar,
+            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedePedirInfo || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
                 'revisar' => $puedeRevisar,
+                'pedir_info' => $puedePedirInfo,
                 'validar' => $puedeValidar,
                 'rechazar' => $puedeRechazar,
                 'marcar_duplicado' => $puedeMarcarDuplicado,
@@ -257,7 +274,12 @@ class ReporteController extends Controller
         $user = $request->user();
 
         $programas = Programa::where('estado', 'activo')
-            ->where('es_publico', true)
+            ->where(function ($q) use ($user) {
+                $q->where('es_publico', true)
+                    ->orWhereHas('hackersInvitados', function ($qi) use ($user) {
+                        $qi->where('users.id', $user->id)->where('programa_invitados.estado', 'aceptada');
+                    });
+            })
             ->whereIn('nivel_acceso', app(Rangos::class)->nivelesAccesibles((int) ($user->reputation_score ?? 0)))
             // Quien modera un programa no puede reportar en él: vería la vulnerabilidad de los demás.
             ->when($user->tieneRol('moderador'), fn ($query) => $query->whereNotIn('id', $user->idsProgramasModerados()))
@@ -281,6 +303,11 @@ class ReporteController extends Controller
     {
         $validated = $request->validated();
         $user = $request->user();
+
+        $programa = Programa::query()->where('id', (int) $validated['programa_id'])->first();
+        abort_if($programa === null, 404, 'Programa no encontrado.');
+
+        Gate::authorize('abac', [AccionesAbac::ReporteCrear, $programa]);
 
         // "Guardar y enviar" cuenta como un envío: se frena el envío masivo antes de crear nada.
         // Guardar solo un borrador no llega al programa, así que no tiene este límite.
@@ -480,8 +507,9 @@ class ReporteController extends Controller
     // ------------------------------------------------------------------
 
     private const TRANSICIONES_VALIDAS = [
-        'enviado' => ['en_revision', 'validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
-        'en_revision' => ['validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
+        'enviado' => ['en_revision', 'needs_info', 'validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
+        'en_revision' => ['needs_info', 'validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
+        'needs_info' => ['en_revision', 'validado', 'rechazado', 'duplicado', 'fuera_de_alcance'],
         // Tras validar, la empresa puede marcar el informe en reparación o cerrarlo directamente
         // como resuelto (sin pasar por el estado intermedio).
         'validado' => ['en_reparacion', 'cerrado', 'rechazado', 'duplicado'],
@@ -516,7 +544,8 @@ class ReporteController extends Controller
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte, $this->empresaContexto()]);
 
-        $contenido = $this->contenidoDescifrado($reporte);
+        $puedeDescifrarPoc = Gate::allows('abac', [AccionesAbac::ReporteDecryptPoc, $reporte, $this->empresaContexto()]);
+        $contenido = $this->contenidoParaLector($reporte, $puedeDescifrarPoc);
 
         return response()->json([
             'id' => $reporte->id,
@@ -530,6 +559,46 @@ class ReporteController extends Controller
             'puede_revisar' => Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte, $this->empresaContexto()])
                 && $this->transicionPosible($reporte, 'en_revision'),
         ]);
+    }
+
+    /**
+     * Contenido del informe para quien lo está leyendo. La PoC solo se descifra si
+     * `reportes.decrypt_poc` lo permite; entonces queda UN registro de auditoría
+     * `reportes.poc_descifrado` (usuario, IP, user-agent, fecha y huella de la clave).
+     * Si no, solo se descifra la descripción y la auditoría es la genérica del servicio PGP.
+     *
+     * @return array{descripcion: string|null, poc: array<int|string, mixed>|null, clave_huella: string|null, indisponible: bool}
+     */
+    private function contenidoParaLector(Reporte $reporte, bool $puedeDescifrarPoc): array
+    {
+        if (! $puedeDescifrarPoc) {
+            try {
+                $descifrado = app(PgpService::class)->descifrarReporte((string) $reporte->descripcion, null, $reporte);
+
+                return ['descripcion' => $descifrado['descripcion'], 'poc' => null, 'clave_huella' => $descifrado['clave_huella'], 'indisponible' => false];
+            } catch (PgpException $e) {
+                report($e);
+
+                return ['descripcion' => null, 'poc' => null, 'clave_huella' => $reporte->clave_huella, 'indisponible' => true];
+            }
+        }
+
+        try {
+            $descifrado = app(PgpService::class)->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
+        } catch (PgpException $e) {
+            report($e);
+
+            return ['descripcion' => null, 'poc' => null, 'clave_huella' => $reporte->clave_huella, 'indisponible' => true];
+        }
+
+        Auditoria::registrar('reportes.poc_descifrado', $reporte, ['clave_huella' => $descifrado['clave_huella']]);
+
+        return [
+            'descripcion' => $descifrado['descripcion'],
+            'poc' => $descifrado['poc'],
+            'clave_huella' => $descifrado['clave_huella'],
+            'indisponible' => false,
+        ];
     }
 
     /**
@@ -597,6 +666,35 @@ class ReporteController extends Controller
 
         return redirect()->back(fallback: route('reportes.show', $reporte))
             ->with('success', 'Revisión iniciada.');
+    }
+
+    /**
+     * Solicitar información adicional al investigador (needs_info).
+     */
+    public function pedirInfo(Request $request, Reporte $reporte): RedirectResponse
+    {
+        $this->asegurarAcceso($reporte);
+        Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
+
+        $this->validarTransicion($reporte, 'needs_info');
+        $validated = $request->validate([
+            'nota' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $estadoAnterior = $reporte->estado->value;
+        $reporte->update(['estado' => 'needs_info']);
+
+        $reporte->eventos()->create([
+            'actor_id' => $request->user()->id,
+            'tipo' => 'cambio_estado',
+            'nota' => $validated['nota'],
+            'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'needs_info'],
+        ]);
+
+        Auditoria::registrar('reportes.needs_info', $reporte, ['estado_anterior' => $estadoAnterior], $request->user()->id);
+
+        return redirect()->route('reportes.show', $reporte)
+            ->with('success', 'Se ha solicitado más información al investigador.');
     }
 
     public function asignar(Reporte $reporte, Request $request): RedirectResponse
@@ -711,6 +809,7 @@ class ReporteController extends Controller
         $original = Reporte::find($validated['reporte_duplicado_id']);
         abort_unless($original instanceof Reporte, 404, 'El reporte original no existe.');
         abort_if($original->id === $reporte->id, 422, 'Un reporte no puede ser duplicado de sí mismo.');
+        abort_if($original->created_at->gt($reporte->created_at), 422, 'Un reporte solo puede ser marcado como duplicado de otro reporte recibido con anterioridad.');
 
         $this->validarTransicion($reporte, 'duplicado');
         $reporte->update([
@@ -839,12 +938,17 @@ class ReporteController extends Controller
             return true;
         }
 
-        // Los informes de una empresa solo los ve su propietario (no los publicadores).
-        return $reporte->programa->empresa?->usuarios()
-            ->whereKey($user->id)
-            ->where('empresa_usuario.estado', 'activo')
-            ->where('empresa_usuario.rol_interno', 'propietario')
-            ->exists() ?? false;
+        // La empresa dueña del programa solo ve informes que ya están en revisión, solicitando info, validados, en reparación o cerrados.
+        // Nunca ve 'borrador', 'enviado' (pre-triaje) ni 'rechazado'.
+        if (in_array($reporte->estado->value, Reporte::ESTADOS_VISIBLES_EMPRESA, true)) {
+            return $reporte->programa->empresa?->usuarios()
+                ->whereKey($user->id)
+                ->where('empresa_usuario.estado', 'activo')
+                ->where('empresa_usuario.rol_interno', 'propietario')
+                ->exists() ?? false;
+        }
+
+        return false;
     }
 
     /** @return array{empresa_id?: int} */

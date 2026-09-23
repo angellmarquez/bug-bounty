@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Empresa;
-use App\Models\EmpresaInvitacion;
 use App\Models\Programa;
 use App\Models\User;
 
@@ -29,8 +28,7 @@ test('el administrador abre el panel de cualquier empresa con permisos completos
         ->assertInertia(fn ($page) => $page
             ->component('empresa/Dashboard')
             ->where('empresa.id', $empresa->id)
-            ->where('empresa.esAdmin', true)
-            ->where('empresa.puedeGestionarMiembros', true));
+            ->where('empresa.esAdmin', true));
 });
 
 test('un administrador que además tiene el rol empresa no queda bloqueado por su falta de empresa', function () {
@@ -38,56 +36,6 @@ test('un administrador que además tiene el rol empresa no queda bloqueado por s
 
     $this->actingAs($admin)->get(route('dashboard'))->assertOk();
     $this->get(route('empresa.reportes', ['empresa' => Empresa::factory()->aprobada()->create()->id]))->assertOk();
-});
-
-test('el administrador invita a un investigador y la invitacion queda visible en el panel', function () {
-    $empresa = Empresa::factory()->aprobada()->create();
-    $invitado = investigador(['email' => 'nuevo@example.test']);
-    $this->actingAs(administrador());
-
-    $this->post(route('empresa.invitaciones.crear'), ['empresa_id' => $empresa->id, 'email' => 'nuevo@example.test'])
-        ->assertRedirect(route('empresa.dashboard', ['empresa' => $empresa->id]))
-        ->assertSessionHas('success');
-
-    $this->get(route('empresa.dashboard', ['empresa' => $empresa->id]))
-        ->assertInertia(fn ($page) => $page
-            ->where('empresa.invitaciones.0.email', 'nuevo@example.test')
-            ->where('empresa.invitaciones.0.nombre', $invitado->name));
-});
-
-test('el administrador retira publicadores de una empresa', function () {
-    $empresa = Empresa::factory()->aprobada()->create();
-    $existente = publicadorDeEmpresa($empresa);
-    $this->actingAs(administrador());
-
-    $this->delete(route('empresa.miembros.eliminar', $existente).'?empresa_id='.$empresa->id)->assertRedirect();
-    expect($empresa->usuarios()->whereKey($existente->id)->exists())->toBeFalse();
-});
-
-test('sin indicar la empresa el administrador no puede gestionar miembros', function () {
-    $this->actingAs(administrador())
-        ->post(route('empresa.invitaciones.crear'), ['email' => 'nuevo@example.test'])
-        ->assertStatus(422);
-});
-
-test('un publicador no ve las invitaciones que hizo el propietario', function () {
-    $empresa = Empresa::factory()->aprobada()->create();
-    $dueno = propietarioDe($empresa);
-    EmpresaInvitacion::create([
-        'empresa_id' => $empresa->id,
-        'usuario_id' => investigador()->id,
-        'email' => 'pendiente@example.test',
-        'token' => 'token-secreto',
-        'rol_interno' => 'publicador',
-        'estado' => 'pendiente',
-        'invitado_por' => $dueno->id,
-        'expira_en' => now()->addDays(7),
-    ]);
-
-    // Su panel de empresa lo lleva a sus programas: no ve invitaciones ni informes.
-    $this->actingAs(publicadorDeEmpresa($empresa))
-        ->get(route('empresa.dashboard'))
-        ->assertRedirect(route('programas.gestion'));
 });
 
 test('el administrador no puede crear un programa, ni siquiera a nombre de una empresa aprobada', function () {

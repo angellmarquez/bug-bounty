@@ -15,7 +15,7 @@ async function destinoDelBotonVolver(
 const esperados: [Rol, string, string][] = [
     ['moderador', '/reportes/1', '/moderacion/programas/1'],
     ['admin', '/reportes/1', '/moderacion/programas/1'],
-    ['empresa', '/reportes/1', '/empresa/reportes'],
+    ['empresa', '/reportes/2', '/empresa/reportes'],
     ['investigador', '/reportes/1', '/reportes'],
     ['investigador', '/reportes/3/editar', '/reportes/3'],
     ['investigador', '/reportes/crear?programa=1', '/reportes'],

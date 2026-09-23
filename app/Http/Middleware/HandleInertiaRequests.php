@@ -3,10 +3,10 @@
 namespace App\Http\Middleware;
 
 use App\Http\Controllers\NotificacionController;
-use App\Models\EmpresaInvitacion;
 use App\Models\User;
 use App\Services\Reputacion\Rangos;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Middleware;
 
@@ -123,10 +123,9 @@ class HandleInertiaRequests extends Middleware
                 'motivo' => $empresa->motivo_estado,
                 'rol_interno' => data_get($empresa->pivot, 'rol_interno'),
             ],
-            'invitaciones_pendientes' => EmpresaInvitacion::query()
-                ->where('usuario_id', $usuario->id)
+            'invitaciones_pendientes' => DB::table('programa_invitados')
+                ->where('investigador_id', $usuario->id)
                 ->where('estado', 'pendiente')
-                ->where('expira_en', '>', now())
                 ->count(),
         ];
     }

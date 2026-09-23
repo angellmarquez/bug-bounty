@@ -60,6 +60,7 @@ class Reporte extends Model
         'borrador',
         'enviado',
         'en_revision',
+        'needs_info',
         'validado',
         'en_reparacion',
     ];
@@ -67,7 +68,13 @@ class Reporte extends Model
     /**
      * Estados a la espera de una decisión del moderador.
      */
-    public const ESTADOS_PENDIENTES = ['enviado', 'en_revision'];
+    public const ESTADOS_PENDIENTES = ['enviado', 'en_revision', 'needs_info'];
+
+    /**
+     * Lo único que ve la empresa dueña: nunca borradores, pre-triaje ('enviado')
+     * ni descartados, para que no corrija un fallo esquivando la validación.
+     */
+    public const ESTADOS_VISIBLES_EMPRESA = ['en_revision', 'needs_info', 'validado', 'en_reparacion', 'cerrado'];
 
     /**
      * Estados que indican que el moderador aprobó (validó) el informe.
