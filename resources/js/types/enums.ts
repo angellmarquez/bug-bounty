@@ -2,6 +2,7 @@ export const EstadoReporte = {
     Borrador: 'borrador',
     Enviado: 'enviado',
     EnRevision: 'en_revision',
+    NeedsInfo: 'needs_info',
     Duplicado: 'duplicado',
     FueraDeAlcance: 'fuera_de_alcance',
     Validado: 'validado',
