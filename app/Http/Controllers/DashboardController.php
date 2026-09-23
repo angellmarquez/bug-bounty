@@ -86,13 +86,15 @@ class DashboardController extends Controller
                 ->latest('empresas.created_at')
                 ->first();
             $programasEmpresa = $empresa?->programas() ?? Programa::query()->whereKey(0);
-            $reportesEmpresa = Reporte::query()->whereIn('programa_id', $programasEmpresa->clone()->select('id'));
+            // Solo cuentan los informes que la empresa puede ver (triados o resueltos), no borradores ni rechazados.
+            $reportesEmpresa = Reporte::query()
+                ->whereIn('programa_id', $programasEmpresa->clone()->select('id'))
+                ->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA);
             $roleStats = [
                 'tipo' => 'empresa',
                 'estado' => $empresa?->estado->value,
                 'programas_total' => $programasEmpresa->count(),
                 'programas_activos' => (clone $programasEmpresa)->where('estado', 'activo')->count(),
-                'miembros' => $empresa?->usuarios()->wherePivot('estado', 'activo')->count() ?? 0,
                 'reportes_recibidos' => $reportesEmpresa->count(),
             ];
         } elseif ($isModerador) {

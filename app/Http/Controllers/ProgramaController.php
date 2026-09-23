@@ -6,6 +6,7 @@ use App\Abac\AccionesAbac;
 use App\Http\Requests\StoreProgramaRequest;
 use App\Http\Requests\UpdateProgramaRequest;
 use App\Models\Auditoria;
+use App\Models\InvitacionPrograma;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
@@ -106,18 +107,23 @@ class ProgramaController extends Controller
             : [];
 
         // Los moderadores y admins ven ahí mismo los informes del programa para revisarlos.
-        $puedeModerar = $request->user()->puedeModerarPrograma($programa);
+        // Misma regla que el panel de moderación: el admin no opera la cola de informes.
+        $puedeModerar = Gate::allows('abac', [AccionesAbac::ModeracionVer])
+            && $request->user()->puedeModerarPrograma($programa);
         $filtroInformes = ColaDeInformes::filtro($request->input('filtro'));
 
         // Investigadores invitados al programa privado (para la empresa que gestiona el programa)
         $hackersInvitados = $puedeInvitarHackers
-            ? $programa->hackersInvitados()->get(['users.id', 'users.name', 'users.email', 'users.reputation_score'])
-                ->map(fn ($u) => [
-                    'id' => $u->id,
-                    'name' => $u->name,
-                    'email' => $u->email,
-                    'reputation_score' => $u->reputation_score,
-                    'estado' => $u->pivot->estado,
+            ? InvitacionPrograma::query()
+                ->where('programa_id', $programa->id)
+                ->with('investigador:id,name,email,reputation_score')
+                ->get()
+                ->map(fn (InvitacionPrograma $invitacion) => [
+                    'id' => $invitacion->investigador->id,
+                    'name' => $invitacion->investigador->name,
+                    'email' => $invitacion->investigador->email,
+                    'reputation_score' => $invitacion->investigador->reputation_score,
+                    'estado' => $invitacion->estado,
                 ])->all()
             : [];
 

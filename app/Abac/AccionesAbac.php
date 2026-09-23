@@ -76,8 +76,6 @@ final class AccionesAbac
 
     public const UsuarioVer = 'usuarios.ver';
 
-    public const UsuarioActualizarRol = 'usuarios.actualizar_rol';
-
     public const SancionVer = 'sanciones.ver';
 
     public const SancionRevocar = 'sanciones.revocar';

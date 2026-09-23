@@ -79,17 +79,23 @@ class EmpresaController extends Controller
     public function reportes(Request $request): InertiaResponse
     {
         $esAdmin = $this->esAdministrador($request->user());
-        $empresa = $esAdmin
-            ? $this->empresaElegida($request, 'empresa')
-            : $request->user()
+        // El admin elige la empresa (sin pivot); el resto la toma de su membresía activa.
+        $rolInterno = null;
+
+        if ($esAdmin) {
+            $empresa = $this->empresaElegida($request, 'empresa');
+        } else {
+            $empresa = $request->user()
                 ->empresas()
                 ->where('empresa_usuario.estado', 'activo')
                 ->latest('empresas.created_at')
                 ->first();
+            $rolInterno = $empresa?->pivot->rol_interno;
+        }
 
         abort_if($empresa === null, $esAdmin ? 404 : 403, $esAdmin ? 'Elige una empresa.' : 'Tu usuario no pertenece a una empresa.');
         abort_unless($empresa->estado === EstadoEmpresa::Aprobada, 403, 'Tu empresa todavía no tiene acceso operativo.');
-        abort_if(! $esAdmin && data_get($empresa->pivot, 'rol_interno') !== MembresiaEmpresa::PROPIETARIO, 403, 'Solo el propietario de la empresa ve los informes que recibe.');
+        abort_if(! $esAdmin && $rolInterno !== MembresiaEmpresa::PROPIETARIO, 403, 'Solo el propietario de la empresa ve los informes que recibe.');
 
         $filtro = in_array($request->input('filtro'), ['todos', 'validados', 'en_reparacion', 'cerrados'], true)
             ? (string) $request->input('filtro')

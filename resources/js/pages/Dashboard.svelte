@@ -93,7 +93,6 @@
 
     const isAdmin = $derived(userRoles.includes('administrador'));
     const cuenta = $derived(page.props.cuenta as CuentaEstado | null | undefined);
-    const esPublicador = $derived(cuenta?.empresa?.rol_interno === 'publicador');
     const invitacionesPendientes = $derived(cuenta?.invitaciones_pendientes ?? 0);
 
     const greeting = $derived.by(() => {
@@ -155,21 +154,6 @@
             </CardHeader>
             <CardContent>
                 <Button href="/invitaciones">Ver invitaciones</Button>
-            </CardContent>
-        </Card></div>
-    {/if}
-
-    {#if esPublicador && cuenta?.empresa}
-        <div data-test="tarjeta-publicador"><Card class="border-sky-500/40">
-            <CardHeader>
-                <CardTitle>Publicas para {cuenta.empresa.nombre}</CardTitle>
-                <CardDescription>
-                    Puedes crear y gestionar los programas de la empresa. No ves sus informes y no puedes reportar a sus programas.
-                </CardDescription>
-            </CardHeader>
-            <CardContent class="flex flex-wrap gap-3">
-                <Button href="/gestion/programas/crear" data-test="publicar-programa">Publicar un programa</Button>
-                <Button variant="outline" href="/gestion/programas">Programas de mi empresa</Button>
             </CardContent>
         </Card></div>
     {/if}
@@ -333,10 +317,9 @@
     {#if roleStats.tipo === 'empresa'}
         <Card>
             <CardHeader><CardTitle>Resumen empresarial</CardTitle></CardHeader>
-            <CardContent class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <CardContent class="grid gap-4 sm:grid-cols-3">
                 <div><p class="text-2xl font-bold">{roleStats.programas_total}</p><p class="text-xs text-muted-foreground">Programas totales</p></div>
                 <div><p class="text-2xl font-bold">{roleStats.programas_activos}</p><p class="text-xs text-muted-foreground">Programas activos</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.miembros}</p><p class="text-xs text-muted-foreground">Miembros</p></div>
                 <div><p class="text-2xl font-bold">{roleStats.reportes_recibidos}</p><p class="text-xs text-muted-foreground">Reportes recibidos</p></div>
             </CardContent>
         </Card>

@@ -16,9 +16,9 @@ class ClavePgpSeeder extends Seeder
     {
         try {
             $clave = app(PgpService::class)->asegurarClave('instalacion');
-            $this->command?->info("Clave de cifrado lista (huella {$clave->huella}).");
+            $this->command->info("Clave de cifrado lista (huella {$clave->huella}).");
         } catch (Throwable $e) {
-            $this->command?->warn("No se pudo crear la clave de cifrado ahora: {$e->getMessage()} Se creará sola al recibir el primer informe.");
+            $this->command->warn("No se pudo crear la clave de cifrado ahora: {$e->getMessage()} Se creará sola al recibir el primer informe.");
         }
     }
 }

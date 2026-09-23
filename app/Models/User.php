@@ -3,7 +3,6 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Enums\EstadoSancion;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -29,6 +28,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
  * @property int $reputation_score
+ * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Rol> $roles
@@ -78,16 +78,21 @@ class User extends Authenticatable implements PasskeyUser
     /**
      * Empresas a las que pertenece el usuario.
      *
-     * @return BelongsToMany<Empresa, $this>
+     * @return BelongsToMany<Empresa, $this, MiembroEmpresa>
      */
     public function empresas(): BelongsToMany
     {
         return $this->belongsToMany(Empresa::class, 'empresa_usuario', 'usuario_id', 'empresa_id')
+            ->using(MiembroEmpresa::class)
             ->withPivot(['rol_interno', 'estado', 'invitado_en', 'aceptado_en'])
             ->withTimestamps();
     }
 
-    /** La empresa a la que pertenece ahora (una sola por usuario), con su rol interno en `pivot`. */
+    /**
+     * La empresa a la que pertenece ahora (una sola por usuario), con su rol interno en `pivot`.
+     *
+     * @return (Empresa&object{pivot: MiembroEmpresa})|null
+     */
     public function empresaActiva(): ?Empresa
     {
         return $this->empresas()->wherePivot('estado', 'activo')->first();
@@ -129,11 +134,12 @@ class User extends Authenticatable implements PasskeyUser
     /**
      * Programas privados a los que el investigador ha sido invitado.
      *
-     * @return BelongsToMany<Programa, $this>
+     * @return BelongsToMany<Programa, $this, InvitacionPrograma>
      */
     public function programasInvitados(): BelongsToMany
     {
         return $this->belongsToMany(Programa::class, 'programa_invitados', 'investigador_id', 'programa_id')
+            ->using(InvitacionPrograma::class)
             ->withPivot(['invitado_por', 'estado'])
             ->withTimestamps();
     }
@@ -216,9 +222,7 @@ class User extends Authenticatable implements PasskeyUser
     public function suspensionActiva(): ?Sancion
     {
         return $this->sanciones()
-            ->whereIn('estado', [EstadoSancion::Aplicada->value, EstadoSancion::Apelada->value])
-            ->where('suspension_desde', '<=', now())
-            ->where('suspension_hasta', '>', now())
+            ->suspensionEnCurso()
             ->latest('suspension_hasta')
             ->first();
     }

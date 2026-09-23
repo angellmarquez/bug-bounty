@@ -50,12 +50,12 @@ class Notificador
             $ref = "{$reporte->numero_reporte} · {$reporte->titulo}";
             $url = "/reportes/{$reporte->id}";
             $programa = $reporte->programa;
-            $propietarios = $this->propietarios($programa?->empresa);
+            $propietarios = $this->propietarios($programa->empresa);
 
             match ($evento->tipo) {
                 TipoEventoReporte::Enviado => $this->enviar(
                     $this->moderadoresDe($programa)->merge($propietarios),
-                    new AvisoPlataforma('informe', 'Nuevo informe recibido', "{$ref} en {$programa?->nombre}", $url),
+                    new AvisoPlataforma('informe', 'Nuevo informe recibido', "{$ref} en {$programa->nombre}", $url),
                     $actor,
                 ),
                 TipoEventoReporte::CambioDeEstado => $this->cambioDeEstado($evento, $reporte, $actor, $ref, $url, $propietarios),
@@ -65,7 +65,7 @@ class Notificador
                     $actor,
                 ),
                 TipoEventoReporte::Asignacion => $this->enviar(
-                    [User::query()->find($evento->datos['asignado_a'] ?? 0)],
+                    [User::query()->find((int) ($evento->datos['asignado_a'] ?? 0))],
                     new AvisoPlataforma('informe', 'Se te asignó un informe', $ref, $url),
                     $actor,
                 ),
@@ -108,7 +108,7 @@ class Notificador
         $participantes = collect([$reporte->investigador, $reporte->asignado_a ? User::query()->find($reporte->asignado_a) : null])
             ->merge($propietarios);
 
-        $quien = $actor?->name ?? 'Alguien';
+        $quien = $actor->name ?? 'Alguien';
 
         $this->enviar($participantes, new AvisoPlataforma('informe', 'Nuevo comentario en un informe', "{$quien} comentó en {$ref}", $url), $actor);
     }
@@ -189,7 +189,10 @@ class Notificador
         });
     }
 
-    /** @param  array{nombre: string, minimo: int}  $antes @param  array{nombre: string, minimo: int}  $despues */
+    /**
+     * @param  array{nombre: string, minimo: int}  $antes
+     * @param  array{nombre: string, minimo: int}  $despues
+     */
     public function rangoCambiado(int $usuarioId, array $antes, array $despues): void
     {
         if ($antes['minimo'] === $despues['minimo']) {

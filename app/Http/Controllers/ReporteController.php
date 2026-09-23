@@ -112,7 +112,17 @@ class ReporteController extends Controller
             'reportes' => $reportes,
             'filtros' => $request->only(['estado', 'severidad', 'programa_id', 'busqueda']),
             'programas' => $programas,
+            'puedeCrear' => $this->puedeReportar($user),
         ]);
+    }
+
+    /**
+     * Separación de funciones: solo un investigador activo envía informes (nunca el admin,
+     * un moderador ni una empresa). En qué programa puede hacerlo lo decide ABAC programa a programa.
+     */
+    private function puedeReportar(User $user): bool
+    {
+        return ($user->is_active ?? true) && $user->tieneRol('investigador');
     }
 
     public function show(Reporte $reporte): InertiaResponse
@@ -272,6 +282,7 @@ class ReporteController extends Controller
     public function create(Request $request): InertiaResponse
     {
         $user = $request->user();
+        abort_unless($this->puedeReportar($user), 403, 'Solo los investigadores envían informes.');
 
         $programas = Programa::where('estado', 'activo')
             ->where(function ($q) use ($user) {
@@ -286,7 +297,10 @@ class ReporteController extends Controller
             // Quien pertenece a una empresa no reporta a sus programas: conoce su interior.
             ->when($user->idEmpresaActiva(), fn ($query, $empresaId) => $query->where(fn ($programas) => $programas->whereNull('empresa_id')->orWhere('empresa_id', '!=', $empresaId)))
             ->orderBy('nombre')
-            ->get();
+            ->get()
+            // El formulario solo ofrece los programas donde ABAC dejará guardar el informe.
+            ->filter(fn (Programa $programa): bool => Gate::allows('abac', [AccionesAbac::ReporteCrear, $programa]))
+            ->values();
 
         $programaInicial = null;
         if ($request->filled('programa')) {

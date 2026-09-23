@@ -126,7 +126,7 @@ class ApelacionController extends Controller
             'nota_resolucion' => $apelacion->nota_resolucion,
             'created_at' => $apelacion->created_at?->toISOString(),
             'resuelta_en' => $apelacion->resuelta_en?->toISOString(),
-            'usuario' => $apelacion->usuario?->only(['id', 'name']),
+            'usuario' => $apelacion->usuario->only(['id', 'name']),
             'resuelta_por' => $apelacion->resueltaPor?->only(['id', 'name']),
             'sancion' => [
                 'id' => $sancion->id,

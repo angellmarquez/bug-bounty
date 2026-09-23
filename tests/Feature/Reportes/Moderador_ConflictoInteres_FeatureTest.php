@@ -35,14 +35,15 @@ test('ese mismo usuario tampoco reporta en los programas que no modera: un moder
     $this->assertDatabaseMissing('reportes', ['titulo' => 'Tampoco']);
 });
 
-test('el formulario de reporte no ofrece los programas que el usuario modera', function () {
+test('el formulario de reporte no ofrece ningun programa a un moderador, ni siquiera los que no modera', function () {
     $moderado = programaAbierto();
     $otro = programaAbierto();
     $this->actingAs(moderadorInvestigador($moderado));
 
+    // Ofrecer $otro llevaría a un 403 al guardar: un moderador nunca reporta (ver el test anterior).
     $ids = collect($this->get(route('reportes.create'))->inertiaProps()['programas'])->pluck('id')->all();
 
-    expect($ids)->toContain($otro->id)->not->toContain($moderado->id);
+    expect($ids)->not->toContain($otro->id)->not->toContain($moderado->id);
 });
 
 test('la página del programa avisa que lo modera y no ofrece reportar', function () {

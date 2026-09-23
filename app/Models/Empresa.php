@@ -54,11 +54,12 @@ class Empresa extends Model
     /**
      * Usuarios que pertenecen a la empresa.
      *
-     * @return BelongsToMany<User, $this>
+     * @return BelongsToMany<User, $this, MiembroEmpresa>
      */
     public function usuarios(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'empresa_usuario', 'empresa_id', 'usuario_id')
+            ->using(MiembroEmpresa::class)
             ->withPivot(['rol_interno', 'estado', 'invitado_en', 'aceptado_en'])
             ->withTimestamps();
     }

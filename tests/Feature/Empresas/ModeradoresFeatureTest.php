@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Auditoria;
-use App\Models\Programa;
 
 test('administrator can assign and revoke moderator role', function () {
     $admin = administrador();
@@ -41,21 +40,4 @@ test('moderator management lists only eligible investigators', function () {
                     && ! in_array('administrador', $usuario['roles'], true)
             ))
         );
-});
-
-test('changing role from moderator detaches assigned programs', function () {
-    $admin = administrador();
-    $mod = moderador();
-    $programa = Programa::factory()->create();
-    $mod->programasModerados()->attach($programa->id);
-    expect($mod->programasModerados()->count())->toBe(1);
-
-    $this->actingAs($admin);
-    rol('investigador');
-
-    $this->put(route('admin.usuarios.update', $mod), ['rol' => 'investigador'])
-        ->assertRedirect(route('admin.usuarios'));
-
-    expect($mod->fresh()->roles()->where('slug', 'investigador')->exists())->toBeTrue();
-    expect($mod->fresh()->programasModerados()->count())->toBe(0);
 });

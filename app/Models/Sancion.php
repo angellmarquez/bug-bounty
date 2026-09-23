@@ -125,4 +125,17 @@ class Sancion extends Model
     {
         return $query->whereIn('estado', [EstadoSancion::Aplicada, EstadoSancion::Apelada]);
     }
+
+    /**
+     * Sanciones vigentes cuya suspensión está en curso ahora mismo.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeSuspensionEnCurso(Builder $query): Builder
+    {
+        return $query->vigentes()
+            ->where('suspension_desde', '<=', now())
+            ->where('suspension_hasta', '>', now());
+    }
 }

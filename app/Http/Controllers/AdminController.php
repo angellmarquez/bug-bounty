@@ -283,74 +283,83 @@ class AdminController extends Controller
     // Usuarios
     // ------------------------------------------------------------------
 
+    /** Tipos de cuenta, del de mayor privilegio al de menor: una cuenta se muestra con el primero que tenga. */
+    private const TIPOS_DE_CUENTA = ['administrador', 'moderador', 'empresa', 'investigador'];
+
+    /**
+     * Panel de solo lectura: tipo de cuenta, empresa, rango y estado de cada usuario.
+     * Los roles no se cambian desde aquí (el de moderador tiene su propio panel).
+     */
     public function usuarios(Request $request): InertiaResponse
     {
         Gate::authorize('abac', [AccionesAbac::UsuarioVer]);
 
+        $filtros = $request->validate([
+            'tipo' => ['nullable', 'string', 'in:'.implode(',', self::TIPOS_DE_CUENTA)],
+            'estado' => ['nullable', 'string', 'in:activa,suspendida,desactivada'],
+            'busqueda' => ['nullable', 'string', 'max:100'],
+        ]);
+
         $query = User::query()->with('roles');
 
-        if ($request->filled('rol')) {
-            $query->whereHas('roles', fn ($q) => $q->where('slug', $request->input('rol')));
+        if (($filtros['tipo'] ?? null) !== null) {
+            $query->whereHas('roles', fn ($q) => $q->where('slug', $filtros['tipo']));
         }
 
-        if ($request->filled('busqueda')) {
-            $busqueda = $request->input('busqueda');
+        match ($filtros['estado'] ?? null) {
+            'desactivada' => $query->where('is_active', false),
+            'suspendida' => $query->where('is_active', true)->whereHas('sanciones', fn ($q) => $q->suspensionEnCurso()),
+            'activa' => $query->where('is_active', true)->whereDoesntHave('sanciones', fn ($q) => $q->suspensionEnCurso()),
+            default => null,
+        };
+
+        if (($filtros['busqueda'] ?? null) !== null) {
+            $busqueda = $filtros['busqueda'];
             $query->where(function ($q) use ($busqueda) {
                 $q->where('name', 'like', "%{$busqueda}%")
                     ->orWhere('email', 'like', "%{$busqueda}%");
             });
         }
 
-        $usuarios = $query->latest()->paginate(15)->withQueryString();
-
-        $roles = Rol::orderBy('nombre')->get(['id', 'nombre', 'slug']);
+        $usuarios = $query->latest()->paginate(15)->withQueryString()
+            ->through(fn (User $usuario): array => $this->fichaDeUsuario($usuario));
 
         return Inertia::render('admin/usuarios/Index', [
             'usuarios' => $usuarios,
-            'roles' => $roles,
-            'filtros' => $request->only(['rol', 'busqueda']),
+            'filtros' => [
+                'tipo' => $filtros['tipo'] ?? null,
+                'estado' => $filtros['estado'] ?? null,
+                'busqueda' => $filtros['busqueda'] ?? null,
+            ],
         ]);
     }
 
-    public function updateUsuario(Request $request, User $user): RedirectResponse
+    /**
+     * @return array<string, mixed>
+     */
+    private function fichaDeUsuario(User $usuario): array
     {
-        Gate::authorize('abac', [AccionesAbac::UsuarioActualizarRol]);
+        $roles = $usuario->roles->pluck('slug')->all();
+        $tipo = collect(self::TIPOS_DE_CUENTA)->first(fn (string $slug): bool => in_array($slug, $roles, true));
+        $empresa = $tipo === 'empresa' ? $usuario->empresaActiva() : null;
+        $suspension = $usuario->suspensionActiva();
 
-        $request->validate([
-            'rol' => ['required', 'string', 'exists:roles,slug'],
-        ]);
-
-        $rol = Rol::where('slug', $request->input('rol'))->first();
-        abort_if($rol === null, 422, 'Rol no encontrado.');
-
-        if ($rol->slug === 'moderador' && app(MembresiaEmpresa::class)->pertenece($user)) {
-            return redirect()->route('admin.usuarios')
-                ->with('error', "{$user->name} forma parte de una empresa: un moderador no puede pertenecer a una empresa (conflicto de interés).");
-        }
-
-        // Cambiar el rol reemplaza al anterior: sin estas guardas un administrador podía
-        // quitarse su propio rol de administrador (y dejar la plataforma sin ninguno).
-        if ($user->is($request->user()) && $rol->slug !== 'administrador') {
-            return redirect()->route('admin.usuarios')->with('error', 'No puedes cambiar tu propio rol: pídele a otro administrador que lo haga.');
-        }
-
-        $esAdministrador = $user->roles()->where('slug', 'administrador')->exists();
-        $quedanAdministradores = User::query()->whereHas('roles', fn ($query) => $query->where('slug', 'administrador'))->whereKeyNot($user->id)->exists();
-
-        if ($esAdministrador && $rol->slug !== 'administrador' && ! $quedanAdministradores) {
-            return redirect()->route('admin.usuarios')->with('error', 'Debe existir al menos un administrador en la plataforma.');
-        }
-
-        if ($user->roles()->where('slug', 'moderador')->exists() && $rol->slug !== 'moderador') {
-            $user->programasModerados()->detach();
-        }
-
-        $user->roles()->sync([$rol->id]);
-
-        Auditoria::registrar('admin.usuario.rol_cambiado', $user, ['rol_nuevo' => $rol->slug], $request->user()->id);
-
-        return redirect()->route('admin.usuarios')
-            ->with('success', "Rol de {$user->name} actualizado a {$rol->nombre}.");
+        return [
+            'id' => $usuario->id,
+            'name' => $usuario->name,
+            'email' => $usuario->email,
+            'created_at' => $usuario->created_at?->toISOString(),
+            'tipo' => $tipo,
+            'empresa' => $empresa->nombre_comercial ?? $empresa?->razon_social,
+            // El rango solo tiene sentido para quien reporta.
+            'reputation_score' => $tipo === 'investigador' ? (int) $usuario->reputation_score : null,
+            'estado' => match (true) {
+                ! $usuario->is_active => 'desactivada',
+                $suspension !== null => 'suspendida',
+                default => 'activa',
+            },
+            'suspendido_hasta' => $suspension?->suspension_hasta?->toISOString(),
+        ];
     }
 
     // ------------------------------------------------------------------

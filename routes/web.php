@@ -88,7 +88,6 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('admin/programas/{programa}/moderadores/{user}', [AdminController::class, 'asignarModeradorPrograma'])->name('admin.programas.moderadores.asignar');
     Route::delete('admin/programas/{programa}/moderadores/{user}', [AdminController::class, 'revocarModeradorPrograma'])->name('admin.programas.moderadores.revocar');
     Route::get('admin/usuarios', [AdminController::class, 'usuarios'])->name('admin.usuarios');
-    Route::put('admin/usuarios/{user}', [AdminController::class, 'updateUsuario'])->name('admin.usuarios.update');
     Route::get('admin/sanciones', [AdminController::class, 'sanciones'])->name('admin.sanciones');
     Route::post('admin/sanciones/{sancion}/revocar', [AdminController::class, 'revocarSancion'])->name('admin.sanciones.revocar');
     // Las apelaciones las resuelven los moderadores y el administrador (nunca quien aplicó la sanción).

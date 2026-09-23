@@ -92,7 +92,11 @@ class LimiteDeEnvios
             : null;
     }
 
-    /** Informes enviados por el investigador desde `$desde`, del más antiguo al más reciente. */
+    /**
+     * Informes enviados por el investigador desde `$desde`, del más antiguo al más reciente.
+     *
+     * @return Collection<int, Reporte>
+     */
     private function enviadosDesde(User $investigador, DateTimeInterface $desde, ?int $exceptoReporteId): Collection
     {
         return Reporte::query()

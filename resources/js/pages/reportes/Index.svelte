@@ -65,6 +65,7 @@
         reportes: reportesData,
         filtros,
         programas,
+        puedeCrear = false,
     }: {
         reportes: {
             data: Reporte[];
@@ -81,6 +82,7 @@
             busqueda?: string;
         };
         programas: { id: number; nombre: string }[];
+        puedeCrear?: boolean;
     } = $props();
 
     let busqueda = $state(filtros.busqueda ?? '');
@@ -139,14 +141,16 @@
         title="Reportes"
         description="{totalReportes} reporte{totalReportes !== 1 ? 's' : ''} en total"
     >
-        <Button asChild>
-            {#snippet children(props)}
-                <Link href={reportesCreate()} {...props}>
-                    <Plus class="mr-2 h-4 w-4" />
-                    Crear Reporte
-                </Link>
-            {/snippet}
-        </Button>
+        {#if puedeCrear}
+            <Button asChild>
+                {#snippet children(props)}
+                    <Link href={reportesCreate()} {...props}>
+                        <Plus class="mr-2 h-4 w-4" />
+                        Crear Reporte
+                    </Link>
+                {/snippet}
+            </Button>
+        {/if}
     </PageHeader>
 
     <Card>

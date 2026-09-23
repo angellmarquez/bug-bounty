@@ -359,8 +359,8 @@
                     <CardHeader>
                         <CardTitle>Moderas este programa</CardTitle>
                         <CardDescription>
-                            Como moderador ves los informes de los demás investigadores, así que no puedes enviar los tuyos a este
-                            programa: sería un conflicto de interés. En los demás programas puedes reportar con normalidad.
+                            Revisas los informes que llegan a este programa. Los moderadores no envían informes: sería un
+                            conflicto de interés.
                         </CardDescription>
                     </CardHeader>
                 </Card>
@@ -369,8 +369,8 @@
                     <CardHeader>
                         <CardTitle>Este programa es de tu empresa</CardTitle>
                         <CardDescription>
-                            Como miembro no puedes enviarle informes: sería un conflicto de interés. Sigues viendo el estado de los que ya
-                            presentaste antes de unirte y puedes reportar a los programas de otras empresas.
+                            Lo gestionas desde el panel de tu empresa. Las empresas no envían informes: los reciben de los
+                            investigadores.
                         </CardDescription>
                     </CardHeader>
                 </Card></div>

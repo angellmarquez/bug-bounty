@@ -217,7 +217,8 @@ export type Notificacion = {
         | 'moderacion'
         | 'reputacion'
         | 'invitacion'
-        | string;
+        // Admite tipos nuevos sin perder el autocompletado de los conocidos.
+        | (string & {});
     titulo: string;
     mensaje: string;
     url: string | null;
@@ -233,7 +234,7 @@ export type ResumenNotificaciones = {
 /** Un paso del registro de control de una apelación (con su huella SHA-256 encadenada). */
 export type PasoApelacion = {
     id: number;
-    tipo: 'presentada' | 'aprobada' | 'rechazada' | string;
+    tipo: 'presentada' | 'aprobada' | 'rechazada' | (string & {});
     actor?: { id: number; name: string | null } | null;
     actor_rol: string | null;
     ip?: string | null;
@@ -328,7 +329,6 @@ export type DashboardRoleStats =
           estado: string | undefined;
           programas_total: number;
           programas_activos: number;
-          miembros: number;
           reportes_recibidos: number;
       }
     | {

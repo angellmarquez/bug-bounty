@@ -120,11 +120,12 @@ class Programa extends Model
     /**
      * Investigadores invitados a este programa privado.
      *
-     * @return BelongsToMany<User, $this>
+     * @return BelongsToMany<User, $this, InvitacionPrograma>
      */
     public function hackersInvitados(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'programa_invitados', 'programa_id', 'investigador_id')
+            ->using(InvitacionPrograma::class)
             ->withPivot(['invitado_por', 'estado'])
             ->withTimestamps();
     }

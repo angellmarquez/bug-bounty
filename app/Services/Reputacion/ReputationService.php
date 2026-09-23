@@ -465,6 +465,9 @@ class ReputationService
         return app(TrazaApelaciones::class);
     }
 
+    /**
+     * @param  array<string, mixed>  $detalle
+     */
     private function auditar(int|string|null $usuarioId, string $accion, ?Model $entidad = null, array $detalle = []): void
     {
         Auditoria::query()->create([
