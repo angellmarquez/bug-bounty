@@ -280,7 +280,7 @@ return [
             'id' => 'denegar-crear-programas-al-investigador',
             'prioridad' => 5,
             'acciones' => ['programas.crear'],
-            'sujeto' => ['roles' => ['=' => ['investigador']]],
+            'sujeto' => ['roles' => ['contains' => 'investigador']],
             'objeto' => [],
             'entorno' => [],
             'decision' => 'denegar',
@@ -470,7 +470,7 @@ return [
             'decision' => 'permitir',
         ],
 
-        // Denegar explícitamente el triaje a investigadores puros
+        // Denegar explícitamente el triaje a investigadores
         [
             'id' => 'denegar-triaje-a-investigador',
             'prioridad' => 5,
@@ -482,7 +482,7 @@ return [
                 'reportes.marcar_en_reparacion',
                 'reportes.cerrar',
             ],
-            'sujeto' => ['roles' => ['=' => ['investigador']]],
+            'sujeto' => ['roles' => ['contains' => 'investigador']],
             'objeto' => [],
             'entorno' => [],
             'decision' => 'denegar',

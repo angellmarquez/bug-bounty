@@ -207,7 +207,7 @@ class AdminController extends Controller
                 'descripcion' => 'Revisa reportes y modera operaciones asignadas.',
             ],
         );
-        $user->roles()->syncWithoutDetaching([$rol->id]);
+        $user->roles()->sync([$rol->id]);
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.asignado');
         app(Notificador::class)->moderadorRol($user, true);
@@ -223,9 +223,18 @@ class AdminController extends Controller
         if ($rol === null) {
             return redirect()->route('admin.moderadores');
         }
-        $user->roles()->detach($rol->id);
         // Sin el rol no tiene sentido conservar los programas asignados.
         $user->programasModerados()->detach();
+
+        // Al revocar el cargo de moderador, el usuario regresa a su rol base de investigador
+        $rolInvestigador = Rol::firstOrCreate(
+            ['slug' => 'investigador'],
+            [
+                'nombre' => 'Investigador',
+                'descripcion' => 'Reporta vulnerabilidades y participa en programas.',
+            ],
+        );
+        $user->roles()->sync([$rolInvestigador->id]);
 
         $this->registrarDecisionModerador($request, $user, 'admin.moderador.revocado');
         app(Notificador::class)->moderadorRol($user, false);
@@ -330,6 +339,10 @@ class AdminController extends Controller
 
         if ($esAdministrador && $rol->slug !== 'administrador' && ! $quedanAdministradores) {
             return redirect()->route('admin.usuarios')->with('error', 'Debe existir al menos un administrador en la plataforma.');
+        }
+
+        if ($user->roles()->where('slug', 'moderador')->exists() && $rol->slug !== 'moderador') {
+            $user->programasModerados()->detach();
         }
 
         $user->roles()->sync([$rol->id]);
