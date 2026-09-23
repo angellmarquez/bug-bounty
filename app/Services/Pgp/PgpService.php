@@ -39,7 +39,8 @@ class PgpService
      */
     private function esMensajeCifrado(string $valor): bool
     {
-        return str_contains($valor, 'BEGIN') && str_contains($valor, 'PGP');
+        return str_contains($valor, '-----BEGIN PGP MESSAGE-----')
+            || str_contains($valor, '-----BEGIN FAKE PGP MESSAGE-----');
     }
 
     public function driverName(): string
@@ -523,14 +524,22 @@ class PgpService
      *
      * @return array{valor: string, descripcion: string|null}
      */
-    public function descifrarObjetivo(string $valor, ?string $descripcion = null): array
+    public function descifrarObjetivo(string $valor, ?string $descripcion = null, ?Model $entidad = null): array
     {
-        return [
+        $huboCifrado = $this->esMensajeCifrado($valor) || ($descripcion !== null && $this->esMensajeCifrado($descripcion));
+
+        $resultado = [
             'valor' => $this->esMensajeCifrado($valor) ? $this->decrypt($valor) : $valor,
             'descripcion' => ($descripcion !== null && $this->esMensajeCifrado($descripcion))
                 ? $this->decrypt($descripcion)
                 : $descripcion,
         ];
+
+        if ($huboCifrado && $entidad !== null) {
+            $this->auditarDescifrado($entidad);
+        }
+
+        return $resultado;
     }
 
     /**

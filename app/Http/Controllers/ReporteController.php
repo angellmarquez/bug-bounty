@@ -240,7 +240,7 @@ class ReporteController extends Controller
                     ...($puedeModerar ? [
                         'bugs_buscados' => app(PgpService::class)->descifrarPrograma($reporte->programa->descripcion, $reporte->programa->bugs_buscados, $reporte->programa)['bugs_buscados'],
                         'objetivos' => $reporte->programa->objetivos()->get(['id', 'tipo', 'valor', 'descripcion'])
-                            ->map(fn ($o) => [...$o->toArray(), ...app(PgpService::class)->descifrarObjetivo($o->valor, $o->descripcion)])
+                            ->map(fn ($o) => [...$o->toArray(), ...app(PgpService::class)->descifrarObjetivo($o->valor, $o->descripcion, $o)])
                             ->all(),
                     ] : []),
                 ],

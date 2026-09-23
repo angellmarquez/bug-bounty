@@ -80,6 +80,8 @@ class GpgBinaryDriver implements PgpDriver
             '--quick-add-key', $generated->fingerprint, $this->encryptionAlgorithm($algorithm), 'encr', $expiresIn,
         ], '', $this->homedir);
 
+        $this->rememberKeyInRing($this->homedir, $generated->fingerprint);
+
         return $generated;
     }
 
@@ -98,6 +100,8 @@ class GpgBinaryDriver implements PgpDriver
         if ($info === null) {
             throw new PgpException('No se pudo importar la clave pública PGP.');
         }
+
+        $this->rememberKeyInRing($this->contactsHome(), $info->fingerprint);
 
         return $info;
     }
@@ -120,6 +124,8 @@ class GpgBinaryDriver implements PgpDriver
         if ($info === null) {
             throw new PgpException('No se pudo importar la clave privada PGP.');
         }
+
+        $this->rememberKeyInRing($this->homedir, $info->fingerprint);
 
         // A diferencia de una clave generada en el propio keyring (confianza
         // "ultimate" automática), una recién importada queda con confianza
@@ -259,6 +265,7 @@ class GpgBinaryDriver implements PgpDriver
         // sirve como destinatario: se re-exporta su pública a contactsHome().
         if ($this->ringHasKey($this->homedir, $recipientId)) {
             $this->run(['--import'], $this->exportPublicKey($recipientId), $this->contactsHome());
+            $this->rememberKeyInRing($this->contactsHome(), $recipientId);
 
             return $recipientId;
         }
@@ -438,6 +445,14 @@ class GpgBinaryDriver implements PgpDriver
         return $process;
     }
 
+    private bool $availableConfirmed = false;
+
+    /** @var array<string, bool> */
+    private array $ensuredHomedirs = [];
+
+    /** @var array<string, array<string, true>> */
+    private array $ringKeysCache = [];
+
     /**
      * Argumentos base (homedir + modo no interactivo).
      *
@@ -471,6 +486,10 @@ class GpgBinaryDriver implements PgpDriver
 
     private function ensureHomedir(string $dir): void
     {
+        if (isset($this->ensuredHomedirs[$dir])) {
+            return;
+        }
+
         if (! preg_match('#^(?:[A-Za-z]:)?[\\\\/]#', $dir) && function_exists('base_path')) {
             $dir = base_path($dir);
         }
@@ -480,6 +499,7 @@ class GpgBinaryDriver implements PgpDriver
         }
 
         $this->ensureAgentConf($dir);
+        $this->ensuredHomedirs[$dir] = true;
     }
 
     /**
@@ -495,7 +515,7 @@ class GpgBinaryDriver implements PgpDriver
 
         $requeridas = ['disable-scdaemon', 'allow-loopback-pinentry'];
         $actuales = is_file($conf) ? (array) file($conf, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) : [];
-        $faltantes = array_diff($requeridas, array_map('trim', $actuales));
+        $faltantes = array_diff($requeridas, array_map(fn (string|false $line): string => trim((string) $line), $actuales));
 
         if ($faltantes === []) {
             return;
@@ -506,6 +526,12 @@ class GpgBinaryDriver implements PgpDriver
 
     private function ringHasKey(string $dir, string $fingerprint): bool
     {
+        // Solo se cachean los positivos: una clave ausente puede importarse después
+        // (p. ej. fingerprint()) y un negativo cacheado la volvería invisible.
+        if (isset($this->ringKeysCache[$dir][$fingerprint])) {
+            return true;
+        }
+
         $this->ensureHomedir($dir);
 
         $process = $this->gpgProcess([...$this->baseArgs($dir), '--list-keys', $fingerprint]);
@@ -514,10 +540,21 @@ class GpgBinaryDriver implements PgpDriver
         try {
             $process->run();
 
-            return $process->getExitCode() === 0;
+            if ($process->getExitCode() !== 0) {
+                return false;
+            }
+
+            $this->rememberKeyInRing($dir, $fingerprint);
+
+            return true;
         } catch (Throwable) {
             return false;
         }
+    }
+
+    private function rememberKeyInRing(string $dir, string $fingerprint): void
+    {
+        $this->ringKeysCache[$dir][$fingerprint] = true;
     }
 
     /**
@@ -644,8 +681,16 @@ class GpgBinaryDriver implements PgpDriver
 
     private function assertAvailable(): void
     {
+        // Solo se cachea el éxito: lanzar "gpg --version" en cada operación duplicaba
+        // los procesos por cifrado/descifrado (caro en Windows).
+        if ($this->availableConfirmed) {
+            return;
+        }
+
         if (! $this->available()) {
             throw new PgpDriverUnavailableException(sprintf('El binario de GnuPG [%s] no está disponible.', $this->binary));
         }
+
+        $this->availableConfirmed = true;
     }
 }

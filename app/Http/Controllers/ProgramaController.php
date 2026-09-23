@@ -145,7 +145,7 @@ class ProgramaController extends Controller
                 // El autor solo es relevante para quien gestiona el programa.
                 'creador' => $puedeGestionar ? $programa->creador?->only(['id', 'name']) : null,
                 'objetivos' => $programa->objetivos->map(function (ObjetivoPrograma $o) use ($pgp): array {
-                    $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion);
+                    $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion, $o);
 
                     return [...$o->toArray(), ...$objetivoDescifrado];
                 }),
@@ -184,7 +184,7 @@ class ProgramaController extends Controller
                 'descripcion' => $descifrado['descripcion'],
                 'bugs_buscados' => $descifrado['bugs_buscados'],
                 'objetivos' => $programa->objetivos->map(function (ObjetivoPrograma $o) use ($pgp): array {
-                    $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion);
+                    $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion, $o);
 
                     return [...$o->toArray(), ...$objetivoDescifrado];
                 }),
