@@ -13,7 +13,7 @@ test('company owner can remove an active member and it is audited', function () 
         ->assertRedirect(route('empresa.dashboard'));
 
     expect($empresa->fresh()->usuarios()->whereKey($member->id)->exists())->toBeFalse()
-        ->and(Auditoria::where('entidad_type', 'empresa')->where('accion', 'empresa.miembro.eliminado')->count())->toBe(1);
+        ->and(Auditoria::where('entidad_type', 'Empresa')->where('accion', 'empresa.miembro.eliminado')->count())->toBe(1);
 });
 
 test('nobody can be added to a company without accepting an invitation', function () {

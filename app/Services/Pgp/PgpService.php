@@ -142,14 +142,13 @@ class PgpService
         ]);
 
         try {
-            Auditoria::query()->create([
-                'usuario_id' => null,
-                'accion' => 'pgp.clave_generada',
-                'entidad_type' => 'clave_pgp_plataforma',
-                'entidad_id' => $clave->id,
-                'detalle' => ['huella' => $clave->huella, 'identidad' => $clave->identidad, 'origen' => $origen],
-                'ip' => request()->ip(),
-            ]);
+            // Se genera sola (al instalar o al recibir el primer informe): nunca es
+            // "de" quien la disparó, por eso usuario_id va explícito en null.
+            Auditoria::registrar('pgp.clave_generada', $clave, [
+                'huella' => $clave->huella,
+                'identidad' => $clave->identidad,
+                'origen' => $origen,
+            ], usuarioId: null);
         } catch (Throwable $e) {
             report($e);
         }

@@ -2,6 +2,7 @@
     import { page } from '@inertiajs/svelte';
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import { cn } from '@/lib/utils';
+    import { ORDEN_ROLES, ROLES } from '@/lib/roles';
 
     let {
         descripciones = false,
@@ -12,34 +13,8 @@
         class?: string;
     } = $props();
 
-    const ROLES: Record<string, { etiqueta: string; descripcion: string; clase: string }> = {
-        administrador: {
-            etiqueta: 'Administrador',
-            descripcion: 'Gestionas la plataforma: empresas, moderadores, usuarios y configuración.',
-            clase: 'border-chart-3/40 bg-chart-3/10 text-chart-3',
-        },
-        moderador: {
-            etiqueta: 'Moderador',
-            descripcion:
-                'Revisas los informes enviados a los programas: validas, rechazas (y penalizas reportes falsos) o marcas duplicados desde Moderación.',
-            clase: 'border-chart-2/40 bg-chart-2/10 text-chart-2',
-        },
-        empresa: {
-            etiqueta: 'Empresa',
-            descripcion: 'Publicas y gestionas los programas de tu empresa y lees los informes que recibe.',
-            clase: 'border-chart-5/40 bg-chart-5/10 text-chart-5',
-        },
-        investigador: {
-            etiqueta: 'Investigador',
-            descripcion: 'Buscas vulnerabilidades en los programas publicados y envías informes.',
-            clase: 'border-chart-1/40 bg-chart-1/10 text-chart-1',
-        },
-    };
-
-    const ORDEN = ['administrador', 'moderador', 'empresa', 'investigador'];
-
     const roles = $derived(
-        ORDEN.filter((rol) => ((page.props.userRoles as string[] | undefined) ?? []).includes(rol)),
+        ORDEN_ROLES.filter((rol) => ((page.props.userRoles as string[] | undefined) ?? []).includes(rol)),
     );
 </script>
 

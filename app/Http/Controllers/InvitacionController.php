@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Auditoria;
 use App\Models\EmpresaInvitacion;
 use App\Services\Empresas\MembresiaEmpresa;
 use Illuminate\Http\RedirectResponse;
@@ -57,6 +58,7 @@ class InvitacionController extends Controller
         }
 
         $nombre = $invitacion->empresa->nombre_comercial ?? $invitacion->empresa->razon_social;
+        Auditoria::registrar('empresa.invitacion.aceptada', $invitacion->empresa, ['usuario_id' => $request->user()->id]);
 
         return redirect()->route('programas.gestion')
             ->with('success', "Ahora formas parte de {$nombre}: puedes publicar y gestionar sus programas.");
@@ -71,6 +73,8 @@ class InvitacionController extends Controller
         } catch (InvalidArgumentException $e) {
             return redirect()->route('invitaciones.index')->with('error', $e->getMessage());
         }
+
+        Auditoria::registrar('empresa.invitacion.rechazada', $invitacion->empresa, ['usuario_id' => $request->user()->id]);
 
         return redirect()->route('invitaciones.index')->with('success', 'Rechazaste la invitación.');
     }

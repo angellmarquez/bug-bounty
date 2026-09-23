@@ -47,8 +47,8 @@
                         {entry.entidad_type} #{entry.entidad_id}
                     </p>
                     <p class="text-xs text-muted-foreground">{formatDate(entry.created_at)}</p>
-                    {#if entry.metadata && Object.keys(entry.metadata).length > 0}
-                        <pre class="mt-2 overflow-x-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">{JSON.stringify(entry.metadata, null, 2)}</pre>
+                    {#if entry.detalle && Object.keys(entry.detalle).length > 0}
+                        <pre class="mt-2 overflow-x-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">{JSON.stringify(entry.detalle, null, 2)}</pre>
                     {/if}
                 </div>
             </div>

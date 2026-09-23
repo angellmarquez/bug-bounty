@@ -7,6 +7,7 @@ use App\Enums\EstadoEmpresa;
 use App\Mail\EmpresaEstadoMail;
 use App\Models\Auditoria;
 use App\Models\ClavePgpPlataforma;
+use App\Models\ConfiguracionReputacion;
 use App\Models\Empresa;
 use App\Models\Programa;
 use App\Models\Rol;
@@ -147,16 +148,10 @@ class AdminController extends Controller
 
     private function registrarDecisionEmpresa(Request $request, Empresa $empresa, string $accion): void
     {
-        Auditoria::query()->create([
-            'usuario_id' => $request->user()->id,
-            'accion' => $accion,
-            'entidad_type' => 'empresa',
-            'entidad_id' => $empresa->id,
-            'detalle' => [
-                'estado' => $empresa->estado->value,
-                'motivo' => $empresa->motivo_estado,
-            ],
-        ]);
+        Auditoria::registrar($accion, $empresa, [
+            'estado' => $empresa->estado->value,
+            'motivo' => $empresa->motivo_estado,
+        ], $request->user()->id);
     }
 
     // ------------------------------------------------------------------
@@ -272,13 +267,7 @@ class AdminController extends Controller
 
     private function registrarDecisionModerador(Request $request, User $user, string $accion): void
     {
-        Auditoria::query()->create([
-            'usuario_id' => $request->user()->id,
-            'accion' => $accion,
-            'entidad_type' => 'user',
-            'entidad_id' => $user->id,
-            'detalle' => ['usuario' => $user->email],
-        ]);
+        Auditoria::registrar($accion, $user, ['usuario' => $user->email], $request->user()->id);
     }
 
     // ------------------------------------------------------------------
@@ -345,13 +334,7 @@ class AdminController extends Controller
 
         $user->roles()->sync([$rol->id]);
 
-        Auditoria::query()->create([
-            'usuario_id' => $request->user()->id,
-            'accion' => 'admin.usuario.rol_cambiado',
-            'entidad_type' => 'user',
-            'entidad_id' => $user->id,
-            'detalle' => ['rol_nuevo' => $rol->slug],
-        ]);
+        Auditoria::registrar('admin.usuario.rol_cambiado', $user, ['rol_nuevo' => $rol->slug], $request->user()->id);
 
         return redirect()->route('admin.usuarios')
             ->with('success', "Rol de {$user->name} actualizado a {$rol->nombre}.");
@@ -417,7 +400,7 @@ class AdminController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::AuditoriaVer]);
 
-        $query = Auditoria::query()->with('usuario');
+        $query = Auditoria::query()->with('usuario.roles');
 
         if ($request->filled('accion')) {
             $query->where('accion', 'like', "%{$request->input('accion')}%");
@@ -431,7 +414,32 @@ class AdminController extends Controller
             $query->where('entidad_type', $request->input('entidad'));
         }
 
+        // "Sistema" son las entradas sin actor (ej. la clave PGP que se genera sola).
+        if ($request->filled('rol')) {
+            if ($request->input('rol') === 'sistema') {
+                $query->whereNull('usuario_id');
+            } else {
+                $query->whereHas('usuario.roles', fn ($q) => $q->where('slug', $request->input('rol')));
+            }
+        }
+
         $auditoria = $query->latest('created_at')->paginate(20)->withQueryString();
+
+        // Solo lo que necesita la vista: el rol se aplana a slugs, como en el resto de la app.
+        $auditoria->through(fn (Auditoria $entrada) => [
+            'id' => $entrada->id,
+            'accion' => $entrada->accion,
+            'entidad_type' => $entrada->entidad_type,
+            'entidad_id' => $entrada->entidad_id,
+            'detalle' => $entrada->detalle,
+            'ip' => $entrada->ip,
+            'created_at' => $entrada->created_at,
+            'usuario' => $entrada->usuario === null ? null : [
+                'id' => $entrada->usuario->id,
+                'name' => $entrada->usuario->name,
+                'roles' => $entrada->usuario->roles->pluck('slug')->all(),
+            ],
+        ]);
 
         $usuarios = User::select('id', 'name', 'email')
             ->whereHas('auditorias')
@@ -441,7 +449,7 @@ class AdminController extends Controller
         return Inertia::render('admin/auditoria/Index', [
             'auditoria' => $auditoria,
             'usuarios' => $usuarios,
-            'filtros' => $request->only(['accion', 'usuario_id', 'entidad']),
+            'filtros' => $request->only(['accion', 'usuario_id', 'entidad', 'rol']),
         ]);
     }
 
@@ -468,19 +476,31 @@ class AdminController extends Controller
             'puntos.reporte_resuelto' => ['required', 'integer', 'min:0'],
             'puntos.calidad_documentacion' => ['required', 'integer', 'min:0'],
             'puntos.participacion' => ['required', 'integer', 'min:0'],
-            'penalizacion.leve' => ['required', 'integer'],
-            'penalizacion.media' => ['required', 'integer'],
-            'penalizacion.grave' => ['required', 'integer'],
+            // Una "penalización" positiva sería en realidad un premio: se exige <= 0.
+            'penalizacion.leve' => ['required', 'integer', 'max:0'],
+            'penalizacion.media' => ['required', 'integer', 'max:0'],
+            'penalizacion.grave' => ['required', 'integer', 'max:0'],
             'suspension.leve.dias' => ['required', 'integer', 'min:0'],
             'suspension.media.dias' => ['required', 'integer', 'min:0'],
             'suspension.grave.dias' => ['required', 'integer', 'min:0'],
             'plazo_apelacion_dias' => ['required', 'integer', 'min:1'],
         ]);
 
+        $configAnterior = config('reputacion');
+
+        // Esto es lo que hace que el formulario sea funcional: antes solo se auditaba
+        // el cambio pero config('reputacion.*') nunca se tocaba (ver ReputacionServiceProvider,
+        // que carga esta fila encima de los defaults en cada arranque de la app).
+        ConfiguracionReputacion::query()->updateOrCreate(
+            ['id' => 1],
+            ConfiguracionReputacion::desdeArrayValidado($validated),
+        );
+        config(['reputacion' => array_replace_recursive((array) $configAnterior, $validated)]);
+
         Auditoria::query()->create([
             'usuario_id' => $request->user()->id,
             'accion' => 'admin.config.reputacion_actualizada',
-            'detalle' => ['config_anterior' => config('reputacion'), 'config_nueva' => $validated],
+            'detalle' => ['config_anterior' => $configAnterior, 'config_nueva' => $validated],
         ]);
 
         return redirect()->route('admin.config.reputacion')
@@ -499,9 +519,10 @@ class AdminController extends Controller
         $pgpService = app(PgpService::class);
 
         return Inertia::render('admin/pgp/Index', [
-            'clave' => $claveActiva?->only([
-                'id', 'huella', 'identidad', 'algoritmo', 'bits', 'creada_en', 'expira_en', 'activa',
-            ]),
+            // Solo lo necesario para saber si el cifrado funciona: nunca la huella,
+            // identidad ni otros metadatos de la clave (ver AGENTS.md: la clave privada
+            // nunca se expone, y esta página tampoco necesita mostrar de más).
+            'clave' => $claveActiva === null ? null : ['id' => $claveActiva->id, 'expira_en' => $claveActiva->expira_en],
             'driver' => $pgpService->driverName(),
             'available' => $pgpService->available(),
         ]);

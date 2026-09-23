@@ -77,4 +77,29 @@ class Auditoria extends Model
     {
         return $this->morphTo();
     }
+
+    /**
+     * Punto único para dejar constancia de una acción: usuario, ip y user agent
+     * salen de la request actual salvo que se pasen explícitos (para trabajos en
+     * cola o comandos, donde no hay request). `$entidad->getMorphClass()` usa el
+     * alias corto registrado en `AppServiceProvider` (ver `Relation::morphMap`).
+     *
+     * @param  array<int|string, mixed>  $detalle
+     */
+    public static function registrar(
+        string $accion,
+        ?Model $entidad = null,
+        array $detalle = [],
+        int|string|null $usuarioId = null,
+    ): self {
+        return static::query()->create([
+            'usuario_id' => $usuarioId ?? auth()->id(),
+            'accion' => $accion,
+            'entidad_type' => $entidad?->getMorphClass(),
+            'entidad_id' => $entidad?->getKey(),
+            'detalle' => $detalle === [] ? null : $detalle,
+            'ip' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+    }
 }

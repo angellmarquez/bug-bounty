@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Auditoria;
 use App\Models\Empresa;
 use App\Models\Rol;
 use App\Models\User;
@@ -84,7 +85,9 @@ class EmpresaAuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        app(Notificador::class)->empresaPendiente($user->empresas()->firstOrFail());
+        $empresa = $user->empresas()->firstOrFail();
+        Auditoria::registrar('empresa.registrada', $empresa, ['razon_social' => $empresa->razon_social]);
+        app(Notificador::class)->empresaPendiente($empresa);
 
         return redirect()->route('empresa.dashboard')
             ->with('success', 'Solicitud registrada. Tu empresa queda pendiente de aprobación.');

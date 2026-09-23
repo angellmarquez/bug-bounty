@@ -16,7 +16,7 @@ test('administrator can approve a pending company', function () {
     $response->assertRedirect(route('admin.empresas'));
     expect($empresa->fresh()->estado)->toBe(EstadoEmpresa::Aprobada)
         ->and($empresa->fresh()->aprobado_por)->toBe($admin->id);
-    expect(Auditoria::where('entidad_type', 'empresa')->where('entidad_id', $empresa->id)->where('accion', 'admin.empresa.aprobada')->exists())->toBeTrue();
+    expect(Auditoria::where('entidad_type', 'Empresa')->where('entidad_id', $empresa->id)->where('accion', 'admin.empresa.aprobada')->exists())->toBeTrue();
 });
 
 test('non administrator cannot approve a company', function () {

@@ -9,9 +9,11 @@ use App\Http\Requests\StoreReporteRequest;
 use App\Http\Requests\TransitionReporteRequest;
 use App\Http\Requests\UpdateReporteRequest;
 use App\Mail\SancionAplicadaMail;
+use App\Models\Auditoria;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
+use App\Rules\PocCumpleSchema;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reportes\LimiteDeEnvios;
@@ -24,6 +26,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -332,6 +335,8 @@ class ReporteController extends Controller
                 'nota' => 'Reporte creado como borrador.',
             ]);
 
+            Auditoria::registrar('reportes.creado', $reporte, ['programa_id' => $reporte->programa_id], $user->id);
+
             return $reporte;
         });
 
@@ -407,6 +412,8 @@ class ReporteController extends Controller
             'clave_huella' => $cifrado['clave_huella'],
         ]);
 
+        Auditoria::registrar('reportes.editado', $reporte, [], $request->user()->id);
+
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte actualizado exitosamente.');
     }
@@ -419,6 +426,29 @@ class ReporteController extends Controller
 
         if ($bloqueo !== null) {
             return redirect()->route('reportes.show', $reporte)->with('error', $bloqueo);
+        }
+
+        // Todo programa exige PoC (ver AGENTS.md): un borrador guardado sin ella
+        // (o incompleta) no puede pasar a "enviado", sin importar cómo llegó así.
+        $reporte->loadMissing('programa');
+        $contenido = $this->contenidoDescifrado($reporte);
+
+        if ($contenido['indisponible']) {
+            return redirect()->route('reportes.show', $reporte)
+                ->with('error', self::MENSAJE_CIFRADO_NO_DISPONIBLE);
+        }
+
+        $schema = $reporte->programa->poc_schema ?? [];
+        $validadorPoc = Validator::make(
+            ['poc' => $contenido['poc']],
+            ['poc' => ['required', 'array', new PocCumpleSchema($schema)]],
+            ['poc.required' => 'Agrega la prueba de concepto antes de enviar: es obligatoria en todos los programas.'],
+        );
+
+        if ($validadorPoc->fails()) {
+            return redirect()->route('reportes.show', $reporte)
+                ->withErrors($validadorPoc)
+                ->with('error', 'No se puede enviar: falta completar la prueba de concepto.');
         }
 
         $this->marcarEnviado($reporte, request()->user());
@@ -439,6 +469,8 @@ class ReporteController extends Controller
             'tipo' => 'enviado',
             'nota' => 'Reporte enviado para revision.',
         ]);
+
+        Auditoria::registrar('reportes.enviado', $reporte, [], $autor->id);
     }
 
     // ------------------------------------------------------------------
@@ -559,6 +591,8 @@ class ReporteController extends Controller
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'en_revision'],
         ]);
 
+        Auditoria::registrar('reportes.revision_iniciada', $reporte, ['estado_anterior' => $estadoAnterior], $revisor->id);
+
         return redirect()->back(fallback: route('reportes.show', $reporte))
             ->with('success', 'Revisión iniciada.');
     }
@@ -591,6 +625,8 @@ class ReporteController extends Controller
             'datos' => ['asignado_a' => $userId],
         ]);
 
+        Auditoria::registrar('reportes.asignado', $reporte, ['asignado_a' => $userId], $actor->id);
+
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte asignado exitosamente.');
     }
@@ -610,6 +646,8 @@ class ReporteController extends Controller
             'nota' => 'Reporte validado.',
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'validado'],
         ]);
+
+        Auditoria::registrar('reportes.validado', $reporte, ['estado_anterior' => $estadoAnterior]);
 
         $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_validado', $reporte);
 
@@ -650,6 +688,11 @@ class ReporteController extends Controller
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'rechazado'],
         ]);
 
+        Auditoria::registrar('reportes.rechazado', $reporte, [
+            'estado_anterior' => $estadoAnterior,
+            'sancionado' => (bool) ($validated['sancionar'] ?? false),
+        ], $request->user()->id);
+
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte rechazado.');
     }
@@ -683,6 +726,8 @@ class ReporteController extends Controller
             ],
         ]);
 
+        Auditoria::registrar('reportes.marcado_duplicado', $reporte, ['reporte_original_id' => $original->id], $request->user()->id);
+
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte marcado como duplicado.');
     }
@@ -702,6 +747,8 @@ class ReporteController extends Controller
             'nota' => 'La empresa está corrigiendo la vulnerabilidad.',
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'en_reparacion'],
         ]);
+
+        Auditoria::registrar('reportes.marcado_en_reparacion', $reporte, ['estado_anterior' => $estadoAnterior]);
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Informe marcado en reparación.');
@@ -725,6 +772,8 @@ class ReporteController extends Controller
             'nota' => 'Vulnerabilidad resuelta: informe cerrado.',
             'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'cerrado'],
         ]);
+
+        Auditoria::registrar('reportes.cerrado', $reporte, ['estado_anterior' => $estadoAnterior]);
 
         // La recompensa por un informe válido es la reputación: se otorga al resolverlo.
         $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_resuelto', $reporte);

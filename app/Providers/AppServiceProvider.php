@@ -2,6 +2,13 @@
 
 namespace App\Providers;
 
+use App\Models\Apelacion;
+use App\Models\ClavePgpPlataforma;
+use App\Models\Empresa;
+use App\Models\Programa;
+use App\Models\Reporte;
+use App\Models\Sancion;
+use App\Models\User;
 use App\Services\Pgp\Contracts\PgpDriver;
 use App\Services\Pgp\Drivers\FallbackPgpDriver;
 use App\Services\Pgp\Drivers\GpgBinaryDriver;
@@ -9,6 +16,7 @@ use App\Services\Pgp\Exceptions\PgpDriverUnavailableException;
 use App\Services\Pgp\PgpService;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -63,6 +71,20 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        // Alias corto y estable para `entidad_type` en `auditorias` (y cualquier otra
+        // relación polimórfica): sin esto, cada sitio que auditaba escribía su propio
+        // string a mano ('empresa', 'user', 'clave_pgp_plataforma', el FQCN completo...)
+        // y el filtro de /admin/auditoria nunca coincidía con lo guardado.
+        Relation::morphMap([
+            'Reporte' => Reporte::class,
+            'Programa' => Programa::class,
+            'Usuario' => User::class,
+            'Sancion' => Sancion::class,
+            'Apelacion' => Apelacion::class,
+            'Empresa' => Empresa::class,
+            'ClavePgp' => ClavePgpPlataforma::class,
+        ]);
 
         // Freno HTTP al guardar/enviar informes: frena scripts que disparan cientos de peticiones.
         RateLimiter::for('reportes', fn (Request $request) => Limit::perMinute(

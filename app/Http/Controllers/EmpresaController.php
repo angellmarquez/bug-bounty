@@ -317,12 +317,6 @@ class EmpresaController extends Controller
 
     private function auditarMiembro(User $actor, User $miembro, Empresa $empresa, string $accion): void
     {
-        Auditoria::query()->create([
-            'usuario_id' => $actor->id,
-            'accion' => $accion,
-            'entidad_type' => 'empresa',
-            'entidad_id' => $empresa->id,
-            'detalle' => ['usuario_id' => $miembro->id, 'email' => $miembro->email],
-        ]);
+        Auditoria::registrar($accion, $empresa, ['usuario_id' => $miembro->id, 'email' => $miembro->email], $actor->id);
     }
 }

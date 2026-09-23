@@ -33,30 +33,21 @@
     }: {
         clave: {
             id: number;
-            huella: string;
-            identidad: string | null;
-            algoritmo: string | null;
-            bits: number | null;
-            creada_en: string | null;
             expira_en: string | null;
         } | null;
         driver: string;
         available: boolean;
     } = $props();
 
-    // El servidor envía fechas sin hora (creada_en) o con hora (expira_en); una fecha vacía o inválida no debe romper la página.
-    function formatearFecha(dateStr: string | null): string {
-        if (!dateStr) return 'N/A';
-        const fecha = new Date(dateStr);
-        if (Number.isNaN(fecha.getTime())) return 'N/A';
-        return new Intl.DateTimeFormat('es-ES', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-        }).format(fecha);
-    }
-
     const isFallback = $derived(driver === 'fallback');
+
+    // "Funcionando" = hay clave, el driver está disponible y no expiró.
+    const expirada = $derived.by(() => {
+        if (!clave?.expira_en) return false;
+        const fecha = new Date(clave.expira_en);
+        return !Number.isNaN(fecha.getTime()) && fecha.getTime() < Date.now();
+    });
+    const funcionando = $derived(Boolean(clave) && available && !expirada);
 </script>
 
 <AppHead title="PGP Plataforma" />
@@ -107,45 +98,32 @@
         <Card>
             <CardHeader>
                 <CardTitle class="flex items-center gap-2 text-lg">
-                    <ShieldCheck class="h-5 w-5 text-chart-1" />
-                    Clave Activa
+                    <ShieldCheck class="h-5 w-5 {funcionando ? 'text-chart-1' : 'text-chart-3'}" />
+                    Estado de la Clave
                 </CardTitle>
                 <CardDescription>
-                    Par de claves PGP de la plataforma, creado automáticamente. La clave privada nunca se muestra.
+                    La plataforma crea y renueva su clave de cifrado sola. La clave privada nunca se muestra.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="space-y-1">
-                        <p class="text-xs text-muted-foreground">Huella</p>
-                        <p class="font-mono text-sm break-all">{clave.huella}</p>
-                    </div>
-                    {#if clave.identidad}
-                        <div class="space-y-1">
-                            <p class="text-xs text-muted-foreground">Identidad</p>
-                            <p class="font-mono text-sm">{clave.identidad}</p>
-                        </div>
+            <CardContent class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-full {funcionando ? 'bg-chart-1/20' : 'bg-chart-3/20'}">
+                    {#if funcionando}
+                        <ShieldCheck class="h-5 w-5 text-chart-1" />
+                    {:else}
+                        <AlertTriangle class="h-5 w-5 text-chart-3" />
                     {/if}
-                    {#if clave.algoritmo}
-                        <div class="space-y-1">
-                            <p class="text-xs text-muted-foreground">Algoritmo</p>
-                            <p class="text-sm">{clave.algoritmo}</p>
-                        </div>
-                    {/if}
-                    {#if clave.bits}
-                        <div class="space-y-1">
-                            <p class="text-xs text-muted-foreground">Bits</p>
-                            <p class="text-sm">{clave.bits}</p>
-                        </div>
-                    {/if}
-                    <div class="space-y-1">
-                        <p class="text-xs text-muted-foreground">Generada</p>
-                        <p class="text-sm">{formatearFecha(clave.creada_en)}</p>
-                    </div>
-                    <div class="space-y-1">
-                        <p class="text-xs text-muted-foreground">Expira</p>
-                        <p class="text-sm">{formatearFecha(clave.expira_en)}</p>
-                    </div>
+                </div>
+                <div>
+                    <p class="text-sm font-medium">{funcionando ? 'Clave activa y funcionando' : 'Clave activa, pero con problemas'}</p>
+                    <p class="text-xs text-muted-foreground">
+                        {#if expirada}
+                            La clave expiró: la plataforma debe generar una nueva.
+                        {:else if !available}
+                            El driver no está disponible en este entorno.
+                        {:else}
+                            El cifrado de reportes está operativo.
+                        {/if}
+                    </p>
                 </div>
             </CardContent>
         </Card>

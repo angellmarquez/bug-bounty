@@ -77,7 +77,6 @@ export type Programa = {
     descripcion: string;
     bugs_buscados: string | null;
     estado: EstadoPrograma;
-    requiere_poc: boolean;
     es_publico: boolean;
     nivel_acceso: NivelAcceso;
     poc_schema: PocSchemaField[] | null;
@@ -90,7 +89,11 @@ export type Programa = {
     creador?: User;
     objetivos?: ObjetivoPrograma[];
     reportes_count?: number;
-    empresa?: { id: number; razon_social: string; nombre_comercial: string | null } | null;
+    empresa?: {
+        id: number;
+        razon_social: string;
+        nombre_comercial: string | null;
+    } | null;
 };
 
 export type Reporte = {
@@ -206,7 +209,15 @@ export type Sancion = {
 /** Un aviso de la campana (notificación interna). */
 export type Notificacion = {
     id: string;
-    tipo: 'informe' | 'sancion' | 'apelacion' | 'empresa' | 'moderacion' | 'reputacion' | 'invitacion' | string;
+    tipo:
+        | 'informe'
+        | 'sancion'
+        | 'apelacion'
+        | 'empresa'
+        | 'moderacion'
+        | 'reputacion'
+        | 'invitacion'
+        | string;
     titulo: string;
     mensaje: string;
     url: string | null;
@@ -293,13 +304,13 @@ export type EntradaReputacion = {
 
 export type Auditoria = {
     id: number;
-    usuario_id: number | null;
     accion: string;
-    entidad_type: string;
-    entidad_id: number;
-    metadata: Record<string, unknown> | null;
+    entidad_type: string | null;
+    entidad_id: number | null;
+    detalle: Record<string, unknown> | null;
+    ip: string | null;
     created_at: string;
-    usuario?: User | null;
+    usuario: { id: number; name: string; roles: string[] } | null;
 };
 
 export type DashboardStats = {

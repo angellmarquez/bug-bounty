@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Abac\AccionesAbac;
 use App\Http\Requests\StoreProgramaRequest;
 use App\Http\Requests\UpdateProgramaRequest;
+use App\Models\Auditoria;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
@@ -219,6 +220,8 @@ class ProgramaController extends Controller
             return $programa;
         });
 
+        Auditoria::registrar('programas.creado', $programa, ['nombre' => $programa->nombre], $user->id);
+
         return redirect()->route('programas.show', $programa)
             ->with('success', 'Programa creado exitosamente.');
     }
@@ -263,6 +266,8 @@ class ProgramaController extends Controller
             }
         });
 
+        Auditoria::registrar('programas.editado', $programa);
+
         return redirect()->route('programas.show', $programa)
             ->with('success', 'Programa actualizado exitosamente.');
     }
@@ -280,6 +285,8 @@ class ProgramaController extends Controller
         }
 
         $programa->delete();
+
+        Auditoria::registrar('programas.eliminado', $programa, ['nombre' => $programa->nombre]);
 
         $esEmpresa = request()->user()?->roles()->where('slug', 'empresa')->exists() ?? false;
 
@@ -313,6 +320,8 @@ class ProgramaController extends Controller
         }
 
         $programa->update(['estado' => $estadoDestino]);
+
+        Auditoria::registrar('programas.estado_cambiado', $programa, ['estado_anterior' => $estadoActual, 'estado_nuevo' => $estadoDestino]);
 
         return redirect()->back(fallback: route('programas.show', $programa))
             ->with('success', "Programa cambiado a \"{$estadoDestino}\" exitosamente.");

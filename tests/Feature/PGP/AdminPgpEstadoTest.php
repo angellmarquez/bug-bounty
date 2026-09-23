@@ -13,11 +13,17 @@ test('el administrador ve el estado del cifrado con la clave activa, sin la clav
 
     $respuesta->assertInertia(fn ($page) => $page
         ->component('admin/pgp/Index')
-        ->where('clave.huella', $clave->huella)
+        ->where('clave.id', $clave->id)
         ->where('driver', 'fallback')
         ->where('available', true)
         ->missing('clave.clave_privada')
-        ->missing('clave.clave_publica'));
+        ->missing('clave.clave_publica')
+        // La página ya no necesita mostrar huella/identidad/algoritmo/bits: solo si la
+        // clave está activa y funcionando (evita exponer de más, aunque sea metadata).
+        ->missing('clave.huella')
+        ->missing('clave.identidad')
+        ->missing('clave.algoritmo')
+        ->missing('clave.bits'));
 
     $texto = json_encode($respuesta->inertiaProps());
     expect($texto)->not->toContain('PRIVATE KEY')->not->toContain($clave->getRawOriginal('clave_privada'));
