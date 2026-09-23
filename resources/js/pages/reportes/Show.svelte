@@ -143,7 +143,7 @@
                 description={reporte.titulo}
             />
         </div>
-        {#if reporte.estado === 'borrador' && auth?.user?.id === reporte.investigador_id}
+        {#if (reporte.estado === 'borrador' || reporte.estado === 'needs_info') && auth?.user?.id === reporte.investigador_id}
             <div class="flex items-center gap-2">
                 <Button variant="outline" href={reportesEdit(reporte.id)}>
                     <Edit class="mr-2 h-4 w-4" />
@@ -151,11 +151,20 @@
                 </Button>
                 <Button onclick={enviarReporte}>
                     <Send class="mr-2 h-4 w-4" />
-                    Enviar
+                    {reporte.estado === 'needs_info' ? 'Reenviar información' : 'Enviar'}
                 </Button>
             </div>
         {/if}
     </div>
+
+    {#if reporte.estado === 'needs_info'}
+        <div role="status" class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
+            <p class="font-semibold">Información adicional solicitada</p>
+            <p class="mt-1 text-xs">
+                El equipo de moderación ha solicitado detalles o evidencias adicionales para continuar el triaje. Por favor edita el reporte y pulsa «Reenviar información».
+            </p>
+        </div>
+    {/if}
 
     {#if programaInforme}
         <Card>
