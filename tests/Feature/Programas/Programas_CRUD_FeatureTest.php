@@ -89,15 +89,15 @@ test('una empresa no puede editar el programa de otra empresa', function () {
     $response->assertForbidden();
 });
 
-test('admin can delete a program', function () {
+test('admin no puede borrar programas: eso lo decide la empresa dueña', function () {
     $user = administrador();
     $this->actingAs($user);
 
     $programa = programaDeEmpresa(propietarioDeEmpresa());
 
     $response = $this->delete(route('programas.destroy', $programa));
-    $response->assertRedirect();
-    $this->assertSoftDeleted('programas', ['id' => $programa->id]);
+    $response->assertForbidden();
+    $this->assertDatabaseHas('programas', ['id' => $programa->id, 'deleted_at' => null]);
 });
 
 test('un moderador no puede borrar un programa', function () {

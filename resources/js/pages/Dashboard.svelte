@@ -21,6 +21,7 @@
     import { Button } from '@/components/ui/button';
     import Building2 from '@lucide/svelte/icons/building-2';
     import UserCog from '@lucide/svelte/icons/user-cog';
+    import Users from '@lucide/svelte/icons/users';
     import {
         Card,
         CardContent,
@@ -102,8 +103,12 @@
         return 'Buenas noches';
     });
 
+    // El admin no participa en el día a día de los reportes: sin tarjetas de
+    // volumen/estado de reportes en su panel (eso es de investigador/moderador/empresa).
     const statCards = $derived.by(() => {
-        const cards = [
+        if (isAdmin) return [];
+
+        return [
             {
                 title: 'Total Reportes',
                 value: stats.reportes_total,
@@ -123,17 +128,6 @@
                 href: '/reportes?estado=cerrado',
             },
         ];
-
-        if (isAdmin) {
-            cards.push({
-                title: 'Programas Activos',
-                value: stats.programas_activos,
-                description: 'Programas de bug bounty',
-                href: '/programas?estado=activo',
-            });
-        }
-
-        return cards;
     });
 </script>
 
@@ -180,6 +174,7 @@
         </Card></div>
     {/if}
 
+    {#if statCards.length > 0}
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {#each statCards as card (card.title)}
             <Link href={card.href} class="block h-full">
@@ -199,14 +194,15 @@
             </Link>
         {/each}
     </div>
+    {/if}
 
     {#if isAdmin}
         <Card>
             <CardHeader>
                 <CardTitle>Vista de Administrador</CardTitle>
                 <CardDescription>
-                    Tienes acceso total a la plataforma. Puedes gestionar
-                    usuarios, programas, reportes y configuracion del sistema.
+                    No participas en el día a día de los reportes: eso es del investigador, el moderador
+                    y la empresa. Tu función es gestión de usuarios, configuración del sistema y auditoría.
                 </CardDescription>
             </CardHeader>
             <CardContent class="flex flex-wrap gap-3">
@@ -220,9 +216,17 @@
                 </Button>
                 <Button variant="outline" asChild>
                     {#snippet children(props)}
+                        <Link href="/admin/usuarios" {...props}>
+                            <Users class="mr-2 h-4 w-4" />
+                            Gestionar usuarios
+                        </Link>
+                    {/snippet}
+                </Button>
+                <Button variant="outline" asChild>
+                    {#snippet children(props)}
                         <Link href="/admin/moderadores" {...props}>
                             <UserCog class="mr-2 h-4 w-4" />
-                            Gestionar moderadores
+                            Dar de alta moderadores
                         </Link>
                     {/snippet}
                 </Button>
@@ -303,7 +307,7 @@
         </Card>
     {/if}
 
-    {#if userRoles.includes('moderador') || isAdmin}
+    {#if userRoles.includes('moderador')}
         <Card>
             <CardHeader>
                 <CardTitle>Cola de moderación</CardTitle>
@@ -313,7 +317,7 @@
                 </CardDescription>
             </CardHeader>
             <CardContent class="flex flex-wrap items-center gap-4">
-                {#if roleStats.tipo === 'moderador' || roleStats.tipo === 'administrador'}
+                {#if roleStats.tipo === 'moderador'}
                     <p class="text-sm">
                         <span class="text-2xl font-bold text-chart-4">{roleStats.por_revisar}</span>
                         <span class="ml-1 text-muted-foreground">informes por revisar</span>

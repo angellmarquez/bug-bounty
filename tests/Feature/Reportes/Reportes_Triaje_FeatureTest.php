@@ -305,12 +305,12 @@ test('el moderador no puede marcar en reparacion ni cerrar informes', function (
     expect($reporte->fresh()->estado->value)->toBe('validado');
 });
 
-test('el administrador puede cerrar informes de cualquier programa', function () {
+test('el administrador no cierra informes: eso es de la empresa/moderador', function () {
     $this->actingAs(administrador());
     $reporte = reporteDe(investigador(), null, ['estado' => 'validado']);
 
-    $this->post(route('reportes.cerrar', $reporte))->assertRedirect();
-    expect($reporte->fresh()->estado->value)->toBe('cerrado');
+    $this->post(route('reportes.cerrar', $reporte))->assertForbidden();
+    expect($reporte->fresh()->estado->value)->toBe('validado');
 });
 
 test('una empresa ajena no puede cerrar el informe', function () {
@@ -335,13 +335,16 @@ test('un moderador no triaja informes de programas que no modera', function (Use
     'moderador de otro programa' => fn () => moderador(),
 ]);
 
-test('admin can triaje reportes de cualquier programa', function () {
+test('admin no triaja reportes: no participa en el dia a dia (solo audita)', function () {
     $this->actingAs(administrador());
 
     $reporte = reporteDe(investigador(), null, ['estado' => 'enviado']);
 
-    $this->post(route('reportes.validar', $reporte))->assertRedirect();
-    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'validado']);
+    $this->post(route('reportes.validar', $reporte))->assertForbidden();
+    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'enviado']);
+
+    // Pero sí puede ver el contenido para auditar o resolver una apelación.
+    $this->get(route('reportes.show', $reporte))->assertOk();
 });
 
 test('empresa member can read but not triaje reportes of its programas', function () {

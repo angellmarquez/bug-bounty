@@ -6,8 +6,11 @@
     import Award from '@lucide/svelte/icons/award';
     import Key from '@lucide/svelte/icons/key';
     import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
+    import ClipboardList from '@lucide/svelte/icons/clipboard-list';
     import Settings from '@lucide/svelte/icons/settings';
     import Users from '@lucide/svelte/icons/users';
+    import ShieldAlert from '@lucide/svelte/icons/shield-alert';
+    import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import MessageSquare from '@lucide/svelte/icons/message-square';
     import Building2 from '@lucide/svelte/icons/building-2';
     import Mail from '@lucide/svelte/icons/mail';
@@ -27,7 +30,7 @@
     import { toUrl } from '@/lib/utils';
     import { dashboard } from '@/routes';
     import { index as reportesIndex } from '@/routes/reportes';
-    import { index as programasIndex, gestion as gestionProgramas } from '@/routes/programas';
+    import { index as programasIndex } from '@/routes/programas';
     import type { NavItem } from '@/types';
     import type { CuentaEstado } from '@/lib/rangos';
 
@@ -58,12 +61,17 @@
             },
         ];
 
-        if (isModerador || isAdmin) {
+        if (isModerador) {
             items.push({
                 title: 'Moderación',
                 href: '/moderacion',
                 icon: ClipboardCheck,
             });
+        }
+
+        // El admin no triaja reportes ni ve la cola de moderación, pero sí resuelve
+        // apelaciones (arbitraje de última instancia, no operación diaria).
+        if (isModerador || isAdmin) {
             items.push({
                 title: 'Apelaciones',
                 href: '/moderacion/apelaciones',
@@ -71,11 +79,11 @@
             });
         }
 
-        if (isInvestigador || isAdmin || isEmpresa || isModerador) {
+        if (isInvestigador || isEmpresa || isModerador) {
             items.push({
                 title: isEmpresa
                     ? 'Reportes recibidos'
-                    : isModerador || isAdmin
+                    : isModerador
                       ? 'Todos los reportes'
                       : 'Mis Reportes',
                 href: isEmpresa ? '/empresa/reportes' : reportesIndex(),
@@ -83,7 +91,7 @@
             });
         }
 
-        if (isInvestigador || isAdmin) {
+        if (isInvestigador) {
             items.push({
                 title: 'Programas',
                 href: programasIndex(),
@@ -131,14 +139,6 @@
             });
         }
 
-        if (isAdmin) {
-            items.push({
-                title: 'Gestión Programas',
-                href: gestionProgramas(),
-                icon: Shield,
-            });
-        }
-
         if (isEmpresa) {
             items.push({
                 title: 'Panel empresa',
@@ -147,35 +147,23 @@
             });
         }
 
-        if (isAdmin) {
-            items.push({
-                title: 'Empresas',
-                href: '/admin/empresas',
-                icon: Settings,
-            });
-            items.push({
-                title: 'Usuarios',
-                href: '/admin/usuarios',
-                icon: Users,
-            });
-            items.push({
-                title: 'Moderadores',
-                href: '/admin/moderadores',
-                icon: Users,
-            });
-        }
-
-        /*
-        if (isAdmin) {
-            items.push({
-                title: 'Admin',
-                href: '/admin',
-                icon: Settings,
-            });
-        }
-        */
-
         return items;
+    });
+
+    // El admin no gestiona programas ni reportes (eso es de la empresa/moderador):
+    // su menú es solo gestión de usuarios, configuración del sistema y auditoría.
+    const adminNavItems = $derived.by((): NavItem[] => {
+        if (!isAdmin) return [];
+
+        return [
+            { title: 'Empresas', href: '/admin/empresas', icon: Building2 },
+            { title: 'Usuarios', href: '/admin/usuarios', icon: Users },
+            { title: 'Moderadores', href: '/admin/moderadores', icon: ShieldCheck },
+            { title: 'Sanciones', href: '/admin/sanciones', icon: ShieldAlert },
+            { title: 'Auditoría', href: '/admin/auditoria', icon: ClipboardList },
+            { title: 'Config. Reputación', href: '/admin/config/reputacion', icon: Settings },
+            { title: 'Claves PGP', href: '/admin/pgp', icon: Key },
+        ];
     });
 </script>
 
@@ -200,6 +188,9 @@
 
     <SidebarContent>
         <NavMain items={mainNavItems} />
+        {#if isAdmin}
+            <NavMain items={adminNavItems} groupLabel="Administración" />
+        {/if}
     </SidebarContent>
 
     <SidebarFooter>

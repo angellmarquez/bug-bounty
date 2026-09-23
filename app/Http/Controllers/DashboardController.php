@@ -108,10 +108,10 @@ class DashboardController extends Controller
                 'sanciones_aplicadas' => $user->auditorias()->where('accion', 'sancion.aplicada')->count(),
             ];
         } elseif ($isAdmin) {
+            // El admin no participa en el día a día de los reportes (eso es de
+            // moderador/empresa): sus métricas son solo las de su función real.
             $roleStats = [
                 'tipo' => 'administrador',
-                'por_revisar' => Reporte::where('estado', 'enviado')->count(),
-                'pendientes_revision' => Reporte::whereIn('estado', ['enviado', 'en_revision'])->count(),
                 'empresas_pendientes' => Empresa::where('estado', 'pendiente')->count(),
                 'empresas_aprobadas' => Empresa::where('estado', 'aprobada')->count(),
                 'moderadores' => User::whereHas('roles', fn ($q) => $q->where('slug', 'moderador'))->count(),

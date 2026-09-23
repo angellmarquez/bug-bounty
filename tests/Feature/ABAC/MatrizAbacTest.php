@@ -81,12 +81,15 @@ dataset('matriz_abac', [
     'inv no interviene en el triaje de un reporte asignado' => ['reportes.validar', fn () => [($inv = investigador()), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => $inv->id])], false],
 
     // ------------------------------------------------------------------
-    // Reportes — administrador (bypass)
+    // Reportes — administrador: ve y audita, pero no participa en el día a
+    // día (eso es del moderador/empresa). No triaja ni crea/envía/edita.
     // ------------------------------------------------------------------
     'admin ve cualquier reporte' => ['reportes.ver', fn () => [administrador(), reporteDe(investigador())], true],
     'admin ve notas internas de un borrador' => ['reportes.ver_notas_internas', fn () => [administrador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Borrador->value])], true],
-    'admin valida cualquier reporte' => ['reportes.validar', fn () => [administrador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], true],
-    'admin cierra reportes sin asignar' => ['reportes.cerrar', fn () => [administrador(), reporteDe(investigador())], true],
+    'admin no valida reportes: eso es del moderador/empresa' => ['reportes.validar', fn () => [administrador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], false],
+    'admin no cierra reportes: eso es del moderador/empresa' => ['reportes.cerrar', fn () => [administrador(), reporteDe(investigador())], false],
+    'admin no crea reportes' => ['reportes.crear', fn () => [administrador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])], false],
+    'admin no ve la cola de moderación' => ['moderacion.ver', fn () => [administrador(), null], false],
 
     // ------------------------------------------------------------------
     // Programas
@@ -106,7 +109,7 @@ dataset('matriz_abac', [
     'admin gestiona cualquier programa' => ['programas.gestionar', fn () => [administrador(), programaDe(investigador())], true],
     'inv no elimina programas' => ['programas.eliminar', fn () => [investigador(), programaDe(investigador())], false],
     'moderador no elimina programas' => ['programas.eliminar', fn () => [moderador(), programaDe(investigador())], false],
-    'admin elimina programas (soft delete)' => ['programas.eliminar', fn () => [administrador(), programaDe(investigador())], true],
+    'admin no elimina programas: lo decide la empresa dueña' => ['programas.eliminar', fn () => [administrador(), programaDe(investigador())], false],
 
     // ------------------------------------------------------------------
     // Claves PGP

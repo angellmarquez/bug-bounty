@@ -46,6 +46,33 @@ return [
             'decision' => 'permitir',
         ],
 
+        // El administrador no participa en el día a día de los reportes: eso es
+        // del investigador (crear/enviar), del moderador/empresa (triaje) y de la
+        // cola de moderación. El deny gana sobre el bypass de arriba. Sigue
+        // pudiendo VER el contenido (reportes.ver / ver_notas_internas) para
+        // auditar o resolver apelaciones — eso no es "participar", es supervisar.
+        [
+            'id' => 'denegar-dia-a-dia-de-reportes-al-administrador',
+            'prioridad' => 5,
+            'acciones' => [
+                'reportes.crear',
+                'reportes.editar',
+                'reportes.enviar',
+                'reportes.eliminar',
+                'reportes.asignar',
+                'reportes.validar',
+                'reportes.rechazar',
+                'reportes.marcar_duplicado',
+                'reportes.marcar_en_reparacion',
+                'reportes.cerrar',
+                'moderacion.ver',
+            ],
+            'sujeto' => ['roles' => ['contains' => 'administrador']],
+            'objeto' => [],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+
         // ------------------------------------------------------------------
         // 1. Investigador: reportes propios y programas públicos.
         // ------------------------------------------------------------------
@@ -152,11 +179,13 @@ return [
         // ------------------------------------------------------------------
         // Crear, editar y publicar (cambiar de estado) un programa es cosa de la empresa dueña
         // (y de sus publicadores), nunca del administrador: el admin aprueba/rechaza empresas,
-        // no actúa en su nombre. El deny gana sobre cualquier permiso, también sobre el bypass.
+        // no actúa en su nombre. Tampoco elimina programas: si uno viola reglas, se suspende
+        // la empresa dueña o se archiva desde su propia gestión, no lo borra el admin.
+        // El deny gana sobre cualquier permiso, también sobre el bypass.
         [
-            'id' => 'denegar-crear-editar-o-publicar-programas-al-administrador',
+            'id' => 'denegar-crear-editar-eliminar-o-publicar-programas-al-administrador',
             'prioridad' => 5,
-            'acciones' => ['programas.crear', 'programas.editar', 'programas.cambiar_estado'],
+            'acciones' => ['programas.crear', 'programas.editar', 'programas.cambiar_estado', 'programas.eliminar'],
             'sujeto' => ['roles' => ['contains' => 'administrador']],
             'objeto' => [],
             'entorno' => [],

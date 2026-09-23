@@ -23,7 +23,7 @@ test('el bypass administrativo pasa por el mismo Gate', function () {
     $reporte = reporteDe(investigador());
 
     expect(Gate::forUser($admin)->allows('abac', [AccionesAbac::ReporteVer, $reporte]))->toBeTrue()
-        ->and(Gate::forUser($admin)->allows('abac', [AccionesAbac::ProgramaEliminar, $reporte->programa]))->toBeTrue();
+        ->and(Gate::forUser($admin)->allows('abac', [AccionesAbac::EmpresaVer]))->toBeTrue();
 });
 
 test('Gate::authorize lanza AuthorizationException al denegar', function () {
