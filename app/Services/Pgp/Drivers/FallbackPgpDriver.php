@@ -182,16 +182,25 @@ class FallbackPgpDriver implements PgpDriver
 
     /**
      * {@inheritDoc}
+     *
+     * El secreto sale de `APP_KEY`, no de la clave del destinatario (es un
+     * doble de pruebas, "sin confidencialidad real"): por eso cualquiera de
+     * los destinatarios listados en "Para" puede "descifrar" igual — que es
+     * justo el comportamiento multi-receptor que se necesita simular.
      */
-    public function encrypt(string $message, string $recipient): string
+    public function encrypt(string $message, string|array $recipients): string
     {
         $this->assertAvailable();
 
-        $recipientFingerprint = str_contains($recipient, 'FAKE PGP PUBLIC KEY')
-            ? $this->fingerprint($recipient)
-            : $this->normalizeFingerprint($recipient);
+        $recipientFingerprints = array_map(
+            fn (string $recipient): string => str_contains($recipient, 'FAKE PGP PUBLIC KEY')
+                ? $this->fingerprint($recipient)
+                : $this->normalizeFingerprint($recipient),
+            (array) $recipients,
+        );
+        $recipientFingerprints = array_values(array_filter($recipientFingerprints, fn (string $r): bool => $r !== ''));
 
-        if ($recipientFingerprint === '') {
+        if ($recipientFingerprints === []) {
             throw new PgpException('Se requiere una huella o clave pública de destinatario.');
         }
 
@@ -212,7 +221,7 @@ class FallbackPgpDriver implements PgpDriver
         $payload = base64_encode($iv.$raw);
 
         return $this->armorBlock(self::MESSAGE_HEADER, [
-            'Para' => $recipientFingerprint,
+            'Para' => implode(',', $recipientFingerprints),
             'Cifrado' => $payload,
         ]);
     }

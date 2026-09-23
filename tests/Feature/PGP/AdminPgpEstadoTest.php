@@ -14,7 +14,7 @@ test('el administrador ve el estado del cifrado con la clave activa, sin la clav
     $respuesta->assertInertia(fn ($page) => $page
         ->component('admin/pgp/Index')
         ->where('clave.id', $clave->id)
-        ->where('driver', 'fallback')
+        ->where('driver', app(PgpService::class)->driverName())
         ->where('available', true)
         ->missing('clave.clave_privada')
         ->missing('clave.clave_publica')

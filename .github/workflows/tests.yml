@@ -31,6 +31,10 @@ jobs:
         with:
           node-version: '22'
 
+      # Los tests cifran con GnuPG real (no el doble de pruebas): ubuntu-latest ya lo trae.
+      - name: Verify GnuPG
+        run: gpg --version
+
       - name: Setup Application
         run: composer setup
 

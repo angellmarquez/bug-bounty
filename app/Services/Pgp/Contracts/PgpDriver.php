@@ -66,11 +66,15 @@ interface PgpDriver
     public function fingerprint(string $armoredPublicKey): string;
 
     /**
-     * Cifra un mensaje para un destinatario (huella o clave pública armored).
+     * Cifra un mensaje para uno o varios destinatarios (huella o clave pública
+     * armored cada uno). Un solo bloque cifrado que cualquiera de las claves
+     * privadas correspondientes puede abrir (multi-receptor real de PGP).
+     *
+     * @param  string|array<int, string>  $recipients
      *
      * @throws PgpException si no puede cifrarse
      */
-    public function encrypt(string $message, string $recipient): string;
+    public function encrypt(string $message, string|array $recipients): string;
 
     /**
      * Descifra un mensaje ASCII-armored con la clave privada de la plataforma.

@@ -3,13 +3,16 @@
 namespace App\Services\Pgp;
 
 use App\Models\Auditoria;
+use App\Models\ClavePgpEmpresa;
 use App\Models\ClavePgpPlataforma;
+use App\Models\Empresa;
 use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\Contracts\PgpDriver;
 use App\Services\Pgp\DataObjects\PgpKeyInfo;
 use App\Services\Pgp\Exceptions\PgpDriverUnavailableException;
 use App\Services\Pgp\Exceptions\PgpException;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use JsonException;
@@ -71,7 +74,9 @@ class PgpService
             throw new PgpException('En producción la clave PGP debe protegerse con una contraseña: define PGP_KEY_PASSWORD en el .env antes de crearla.');
         }
 
-        $identity = (string) ($options['identity'] ?? config('pgp.identity'));
+        // Con GnuPG real el llavero rechaza dos claves con la misma identidad: sin la marca
+        // única, regenerar la clave (pgp:setup --force) fallaría con "Ya existe una clave".
+        $identity = (string) ($options['identity'] ?? $this->identidadUnica());
 
         $info = $this->driver->generateKeyPair($options + compact('identity'));
 
@@ -183,6 +188,109 @@ class PgpService
     }
 
     /**
+     * Devuelve la clave PGP de una empresa y, si todavía no tiene, la crea sola
+     * (una sola vez, aunque lleguen varias peticiones a la vez) -- mismo
+     * patrón que {@see asegurarClave()} para la de custodia. La empresa no
+     * sube ni gestiona nada: es PGP interno.
+     *
+     * @throws PgpException si no se puede crear (GnuPG no disponible, ...)
+     */
+    public function claveDeEmpresa(Empresa $empresa): ClavePgpEmpresa
+    {
+        $existente = $empresa->clavePgp()->where('activa', true)->first();
+
+        if ($existente !== null) {
+            return $existente;
+        }
+
+        $candado = Cache::lock("pgp:crear-clave-empresa:{$empresa->id}", (int) config('pgp.creacion.candado_segundos', 180));
+
+        try {
+            return $candado->block((int) config('pgp.creacion.espera_segundos', 60), function () use ($empresa): ClavePgpEmpresa {
+                return $empresa->clavePgp()->where('activa', true)->first() ?? $this->crearClaveDeEmpresa($empresa);
+            });
+        } catch (LockTimeoutException) {
+            $clave = $empresa->clavePgp()->where('activa', true)->first();
+
+            if ($clave !== null) {
+                return $clave;
+            }
+
+            throw new PgpException("Otra petición está creando la clave de cifrado de la empresa #{$empresa->id}; inténtalo de nuevo en unos segundos.");
+        }
+    }
+
+    /**
+     * Genera la clave PGP de una empresa. Igual que {@see crearClave()}, nunca
+     * registra la clave privada en la auditoría.
+     */
+    private function crearClaveDeEmpresa(Empresa $empresa): ClavePgpEmpresa
+    {
+        if (app()->isProduction() && ! $this->usesFallback() && (string) config('pgp.gpg.passphrase') === '') {
+            throw new PgpException('En producción la clave PGP debe protegerse con una contraseña: define PGP_KEY_PASSWORD en el .env antes de crearla.');
+        }
+
+        $identity = $this->identidadUnica("{$empresa->razon_social} <seguridad@localhost>");
+        $info = $this->driver->generateKeyPair([
+            'identity' => $identity,
+            'algorithm' => (string) config('pgp.gpg.algorithm'),
+            'expires_in' => '1y',
+        ]);
+
+        $publicKey = $this->driver->exportPublicKey($info->fingerprint);
+        $privateKey = $this->driver->exportPrivateKey($info->fingerprint);
+
+        $clave = app('db')->transaction(function () use ($empresa, $info, $identity, $publicKey, $privateKey): ClavePgpEmpresa {
+            ClavePgpEmpresa::query()->where('empresa_id', $empresa->id)->update(['activa' => false]);
+
+            return ClavePgpEmpresa::query()->create([
+                'empresa_id' => $empresa->id,
+                'id_clave' => $info->idClave,
+                'huella' => $info->fingerprint,
+                'clave_publica' => $publicKey,
+                'clave_privada' => $privateKey,
+                'identidad' => $identity,
+                'algoritmo' => $info->algoritmo,
+                'bits' => $info->bits,
+                'creada_en' => $info->creadaEn?->toDateString(),
+                'expira_en' => $info->expiraEn,
+                'activa' => true,
+            ]);
+        });
+
+        try {
+            Auditoria::registrar('pgp.clave_empresa_generada', $clave, [
+                'huella' => $clave->huella,
+                'empresa_id' => $empresa->id,
+            ], usuarioId: null);
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return $clave;
+    }
+
+    /**
+     * Las huellas a las que se cifra el contenido de una empresa: su propia
+     * clave (se crea sola si hace falta) + la de custodia, para que
+     * moderación/admin puedan auditar sin depender de la clave de la empresa.
+     * Sin empresa (programa sin dueño), solo la de custodia.
+     *
+     * @return array<int, string>
+     */
+    private function destinatariosPara(?Empresa $empresa): array
+    {
+        $custodia = $this->platformKey() ?? $this->asegurarClave();
+        $destinatarios = [$custodia->huella];
+
+        if ($empresa !== null) {
+            $destinatarios[] = $this->claveDeEmpresa($empresa)->huella;
+        }
+
+        return $destinatarios;
+    }
+
+    /**
      * Reimporta la clave activa de la plataforma en el keyring local del
      * driver a partir de lo persistido en la base de datos.
      *
@@ -208,9 +316,28 @@ class PgpService
     }
 
     /**
-     * Cifra un mensaje para un destinatario (huella o clave pública armored).
+     * Reimporta la clave PGP de cada empresa (guardada en la base) en el
+     * keyring local. Igual necesidad que {@see restaurarEnKeyring()} y por el
+     * mismo motivo: disco efímero en cada reinicio del contenedor.
+     *
+     * @return int cuántas claves de empresa se reimportaron
      */
-    public function encrypt(string $message, string $recipient): string
+    public function restaurarClavesDeEmpresaEnKeyring(): int
+    {
+        $restauradas = 0;
+
+        ClavePgpEmpresa::query()->where('activa', true)->each(function (ClavePgpEmpresa $clave) use (&$restauradas): void {
+            $this->driver->importPrivateKey($clave->clave_privada);
+            $restauradas++;
+        });
+
+        return $restauradas;
+    }
+
+    /**
+     * @param  string|array<int, string>  $recipient
+     */
+    public function encrypt(string $message, string|array $recipient): string
     {
         return $this->driver->encrypt($message, $recipient);
     }
@@ -248,24 +375,25 @@ class PgpService
     }
 
     /**
-     * Cifra el contenido de un reporte (descripcion + PoC) con la clave
-     * pública de la plataforma para su custodia en la base de datos.
+     * Cifra el contenido de un reporte (descripcion + PoC) a la clave de la
+     * empresa dueña del programa + la de custodia (moderación/admin), para
+     * que ambas puedan descifrarlo de forma independiente.
      *
      * @param  array<int|string, mixed>  $poc
      * @return array{descripcion: string, poc: string|null, clave_huella: string}
      */
-    public function cifrarReporte(string $descripcion, array $poc = []): array
+    public function cifrarReporte(string $descripcion, array $poc = [], ?Empresa $empresa = null): array
     {
-        $plataforma = $this->platformKey() ?? $this->asegurarClave();
+        $destinatarios = $this->destinatariosPara($empresa);
 
         $pocCifrado = $poc === []
             ? null
-            : $this->encrypt(json_encode($poc, JSON_THROW_ON_ERROR), $plataforma->huella);
+            : $this->encrypt(json_encode($poc, JSON_THROW_ON_ERROR), $destinatarios);
 
         return [
-            'descripcion' => $this->encrypt($descripcion, $plataforma->huella),
+            'descripcion' => $this->encrypt($descripcion, $destinatarios),
             'poc' => $pocCifrado,
-            'clave_huella' => $plataforma->huella,
+            'clave_huella' => $destinatarios[0],
         ];
     }
 
@@ -273,12 +401,16 @@ class PgpService
      * Descifra el contenido de un reporte custodiado en la base de datos.
      *
      * Los valores que no sean bloques PGP (datos legacy en claro) se devuelven
-     * tal cual. El PoC se devuelve decodificado.
+     * tal cual. El PoC se devuelve decodificado. Cada descifrado exitoso queda
+     * en Auditoría (quién, cuándo, qué entidad) -- ver AGENTS.md, "logs de
+     * seguridad".
      *
      * @return array{descripcion: string, poc: array<int|string, mixed>|null, clave_huella: string|null}
      */
-    public function descifrarReporte(string $descripcion, ?string $poc = null): array
+    public function descifrarReporte(string $descripcion, ?string $poc = null, ?Model $entidad = null): array
     {
+        $huboCifrado = $this->esMensajeCifrado($descripcion) || ($poc !== null && $this->esMensajeCifrado($poc));
+
         $descripcionLegible = $this->esMensajeCifrado($descripcion)
             ? $this->decrypt($descripcion)
             : $descripcion;
@@ -299,11 +431,28 @@ class PgpService
             }
         }
 
+        if ($huboCifrado && $entidad !== null) {
+            $this->auditarDescifrado($entidad);
+        }
+
         return [
             'descripcion' => $descripcionLegible,
             'poc' => $pocLegible,
             'clave_huella' => $this->platformKey()?->huella,
         ];
+    }
+
+    /**
+     * Deja constancia de cada vez que se descifra contenido confidencial:
+     * quién lo pidió, cuándo y sobre qué entidad. No guarda el contenido.
+     */
+    private function auditarDescifrado(Model $entidad): void
+    {
+        try {
+            Auditoria::registrar('pgp.contenido_descifrado', $entidad);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -314,16 +463,16 @@ class PgpService
      *
      * @return array{descripcion: string, bugs_buscados: string|null, clave_huella: string}
      */
-    public function cifrarPrograma(string $descripcion, ?string $bugsBuscados = null): array
+    public function cifrarPrograma(string $descripcion, ?string $bugsBuscados = null, ?Empresa $empresa = null): array
     {
-        $plataforma = $this->platformKey() ?? $this->asegurarClave();
+        $destinatarios = $this->destinatariosPara($empresa);
 
         return [
-            'descripcion' => $this->encrypt($descripcion, $plataforma->huella),
+            'descripcion' => $this->encrypt($descripcion, $destinatarios),
             'bugs_buscados' => ($bugsBuscados === null || $bugsBuscados === '')
                 ? $bugsBuscados
-                : $this->encrypt($bugsBuscados, $plataforma->huella),
-            'clave_huella' => $plataforma->huella,
+                : $this->encrypt($bugsBuscados, $destinatarios),
+            'clave_huella' => $destinatarios[0],
         ];
     }
 
@@ -334,14 +483,22 @@ class PgpService
      *
      * @return array{descripcion: string, bugs_buscados: string|null}
      */
-    public function descifrarPrograma(string $descripcion, ?string $bugsBuscados = null): array
+    public function descifrarPrograma(string $descripcion, ?string $bugsBuscados = null, ?Model $entidad = null): array
     {
-        return [
+        $huboCifrado = $this->esMensajeCifrado($descripcion) || ($bugsBuscados !== null && $this->esMensajeCifrado($bugsBuscados));
+
+        $legible = [
             'descripcion' => $this->esMensajeCifrado($descripcion) ? $this->decrypt($descripcion) : $descripcion,
             'bugs_buscados' => ($bugsBuscados !== null && $this->esMensajeCifrado($bugsBuscados))
                 ? $this->decrypt($bugsBuscados)
                 : $bugsBuscados,
         ];
+
+        if ($huboCifrado && $entidad !== null) {
+            $this->auditarDescifrado($entidad);
+        }
+
+        return $legible;
     }
 
     /**
@@ -349,15 +506,15 @@ class PgpService
      *
      * @return array{valor: string, descripcion: string|null}
      */
-    public function cifrarObjetivo(string $valor, ?string $descripcion = null): array
+    public function cifrarObjetivo(string $valor, ?string $descripcion = null, ?Empresa $empresa = null): array
     {
-        $plataforma = $this->platformKey() ?? $this->asegurarClave();
+        $destinatarios = $this->destinatariosPara($empresa);
 
         return [
-            'valor' => $this->encrypt($valor, $plataforma->huella),
+            'valor' => $this->encrypt($valor, $destinatarios),
             'descripcion' => ($descripcion === null || $descripcion === '')
                 ? $descripcion
-                : $this->encrypt($descripcion, $plataforma->huella),
+                : $this->encrypt($descripcion, $destinatarios),
         ];
     }
 

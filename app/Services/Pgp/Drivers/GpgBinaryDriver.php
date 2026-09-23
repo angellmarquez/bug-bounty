@@ -200,34 +200,37 @@ class GpgBinaryDriver implements PgpDriver
 
     /**
      * {@inheritDoc}
+     *
+     * Todos los destinatarios tienen que resolverse en el **mismo** homedir
+     * (gpg no puede leer dos llaveros a la vez en una sola invocación): se
+     * importa cada clave pública que haga falta a `contactsHome()` antes de
+     * cifrar, así un solo mensaje queda cifrado para todos a la vez.
      */
-    public function encrypt(string $message, string $recipient): string
+    public function encrypt(string $message, string|array $recipients): string
     {
         $this->assertAvailable();
 
-        $dir = null;
-        $recipientId = null;
+        $recipientIds = array_map(fn (string $recipient): string => $this->resolveRecipientId($recipient), (array) $recipients);
 
-        if (str_contains($recipient, 'BEGIN PGP')) {
-            $info = $this->importKey($recipient);
-            $dir = $this->contactsHome();
-            $recipientId = $info->fingerprint;
-        } else {
-            $recipientId = $this->normalizeFingerprint($recipient);
-
-            foreach ([$this->contactsHome(), $this->homedir] as $candidate) {
-                if ($this->ringHasKey($candidate, $recipientId)) {
-                    $dir = $candidate;
-                    break;
-                }
-            }
-
-            if ($dir === null) {
-                throw new PgpException("No se encontró una clave pública local para la huella [{$recipientId}].");
-            }
+        if ($recipientIds === []) {
+            throw new PgpException('Se requiere al menos un destinatario para cifrar.');
         }
 
-        $result = $this->run(['--armor', '--encrypt', '--recipient', $recipientId, '--output', '-'], $message, $dir);
+        $dir = $this->contactsHome();
+        // Las públicas importadas a contactsHome() quedan con confianza "desconocida" y gpg se
+        // niega a cifrarles. Los destinatarios son siempre huellas de claves que genera y
+        // custodia la propia plataforma (nunca las elige el usuario): se confía en ellas.
+        $args = ['--armor', '--encrypt', '--trust-model', 'always'];
+
+        foreach ($recipientIds as $recipientId) {
+            $args[] = '--recipient';
+            $args[] = $recipientId;
+        }
+
+        $args[] = '--output';
+        $args[] = '-';
+
+        $result = $this->run($args, $message, $dir);
 
         if (trim($result['output']) === '') {
             throw new PgpException('gpg no devolvió mensaje cifrado.');
@@ -237,13 +240,46 @@ class GpgBinaryDriver implements PgpDriver
     }
 
     /**
+     * Resuelve un destinatario (huella o clave pública armored) a una huella
+     * que ya está importada en `contactsHome()`, listo para usarse en `--recipient`.
+     */
+    private function resolveRecipientId(string $recipient): string
+    {
+        if (str_contains($recipient, 'BEGIN PGP')) {
+            return $this->importKey($recipient)->fingerprint;
+        }
+
+        $recipientId = $this->normalizeFingerprint($recipient);
+
+        if ($this->ringHasKey($this->contactsHome(), $recipientId)) {
+            return $recipientId;
+        }
+
+        // La propia clave del homedir (custodia/empresa que generamos acá) también
+        // sirve como destinatario: se re-exporta su pública a contactsHome().
+        if ($this->ringHasKey($this->homedir, $recipientId)) {
+            $this->run(['--import'], $this->exportPublicKey($recipientId), $this->contactsHome());
+
+            return $recipientId;
+        }
+
+        throw new PgpException("No se encontró una clave pública local para la huella [{$recipientId}].");
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function decrypt(string $armoredMessage): string
     {
         $this->assertAvailable();
 
-        $result = $this->run(['--decrypt', '--output', '-'], $this->normalizeArmored($armoredMessage), $this->homedir);
+        // run() lanza PgpException genérica si gpg sale con error: aquí se traduce a la
+        // específica de descifrado, que es la que distingue "no se pudo leer" de "gpg no anda".
+        try {
+            $result = $this->run(['--decrypt', '--output', '-'], $this->normalizeArmored($armoredMessage), $this->homedir);
+        } catch (PgpException $e) {
+            throw new PgpDecryptionFailedException('No se pudo descifrar el mensaje PGP.', 0, $e);
+        }
 
         if ($result['exitCode'] !== 0) {
             throw new PgpDecryptionFailedException('No se pudo descifrar el mensaje PGP.');

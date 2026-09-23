@@ -3,21 +3,21 @@
 namespace App\Models;
 
 use App\Casts\CifradoConClavePgp;
-use Database\Factories\ClavePgpPlataformaFactory;
+use Database\Factories\ClavePgpEmpresaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Clave PGP de custodia: la usan moderación y el admin como segundo
- * destinatario (junto a la clave de la empresa dueña) al cifrar reportes y
- * programas, para poder auditar y resolver apelaciones sin depender de la
- * clave de cada empresa. Es una sola, global, a propósito (simplicidad
- * elegida sobre segmentar por programa).
+ * Par de claves PGP propio de una empresa. La plataforma la genera y
+ * custodia sola (PGP interno) la primera vez que la empresa publica un
+ * programa -- la empresa no sube ni gestiona nada.
  *
  * @property int $id
+ * @property int $empresa_id
  * @property string|null $id_clave
  * @property string $huella
  * @property string $clave_publica
@@ -30,8 +30,10 @@ use Illuminate\Support\Carbon;
  * @property bool $activa
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read Empresa $empresa
  */
 #[Fillable([
+    'empresa_id',
     'id_clave',
     'huella',
     'clave_publica',
@@ -44,19 +46,14 @@ use Illuminate\Support\Carbon;
     'activa',
 ])]
 #[Hidden(['clave_privada'])]
-class ClavePgpPlataforma extends Model
+class ClavePgpEmpresa extends Model
 {
-    /** @use HasFactory<ClavePgpPlataformaFactory> */
+    /** @use HasFactory<ClavePgpEmpresaFactory> */
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     */
-    protected $table = 'claves_pgp_plataforma';
+    protected $table = 'claves_pgp_empresa';
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -68,5 +65,13 @@ class ClavePgpPlataforma extends Model
             'creada_en' => 'date',
             'expira_en' => 'datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Empresa, $this>
+     */
+    public function empresa(): BelongsTo
+    {
+        return $this->belongsTo(Empresa::class);
     }
 }

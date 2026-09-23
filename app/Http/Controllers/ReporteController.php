@@ -222,7 +222,7 @@ class ReporteController extends Controller
                     // El alcance solo le hace falta a quien revisa: comprueba que el hallazgo esté en él.
                     // Queda cifrado en la base, así que se descifra recién acá, para quien modera.
                     ...($puedeModerar ? [
-                        'bugs_buscados' => app(PgpService::class)->descifrarPrograma($reporte->programa->descripcion, $reporte->programa->bugs_buscados)['bugs_buscados'],
+                        'bugs_buscados' => app(PgpService::class)->descifrarPrograma($reporte->programa->descripcion, $reporte->programa->bugs_buscados, $reporte->programa)['bugs_buscados'],
                         'objetivos' => $reporte->programa->objetivos()->get(['id', 'tipo', 'valor', 'descripcion'])
                             ->map(fn ($o) => [...$o->toArray(), ...app(PgpService::class)->descifrarObjetivo($o->valor, $o->descripcion)])
                             ->all(),
@@ -300,8 +300,11 @@ class ReporteController extends Controller
             $poc = [];
         }
 
+        $programa = Programa::query()->with('empresa')->where('id', (int) $validated['programa_id'])->first();
+        abort_if($programa === null, 404, 'Programa no encontrado.');
+
         try {
-            $cifrado = app(PgpService::class)->cifrarReporte($validated['descripcion'], $poc);
+            $cifrado = app(PgpService::class)->cifrarReporte($validated['descripcion'], $poc, $programa->empresa);
         } catch (PgpException $e) {
             report($e);
 
@@ -309,9 +312,6 @@ class ReporteController extends Controller
                 ->withErrors(['pgp' => self::MENSAJE_CIFRADO_NO_DISPONIBLE])
                 ->withInput();
         }
-
-        $programa = Programa::query()->where('id', (int) $validated['programa_id'])->first();
-        abort_if($programa === null, 404, 'Programa no encontrado.');
 
         $reporte = DB::transaction(function () use ($validated, $user, $cifrado) {
             $reporte = Reporte::create([
@@ -362,6 +362,7 @@ class ReporteController extends Controller
             $descifrado = app(PgpService::class)->descifrarReporte(
                 (string) $reporte->descripcion,
                 $reporte->poc,
+                $reporte,
             );
         } catch (PgpException) {
             $descifrado = ['descripcion' => '', 'poc' => null];
@@ -384,9 +385,10 @@ class ReporteController extends Controller
         $validated = $request->validated();
 
         $pgpService = app(PgpService::class);
+        $reporte->loadMissing('programa.empresa');
 
         // Se descifra el estado actual para no re-cifrar un bloque ya cifrado.
-        $actual = $pgpService->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
+        $actual = $pgpService->descifrarReporte((string) $reporte->descripcion, $reporte->poc, $reporte);
 
         $descripcion = $validated['descripcion'] ?? $actual['descripcion'];
         $poc = $validated['poc'] ?? $actual['poc'] ?? [];
@@ -396,7 +398,7 @@ class ReporteController extends Controller
         }
 
         try {
-            $cifrado = $pgpService->cifrarReporte($descripcion, $poc);
+            $cifrado = $pgpService->cifrarReporte($descripcion, $poc, $reporte->programa->empresa);
         } catch (PgpException $e) {
             report($e);
 
@@ -536,7 +538,7 @@ class ReporteController extends Controller
     private function contenidoDescifrado(Reporte $reporte): array
     {
         try {
-            $descifrado = app(PgpService::class)->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
+            $descifrado = app(PgpService::class)->descifrarReporte((string) $reporte->descripcion, $reporte->poc, $reporte);
 
             return [
                 'descripcion' => $descifrado['descripcion'],

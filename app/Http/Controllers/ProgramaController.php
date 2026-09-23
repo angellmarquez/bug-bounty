@@ -109,7 +109,7 @@ class ProgramaController extends Controller
 
         // El alcance (descripcion, bugs_buscados y objetivos) queda cifrado en la base:
         // se descifra recién acá, al entrar al detalle de este programa puntual.
-        $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados);
+        $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados, $programa);
 
         return Inertia::render('programas/Show', [
             'puedeEditar' => $puedeEditar,
@@ -160,7 +160,7 @@ class ProgramaController extends Controller
         $this->authorizeProgramAction(AccionesAbac::ProgramaEditar, $programa);
         $programa->load(['objetivos']);
 
-        $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados);
+        $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados, $programa);
 
         return Inertia::render('programas/gestion/Edit', [
             'programa' => [
@@ -193,11 +193,9 @@ class ProgramaController extends Controller
             $validated['creado_por'] = $user->id;
             $validated['estado'] = 'borrador';
 
-            // El alcance queda cifrado en la base: solo se descifra al abrir el detalle o editar.
-            $cifrado = $pgp->cifrarPrograma($validated['descripcion'], $validated['bugs_buscados'] ?? null);
-            $validated['descripcion'] = $cifrado['descripcion'];
-            $validated['bugs_buscados'] = $cifrado['bugs_buscados'];
-
+            // Hace falta la empresa ANTES de cifrar: el contenido se cifra a su
+            // clave (+ la de custodia), no a una clave genérica de plataforma.
+            $empresa = null;
             if ($user->empresas()->wherePivot('estado', 'activo')->exists()) {
                 $empresa = $user->empresas()
                     ->where('empresas.estado', 'aprobada')
@@ -208,12 +206,17 @@ class ProgramaController extends Controller
                 $validated['empresa_id'] = $empresa->id;
             }
 
+            // El alcance queda cifrado en la base: solo se descifra al abrir el detalle o editar.
+            $cifrado = $pgp->cifrarPrograma($validated['descripcion'], $validated['bugs_buscados'] ?? null, $empresa);
+            $validated['descripcion'] = $cifrado['descripcion'];
+            $validated['bugs_buscados'] = $cifrado['bugs_buscados'];
+
             $programa = Programa::create($validated);
 
             foreach ($objetivos as $objetivo) {
                 $programa->objetivos()->create([
                     ...$objetivo,
-                    ...$pgp->cifrarObjetivo($objetivo['valor'], $objetivo['descripcion'] ?? null),
+                    ...$pgp->cifrarObjetivo($objetivo['valor'], $objetivo['descripcion'] ?? null, $empresa),
                 ]);
             }
 
@@ -232,13 +235,17 @@ class ProgramaController extends Controller
         $objetivos = $validated['objetivos'] ?? null;
         unset($validated['objetivos']);
 
+        // La empresa dueña no cambia en un update (el request ya la descarta), así
+        // que sigue siendo la misma clave a la que estaba cifrado el programa.
+        $empresa = $programa->empresa;
+
         if (array_key_exists('descripcion', $validated)) {
-            $cifrado = $pgp->cifrarPrograma($validated['descripcion'], $validated['bugs_buscados'] ?? null);
+            $cifrado = $pgp->cifrarPrograma($validated['descripcion'], $validated['bugs_buscados'] ?? null, $empresa);
             $validated['descripcion'] = $cifrado['descripcion'];
             $validated['bugs_buscados'] = $cifrado['bugs_buscados'];
         }
 
-        DB::transaction(function () use ($programa, $validated, $objetivos, $pgp) {
+        DB::transaction(function () use ($programa, $validated, $objetivos, $pgp, $empresa) {
             $programa->update($validated);
 
             if ($objetivos !== null) {
@@ -249,7 +256,7 @@ class ProgramaController extends Controller
                     $id = $datos['id'] ?? null;
                     unset($datos['id']);
 
-                    $datos = [...$datos, ...$pgp->cifrarObjetivo($datos['valor'], $datos['descripcion'] ?? null)];
+                    $datos = [...$datos, ...$pgp->cifrarObjetivo($datos['valor'], $datos['descripcion'] ?? null, $empresa)];
 
                     $objetivo = $id === null ? null : $programa->objetivos()->whereKey($id)->first();
 

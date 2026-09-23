@@ -29,7 +29,10 @@
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="MAIL_ENABLED" value="true"/>
+        <!-- gpg real, no el doble de pruebas: homedir propio para no pisar el de desarrollo. -->
         <env name="PGP_DRIVER" value="fallback"/>
+        <env name="PGP_GNUPG_HOME" value="storage/app/pgp/gpg-testing"/>
+        <env name="PGP_STORAGE_KEY" value="base64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

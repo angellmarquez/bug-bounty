@@ -9,6 +9,14 @@ if [ -z "$APP_KEY" ]; then
     exit 1
 fi
 
+# Mismo motivo que APP_KEY: protege clave_privada (custodia y cada empresa) y
+# es a propósito un secreto distinto. Si cambia o falta, las claves PGP
+# guardadas quedan ilegibles para siempre.
+if [ -z "$PGP_STORAGE_KEY" ]; then
+    echo "ERROR: falta PGP_STORAGE_KEY en las variables de entorno. No se arranca sin ella." >&2
+    exit 1
+fi
+
 php artisan config:cache
 php artisan view:cache
 # No se cachean rutas: routes/settings.php define una con un Closure
@@ -16,10 +24,13 @@ php artisan view:cache
 
 php artisan migrate --force
 
-# Reimporta la clave de la plataforma (persistida en la base de datos) al
-# keyring local: en disco efímero (Render sin disco persistente) el keyring
-# de GnuPG se pierde en cada reinicio del contenedor, aunque la clave siga
-# activa en claves_pgp_plataforma.
+# Pasa clave_privada de APP_KEY a PGP_STORAGE_KEY si alguna fila quedó con el
+# esquema viejo. Es idempotente: las ya migradas se dejan tal cual.
+php artisan pgp:migrar-almacenamiento
+
+# Reimporta la clave de custodia y las de cada empresa (persistidas en la
+# base de datos) al keyring local: en disco efímero (Render sin disco
+# persistente) el keyring de GnuPG se pierde en cada reinicio del contenedor.
 php artisan pgp:restore || true
 
 # No falla el arranque si la clave PGP no se puede crear todavía (por ejemplo,

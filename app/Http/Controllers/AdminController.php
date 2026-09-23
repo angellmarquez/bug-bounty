@@ -518,6 +518,19 @@ class AdminController extends Controller
         $claveActiva = ClavePgpPlataforma::query()->where('activa', true)->first();
         $pgpService = app(PgpService::class);
 
+        // Empresas que ya publicaron algo: son las que necesitan (o deberían tener) su propia clave.
+        $empresas = Empresa::query()
+            ->whereHas('programas')
+            ->with('clavePgp')
+            ->orderBy('razon_social')
+            ->get()
+            ->map(fn (Empresa $empresa): array => [
+                'id' => $empresa->id,
+                'nombre' => $empresa->nombre_comercial ?? $empresa->razon_social,
+                'tiene_clave' => $empresa->clavePgp !== null,
+                'expira_en' => $empresa->clavePgp?->expira_en,
+            ]);
+
         return Inertia::render('admin/pgp/Index', [
             // Solo lo necesario para saber si el cifrado funciona: nunca la huella,
             // identidad ni otros metadatos de la clave (ver AGENTS.md: la clave privada
@@ -525,6 +538,7 @@ class AdminController extends Controller
             'clave' => $claveActiva === null ? null : ['id' => $claveActiva->id, 'expira_en' => $claveActiva->expira_en],
             'driver' => $pgpService->driverName(),
             'available' => $pgpService->available(),
+            'empresas' => $empresas,
         ]);
     }
 }

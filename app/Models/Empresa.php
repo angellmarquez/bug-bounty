@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -33,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $usuarios
  * @property-read User|null $aprobador
  * @property-read Collection<int, EmpresaInvitacion> $invitaciones
+ * @property-read ClavePgpEmpresa|null $clavePgp
  */
 #[Fillable(['razon_social', 'nombre_comercial', 'identificador_fiscal', 'slug', 'email', 'telefono', 'sitio_web', 'estado', 'motivo_estado', 'aprobado_por', 'aprobado_en'])]
 class Empresa extends Model
@@ -85,5 +87,15 @@ class Empresa extends Model
     public function invitaciones(): HasMany
     {
         return $this->hasMany(EmpresaInvitacion::class);
+    }
+
+    /**
+     * Su clave PGP interna (la genera la plataforma sola, ver PgpService::claveDeEmpresa()).
+     *
+     * @return HasOne<ClavePgpEmpresa, $this>
+     */
+    public function clavePgp(): HasOne
+    {
+        return $this->hasOne(ClavePgpEmpresa::class);
     }
 }

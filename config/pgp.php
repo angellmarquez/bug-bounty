@@ -62,6 +62,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Secreto de resguardo de las claves privadas
+    |--------------------------------------------------------------------------
+    |
+    | Cifra `clave_privada` en `claves_pgp_plataforma` (custodia) y
+    | `claves_pgp_empresa` en reposo. A propósito NO es APP_KEY: una fuga de
+    | APP_KEY (usada también para sesiones y otras columnas `encrypted`) no
+    | debería exponer automáticamente las claves privadas PGP.
+    |
+    */
+
+    'storage_key' => env('PGP_STORAGE_KEY', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Creación automática de la clave
     |--------------------------------------------------------------------------
     |

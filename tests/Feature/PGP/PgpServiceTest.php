@@ -11,8 +11,12 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
+// Este archivo prueba el contrato del driver de respaldo (sigue existiendo para entornos sin
+// GnuPG): se fuerza aquí, porque el resto del suite usa GnuPG real. Los tests con el binario
+// real construyen su GpgBinaryDriver explícitamente, y ClavesPorEmpresaTest cubre el flujo real.
 beforeEach(function () {
     $this->storePgp = sys_get_temp_dir().'/pgp_test_'.uniqid();
+    config(['pgp.driver' => 'fallback']);
     config(['pgp.fallback.store' => $this->storePgp]);
     config(['pgp.identity' => 'Plataforma de Prueba <pruebas@localhost>']);
 
@@ -31,7 +35,7 @@ function pgpService(): PgpService
     return app(PgpService::class);
 }
 
-test('en testing se resuelve el driver de respaldo', function () {
+test('con PGP_DRIVER=fallback se resuelve el driver de respaldo', function () {
     expect(app(PgpDriver::class))
         ->toBeInstanceOf(FallbackPgpDriver::class)
         ->available()->toBeTrue();
