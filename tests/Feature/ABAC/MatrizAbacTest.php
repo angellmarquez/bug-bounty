@@ -131,7 +131,7 @@ dataset('matriz_abac', [
     // ------------------------------------------------------------------
     'invitado no ve reportes' => ['reportes.ver', fn () => [null, reporteDe(investigador())], false],
     'invitado no ve programas públicos' => ['programas.ver', fn () => [null, programaDe(investigador())], false],
-    'un usuario investigador+moderador triaja en el programa que modera' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null], ['investigador', 'moderador']), true],
+    'un usuario con rol de investigador tiene denegado el triaje por separación estricta de funciones' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null], ['investigador', 'moderador']), false],
     'un usuario investigador+moderador sigue sin ver borradores ajenos' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value], ['investigador', 'moderador']), false],
 
     // ------------------------------------------------------------------
