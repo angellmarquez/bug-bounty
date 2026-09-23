@@ -58,7 +58,6 @@ class EmpresaDemoSeeder extends Seeder
                 'nombre' => 'Empresa Demo Programa',
                 'descripcion' => 'Programa de demostración para probar el flujo empresarial.',
                 'estado' => 'activo',
-                'requiere_poc' => true,
                 'es_publico' => true,
                 'nivel_acceso' => 'bajo',
                 'empresa_id' => $empresa->id,

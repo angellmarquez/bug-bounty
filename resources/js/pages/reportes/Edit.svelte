@@ -47,7 +47,7 @@
     import { edit, update } from '@/routes/reportes';
     import type { PocSchemaField, Reporte } from '@/types/domain';
     import type { Severidad } from '@/types/enums';
-    import { validarPoc } from '@/lib/poc-schema';
+    import { schemaEfectivo, validarPoc } from '@/lib/poc-schema';
     import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
 
     let {
@@ -72,7 +72,7 @@
         poc: (reporte.poc ?? {}) as Record<string, unknown>,
     });
 
-    let pocSchema = $derived<PocSchemaField[]>(reporte.programa?.poc_schema ?? []);
+    let pocSchema = $derived<PocSchemaField[]>(schemaEfectivo(reporte.programa?.poc_schema));
 
     function validarPasoActual(): boolean {
         erroresPaso = {};

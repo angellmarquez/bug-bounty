@@ -12,7 +12,6 @@ function datosDeEdicion(array $extra = []): array
     return [
         'nombre' => 'Programa editado',
         'descripcion' => 'Descripcion editada',
-        'requiere_poc' => '1',
         'es_publico' => '1',
         'nivel_acceso' => 'bajo',
         ...$extra,

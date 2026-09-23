@@ -1,5 +1,24 @@
 import type { PocSchemaField } from '@/types/domain';
 
+/**
+ * Todo programa exige PoC (ver AGENTS.md): comprueba que el investigador diga la
+ * verdad. Cuando el programa no define campos propios, se usa este campo genérico
+ * en su lugar para que igual quede una evidencia obligatoria.
+ */
+export const CAMPO_POC_POR_DEFECTO: PocSchemaField = {
+    name: 'evidencia',
+    label: 'Evidencia y pasos para reproducir',
+    type: 'textarea',
+    required: true,
+    help: 'Describe paso a paso cómo reproducir la vulnerabilidad (o pega el payload/PoC).',
+};
+
+export function schemaEfectivo(
+    schema: PocSchemaField[] | null | undefined,
+): PocSchemaField[] {
+    return schema && schema.length > 0 ? schema : [CAMPO_POC_POR_DEFECTO];
+}
+
 export function schemaVacio(schema: PocSchemaField[]): Record<string, unknown> {
     const data: Record<string, unknown> = {};
     for (const field of schema) {

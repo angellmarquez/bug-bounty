@@ -38,7 +38,6 @@ class UpdateProgramaRequest extends FormRequest
             'nombre' => ['sometimes', 'required', 'string', 'max:255'],
             'descripcion' => ['sometimes', 'required', 'string', 'max:5000'],
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
-            'requiere_poc' => ['boolean'],
             'es_publico' => ['boolean'],
             'nivel_acceso' => ['sometimes', 'required', Rule::enum(NivelAcceso::class)],
             'poc_schema' => ['nullable', 'array'],

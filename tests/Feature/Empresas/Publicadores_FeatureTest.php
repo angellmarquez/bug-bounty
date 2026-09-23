@@ -364,7 +364,10 @@ test('al avisar de informes nuevos solo se avisa al propietario, no a los public
     $programa = programaDeEmpresa($dueno);
     $publicador = publicadorDeEmpresa($empresa);
     $autor = investigador();
-    $reporte = reporteDe($autor, $programa, ['estado' => 'borrador']);
+    $reporte = reporteDe($autor, $programa, [
+        'estado' => 'borrador',
+        'poc' => pocCifrado(['evidencia' => 'Evidencia de prueba.']),
+    ]);
 
     $this->actingAs($autor)->post(route('reportes.enviar', $reporte))->assertRedirect();
 
@@ -397,7 +400,11 @@ test('quien ya habia reportado a la empresa puede unirse, sigue viendo sus infor
     $programa = programaDeEmpresa($dueno);
     $investigador = investigador();
     $enviado = reporteDe($investigador, $programa, ['estado' => 'enviado', 'enviado_en' => now()->subDays(2)]);
-    $borrador = reporteDe($investigador, $programa, ['estado' => 'borrador', 'enviado_en' => null]);
+    $borrador = reporteDe($investigador, $programa, [
+        'estado' => 'borrador',
+        'enviado_en' => null,
+        'poc' => pocCifrado(['evidencia' => 'Evidencia de prueba.']),
+    ]);
     $invitacion = invitacionPara($empresa, $dueno, $investigador);
 
     $this->actingAs($investigador)->post(route('invitaciones.aceptar', $invitacion))->assertRedirect();

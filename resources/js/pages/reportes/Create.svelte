@@ -50,7 +50,7 @@
     import { index as reportesIndex, create as createRoute, store } from '@/routes/reportes';
     import type { PocSchemaField, Programa } from '@/types/domain';
     import type { Severidad } from '@/types/enums';
-    import { schemaVacio, validarPoc } from '@/lib/poc-schema';
+    import { schemaEfectivo, schemaVacio, validarPoc } from '@/lib/poc-schema';
     import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
 
     let {
@@ -78,20 +78,17 @@
         poc: {} as Record<string, unknown>,
     });
 
-    const schemaInicial = programas.find((p) => String(p.id) === formulario.programa_id)?.poc_schema ?? [];
+    const schemaInicial = schemaEfectivo(
+        programas.find((p) => String(p.id) === formulario.programa_id)?.poc_schema,
+    );
     let pocSchema = $state<PocSchemaField[]>(schemaInicial);
     formulario.poc = schemaVacio(schemaInicial);
 
     function seleccionarPrograma(id: string) {
         formulario.programa_id = id;
         const prog = programas.find((p) => String(p.id) === id);
-        if (prog?.poc_schema) {
-            pocSchema = prog.poc_schema;
-            formulario.poc = schemaVacio(prog.poc_schema);
-        } else {
-            pocSchema = [];
-            formulario.poc = {};
-        }
+        pocSchema = schemaEfectivo(prog?.poc_schema);
+        formulario.poc = schemaVacio(pocSchema);
     }
 
     function validarPasoActual(): boolean {

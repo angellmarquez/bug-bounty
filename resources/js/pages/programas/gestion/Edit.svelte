@@ -17,6 +17,7 @@
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import InputError from '@/components/InputError.svelte';
+    import PocSchemaEditor from '@/components/PocSchemaEditor.svelte';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent } from '@/components/ui/card';
     import { Input } from '@/components/ui/input';
@@ -144,11 +145,6 @@
 
                     <div class="flex items-center gap-6">
                         <Label class="flex items-center space-x-3">
-                            <Checkbox name="requiere_poc" value="1" checked={programa.requiere_poc} />
-                            <span>Requiere PoC</span>
-                        </Label>
-
-                        <Label class="flex items-center space-x-3">
                             <Checkbox name="es_publico" value="1" checked={programa.es_publico} />
                             <span>Público</span>
                         </Label>
@@ -244,6 +240,12 @@
                     {#if errorObjetivos}
                         <InputError message={errorObjetivos} />
                     {/if}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardContent class="pt-6">
+                    <PocSchemaEditor schema={programa.poc_schema ?? []} {errors} />
                 </CardContent>
             </Card>
 

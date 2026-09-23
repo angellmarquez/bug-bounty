@@ -344,11 +344,6 @@
                         <span class="text-sm">{programa.reportes_count ?? 0}</span>
                     </div>
 
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-muted-foreground">PoC requerido</span>
-                        <span class="text-sm">{programa.requiere_poc ? 'Si' : 'No'}</span>
-                    </div>
-
                     <Separator />
 
                     <div class="space-y-2">

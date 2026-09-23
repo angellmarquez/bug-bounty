@@ -45,7 +45,11 @@ function escenarioDeInforme(string $estado = 'enviado'): array
 test('al enviar un informe avisan los moderadores del programa y al propietario de la empresa, no al autor ni a otros moderadores', function () {
     ['programa' => $programa, 'dueno' => $dueno, 'moderador' => $moderador, 'investigador' => $autor] = escenarioDeInforme('borrador');
     $ajeno = moderadorDe(Programa::factory()->create());
-    $reporte = reporteDe($autor, $programa, ['estado' => 'borrador', 'titulo' => 'XSS en login']);
+    $reporte = reporteDe($autor, $programa, [
+        'estado' => 'borrador',
+        'titulo' => 'XSS en login',
+        'poc' => pocCifrado(['evidencia' => 'Evidencia de prueba.']),
+    ]);
 
     $this->actingAs($autor)->post(route('reportes.enviar', $reporte))->assertRedirect();
 

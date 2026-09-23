@@ -16,9 +16,9 @@ function programaConEmpresa(array $atributos = []): Programa
     ]);
 }
 
-test('moderadores y administradores ven la cola de moderacion por programa', function (string $rol) {
+test('los moderadores ven la cola de moderacion por programa', function () {
     $programa = programaConEmpresa(['nombre' => 'Programa Acme']);
-    $this->actingAs($rol === 'moderador' ? moderadorDe($programa) : administrador());
+    $this->actingAs(moderadorDe($programa));
     reporteDe(investigador(), $programa, ['estado' => 'enviado']);
     reporteDe(investigador(), $programa, ['estado' => 'en_revision']);
     reporteDe(investigador(), $programa, ['estado' => 'validado']);
@@ -37,7 +37,15 @@ test('moderadores y administradores ven la cola de moderacion por programa', fun
             ->where('programas.data.0.reportes_aprobados', 1)
             ->where('programas.data.0.reportes_rechazados', 1)
             ->where('resumen.por_revisar', 1));
-})->with(['moderador', 'administrador']);
+});
+
+test('el administrador no ve la cola de moderacion: no participa en el dia a dia de los reportes', function () {
+    $programa = programaConEmpresa();
+    $this->actingAs(administrador());
+    reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+
+    $this->get(route('moderacion.index'))->assertForbidden();
+});
 
 test('un moderador solo ve en la cola los programas que se le asignaron', function () {
     $suyo = programaConEmpresa(['nombre' => 'Programa Suyo']);
@@ -210,6 +218,7 @@ test('guardar y enviar deja el informe visible para el moderador y la empresa', 
         'programa_id' => $programa->id,
         'titulo' => 'Enviado al guardar',
         'descripcion' => 'Se envia',
+        'poc' => ['evidencia' => 'Pasos para reproducir el hallazgo.'],
         'enviar' => true,
     ])->assertRedirect();
 

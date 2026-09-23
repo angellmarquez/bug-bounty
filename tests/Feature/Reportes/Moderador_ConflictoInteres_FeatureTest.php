@@ -60,7 +60,10 @@ test('la página del programa avisa que lo modera y no ofrece reportar', functio
 test('un moderador investigador sigue viendo y enviando sus propios informes de otros programas', function () {
     $otro = programaAbierto();
     $usuario = moderadorInvestigador(programaAbierto());
-    $propio = reporteDe($usuario, $otro, ['estado' => 'borrador']);
+    $propio = reporteDe($usuario, $otro, [
+        'estado' => 'borrador',
+        'poc' => pocCifrado(['evidencia' => 'Evidencia de prueba.']),
+    ]);
     $this->actingAs($usuario);
 
     $this->get(route('reportes.show', $propio))->assertOk();

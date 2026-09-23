@@ -25,7 +25,6 @@ class StoreProgramaRequest extends FormRequest
             'nombre' => ['required', 'string', 'max:255'],
             'descripcion' => ['required', 'string', 'max:5000'],
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
-            'requiere_poc' => ['boolean'],
             'es_publico' => ['boolean'],
             'nivel_acceso' => ['sometimes', Rule::enum(NivelAcceso::class)],
             'poc_schema' => ['nullable', 'array'],

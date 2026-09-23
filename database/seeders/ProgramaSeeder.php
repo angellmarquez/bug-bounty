@@ -21,7 +21,6 @@ class ProgramaSeeder extends Seeder
             'slug' => 'bugbounty-corp',
             'descripcion' => 'Programa de divulgacion responsable para la plataforma principal de BugBounty Corp. Buscamos vulnerabilidades en nuestra aplicacion web, API REST y aplicacion movil.',
             'estado' => 'activo',
-            'requiere_poc' => true,
             'es_publico' => true,
             'creado_por' => $propietario->id,
             'empresa_id' => $empresa->id,
@@ -38,13 +37,12 @@ class ProgramaSeeder extends Seeder
         $bugbounty->objetivos()->create(['tipo' => 'web', 'valor' => 'https://app.bugbounty-corp.com', 'descripcion' => 'Aplicacion web principal']);
         $bugbounty->objetivos()->create(['tipo' => 'api', 'valor' => 'https://api.bugbounty-corp.com/v1', 'descripcion' => 'API REST v1']);
 
-        // Programa 2: GovSecure — activo, publico, requiere_poc
+        // Programa 2: GovSecure — activo, publico
         $govsecure = Programa::create([
             'nombre' => 'GovSecure',
             'slug' => 'govsecure',
             'descripcion' => 'Plataforma de seguridad gubernamental. Reporta vulnerabilidades en nuestros sistemas de identidad digital y servicios publicos en linea.',
             'estado' => 'activo',
-            'requiere_poc' => true,
             'es_publico' => true,
             'creado_por' => $propietario->id,
             'empresa_id' => $empresa->id,
@@ -61,7 +59,6 @@ class ProgramaSeeder extends Seeder
             'slug' => 'startup-app',
             'descripcion' => 'Aplicacion SaaS para gestión de proyectos. Actualmente en pausa por rediseño de infraestructura.',
             'estado' => 'en_pausa',
-            'requiere_poc' => false,
             'es_publico' => true,
             'creado_por' => $propietario->id,
             'empresa_id' => $empresa->id,

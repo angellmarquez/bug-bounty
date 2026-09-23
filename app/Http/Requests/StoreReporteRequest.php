@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Abac\AccionesAbac;
 use App\Enums\Severidad;
 use App\Models\Programa;
+use App\Rules\PocCumpleSchema;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -47,6 +48,12 @@ class StoreReporteRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Con el borrador la PoC puede ir incompleta (se guarda progreso); al enviar
+        // ("Guardar y enviar") se exige completa: todo programa requiere PoC verificable.
+        $enviar = $this->boolean('enviar');
+        $programa = Programa::find((int) $this->input('programa_id'));
+        $schema = $programa === null ? [] : ($programa->poc_schema ?? []);
+
         return [
             'programa_id' => ['required', 'exists:programas,id'],
             'titulo' => ['required', 'string', 'max:255'],
@@ -55,7 +62,11 @@ class StoreReporteRequest extends FormRequest
             'vector_cvss' => ['nullable', 'string', 'max:100'],
             'puntuacion_cvss' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'severidad' => ['nullable', Rule::enum(Severidad::class)],
-            'poc' => ['nullable', 'array'],
+            'poc' => [
+                $enviar ? 'required' : 'nullable',
+                'array',
+                new PocCumpleSchema($schema, exigirRequeridos: $enviar),
+            ],
             'enviar' => ['sometimes', 'boolean'],
         ];
     }
@@ -71,6 +82,7 @@ class StoreReporteRequest extends FormRequest
             'descripcion.max' => 'La descripción no puede exceder 50000 caracteres.',
             'puntuacion_cvss.min' => 'La puntuación CVSS debe ser entre 0 y 10.',
             'puntuacion_cvss.max' => 'La puntuación CVSS debe ser entre 0 y 10.',
+            'poc.required' => 'La prueba de concepto es obligatoria para enviar el reporte.',
         ];
     }
 }

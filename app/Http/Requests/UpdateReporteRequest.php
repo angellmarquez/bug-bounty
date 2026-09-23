@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
 use App\Enums\Severidad;
+use App\Models\Reporte;
+use App\Rules\PocCumpleSchema;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -40,6 +42,12 @@ class UpdateReporteRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Editar sigue permitiendo guardar progreso incompleto; la PoC completa
+        // solo se exige al enviar (ver ReporteController::enviar).
+        /** @var Reporte|null $reporte */
+        $reporte = $this->route('reporte');
+        $schema = $reporte?->programa->poc_schema ?? [];
+
         return [
             'titulo' => ['sometimes', 'string', 'max:255'],
             'descripcion' => ['sometimes', 'string', 'max:50000'],
@@ -47,7 +55,7 @@ class UpdateReporteRequest extends FormRequest
             'vector_cvss' => ['nullable', 'string', 'max:100'],
             'puntuacion_cvss' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'severidad' => ['nullable', Rule::enum(Severidad::class)],
-            'poc' => ['sometimes', 'nullable', 'array'],
+            'poc' => ['sometimes', 'nullable', 'array', new PocCumpleSchema($schema, exigirRequeridos: false)],
         ];
     }
 

@@ -19,7 +19,13 @@ function enviosPrevios(User $investigador, Programa $programa, int $cantidad, in
 
 function borradorDe(User $investigador, Programa $programa, string $titulo = 'Hallazgo nuevo'): Reporte
 {
-    return reporteDe($investigador, $programa, ['estado' => 'borrador', 'enviado_en' => null, 'titulo' => $titulo]);
+    // Con PoC ya cargada: estos tests ejercitan el límite de envíos, no la exigencia de PoC.
+    return reporteDe($investigador, $programa, [
+        'estado' => 'borrador',
+        'enviado_en' => null,
+        'titulo' => $titulo,
+        'poc' => pocCifrado(['evidencia' => 'Evidencia de prueba.']),
+    ]);
 }
 
 function enviadosDe(User $investigador): int
@@ -173,6 +179,7 @@ test('guardar y enviar bloqueado no crea el informe y devuelve el motivo', funct
         'programa_id' => $programa->id,
         'titulo' => 'Otro hallazgo',
         'descripcion' => 'Detalle del hallazgo',
+        'poc' => ['evidencia' => 'Evidencia de prueba.'],
         'enviar' => true,
     ]);
 
@@ -214,6 +221,7 @@ test('simulacion: un script envia 15 informes distintos al mismo programa y solo
             'programa_id' => $programa->id,
             'titulo' => "Hallazgo automatico {$i}",
             'descripcion' => "Texto {$i}",
+            'poc' => ['evidencia' => "Evidencia {$i}"],
             'enviar' => true,
         ]);
     }
@@ -231,6 +239,7 @@ test('simulacion: un script reparte 18 informes entre 18 programas y solo entran
             'programa_id' => $programa->id,
             'titulo' => "Barrido {$i}",
             'descripcion' => "Texto {$i}",
+            'poc' => ['evidencia' => "Evidencia {$i}"],
             'enviar' => true,
         ]);
     }
@@ -247,6 +256,7 @@ test('el bloqueo salta antes que la auditoria: un investigador legitimo nunca es
             'programa_id' => $programa->id,
             'titulo' => "Legitimo {$i}",
             'descripcion' => "Texto {$i}",
+            'poc' => ['evidencia' => "Evidencia {$i}"],
             'enviar' => true,
         ]);
     }

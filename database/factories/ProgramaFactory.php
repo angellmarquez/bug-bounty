@@ -24,7 +24,6 @@ class ProgramaFactory extends Factory
             'slug' => fake()->unique()->slug(3),
             'descripcion' => fake()->paragraph(),
             'estado' => EstadoPrograma::Activo->value,
-            'requiere_poc' => fake()->boolean(),
             'es_publico' => true,
             'nivel_acceso' => 'bajo',
             'creado_por' => User::factory(),

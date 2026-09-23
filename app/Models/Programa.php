@@ -26,10 +26,9 @@ use Illuminate\Support\Str;
  * @property string $descripcion
  * @property string|null $bugs_buscados
  * @property EstadoPrograma $estado
- * @property bool $requiere_poc
  * @property bool $es_publico
  * @property NivelAcceso $nivel_acceso
- * @property array<string, mixed>|null $poc_schema
+ * @property array<int, array<string, mixed>>|null $poc_schema
  * @property int|null $creado_por
  * @property Carbon|null $inicia_en
  * @property Carbon|null $termina_en
@@ -42,7 +41,7 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, User> $moderadores
  */
-#[Fillable(['nombre', 'slug', 'descripcion', 'bugs_buscados', 'estado', 'requiere_poc', 'es_publico', 'nivel_acceso', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
+#[Fillable(['nombre', 'slug', 'descripcion', 'bugs_buscados', 'estado', 'es_publico', 'nivel_acceso', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
 class Programa extends Model
 {
     /** @use HasFactory<ProgramaFactory> */
@@ -57,7 +56,6 @@ class Programa extends Model
     {
         return [
             'estado' => EstadoPrograma::class,
-            'requiere_poc' => 'boolean',
             'es_publico' => 'boolean',
             'nivel_acceso' => NivelAcceso::class,
             'poc_schema' => 'array',
