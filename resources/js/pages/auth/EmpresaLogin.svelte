@@ -10,16 +10,10 @@
     import AppHead from '@/components/AppHead.svelte';
     import InputError from '@/components/InputError.svelte';
     import PasswordInput from '@/components/PasswordInput.svelte';
-    import TextLink from '@/components/TextLink.svelte';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
     import { Spinner } from '@/components/ui/spinner';
-    import { request } from '@/routes/password';
-
-    let {
-        canResetPassword,
-    }: { canResetPassword: boolean } = $props();
 </script>
 
 <AppHead title="Acceso empresarial" />
@@ -34,10 +28,7 @@
             </div>
 
             <div class="grid gap-2">
-                <div class="flex items-center justify-between">
-                    <Label for="password">Contraseña</Label>
-                    {#if canResetPassword}<TextLink href={request()}>¿Olvidaste tu contraseña?</TextLink>{/if}
-                </div>
+                <Label for="password">Contraseña</Label>
                 <PasswordInput id="password" name="password" required autocomplete="current-password" />
                 <InputError message={errors.password} />
             </div>

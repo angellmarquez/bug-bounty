@@ -24,6 +24,7 @@
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
     import { send } from '@/routes/verification';
+    import { AYUDA_NOMBRE, PATRON_NOMBRE } from '@/lib/validacion';
 
     const user = $derived(page.props.auth.user);
 </script>
@@ -64,6 +65,10 @@
                     required
                     autocomplete="name"
                     placeholder="Full name"
+                    minlength={2}
+                    maxlength={100}
+                    pattern={PATRON_NOMBRE}
+                    title={AYUDA_NOMBRE}
                 />
                 <InputError class="mt-2" message={errors.name} />
             </div>

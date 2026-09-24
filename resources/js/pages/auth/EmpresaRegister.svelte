@@ -15,6 +15,7 @@
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
     import { Spinner } from '@/components/ui/spinner';
+    import { AYUDA_NOMBRE, PATRON_NOMBRE } from '@/lib/validacion';
 
     let { passwordRules }: { passwordRules: string } = $props();
 </script>
@@ -50,7 +51,7 @@
 
             <div class="grid gap-2">
                 <Label for="name">Nombre del responsable</Label>
-                <Input id="name" name="name" required autocomplete="name" />
+                <Input id="name" name="name" required autocomplete="name" minlength={2} maxlength={100} pattern={PATRON_NOMBRE} title={AYUDA_NOMBRE} />
                 <InputError message={errors.name} />
             </div>
 

@@ -17,6 +17,7 @@
     import { Spinner } from '@/components/ui/spinner';
     import { login } from '@/routes';
     import { store } from '@/routes/register';
+    import { AYUDA_NOMBRE, PATRON_NOMBRE } from '@/lib/validacion';
 
     let { passwordRules }: { passwordRules: string } = $props();
 </script>
@@ -39,6 +40,10 @@
                     autocomplete="name"
                     name="name"
                     placeholder="Full name"
+                    minlength={2}
+                    maxlength={100}
+                    pattern={PATRON_NOMBRE}
+                    title={AYUDA_NOMBRE}
                 />
                 <InputError message={errors.name} />
             </div>

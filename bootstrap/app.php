@@ -2,9 +2,11 @@
 
 use App\Exceptions\PaginasDeError;
 use App\Http\Middleware\AbacMiddleware;
+use App\Http\Middleware\CabecerasDeSeguridad;
 use App\Http\Middleware\EmpresaAccessMiddleware;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LimitarRegistros;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -33,6 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->web(append: [
+            CabecerasDeSeguridad::class,
+            LimitarRegistros::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

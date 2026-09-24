@@ -14,6 +14,7 @@
     import { Card, CardContent } from '@/components/ui/card';
     import { estiloDeAviso, haceTiempo } from '@/lib/notificaciones';
     import type { Notificacion } from '@/types/domain';
+    import { etiquetaPaginacion } from '@/lib/paginacion';
 
     let {
         avisos,
@@ -120,11 +121,11 @@
                             href={link.url}
                             class="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors hover:bg-secondary {link.active ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground'}"
                         >
-                            {@html link.label}
+                            {etiquetaPaginacion(link.label)}
                         </a>
                     {:else}
                         <span class="inline-flex h-9 items-center justify-center px-3 text-sm text-muted-foreground">
-                            {@html link.label}
+                            {etiquetaPaginacion(link.label)}
                         </span>
                     {/if}
                 {/each}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Concerns\ProfileValidationRules;
 use App\Models\Auditoria;
 use App\Models\Empresa;
 use App\Models\Rol;
@@ -16,15 +17,14 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Laravel\Fortify\Features;
 
 class EmpresaAuthController extends Controller
 {
+    use ProfileValidationRules;
+
     public function login(): InertiaResponse
     {
-        return Inertia::render('auth/EmpresaLogin', [
-            'canResetPassword' => Features::enabled(Features::resetPasswords()),
-        ]);
+        return Inertia::render('auth/EmpresaLogin');
     }
 
     public function create(): InertiaResponse
@@ -36,16 +36,32 @@ class EmpresaAuthController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = Validator::make($request->all(), [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
+        $datos = $request->all();
+        foreach (['email', 'empresa_email'] as $campo) {
+            if (isset($datos[$campo]) && is_string($datos[$campo])) {
+                $datos[$campo] = mb_strtolower(trim($datos[$campo]));
+            }
+        }
+
+        // Cada campo acepta solo el formato que le corresponde: nada de números en el nombre
+        // de una persona ni símbolos sueltos en un teléfono o un identificador fiscal.
+        $validated = Validator::make($datos, [
+            'name' => $this->nameRules(),
+            'email' => ['required', 'string', 'email:rfc,strict', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::defaults()],
-            'razon_social' => ['required', 'string', 'max:255'],
-            'nombre_comercial' => ['nullable', 'string', 'max:255'],
-            'identificador_fiscal' => ['required', 'string', 'max:100', 'unique:empresas,identificador_fiscal'],
-            'empresa_email' => ['required', 'email', 'max:255'],
-            'telefono' => ['nullable', 'string', 'max:50'],
-            'sitio_web' => ['nullable', 'url', 'max:255'],
+            'razon_social' => ['required', 'string', 'min:2', 'max:255', 'regex:'.self::PATRON_NOMBRE_EMPRESA],
+            'nombre_comercial' => ['nullable', 'string', 'max:255', 'regex:'.self::PATRON_NOMBRE_EMPRESA],
+            'identificador_fiscal' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/', 'unique:empresas,identificador_fiscal'],
+            'empresa_email' => ['required', 'email:rfc,strict', 'max:255'],
+            'telefono' => ['nullable', 'string', 'max:30', 'regex:/^\+?[0-9 ()\-]{6,30}$/'],
+            'sitio_web' => ['nullable', 'url:http,https', 'max:255'],
+        ], [
+            ...$this->profileMessages(),
+            'razon_social.regex' => 'La razón social solo puede tener letras, números, espacios y . , & \' - ( ).',
+            'nombre_comercial.regex' => 'El nombre comercial solo puede tener letras, números, espacios y . , & \' - ( ).',
+            'identificador_fiscal.regex' => 'El identificador fiscal solo puede tener letras, números, puntos, guiones y barras.',
+            'telefono.regex' => 'El teléfono solo puede tener números, espacios, paréntesis, guiones y un + inicial.',
+            'sitio_web.url' => 'El sitio web debe ser una dirección http:// o https:// válida.',
         ])->validate();
 
         $user = DB::transaction(function () use ($validated): User {

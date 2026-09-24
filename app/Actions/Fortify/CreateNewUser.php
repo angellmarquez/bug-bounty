@@ -21,10 +21,15 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        // El correo se guarda siempre en minúsculas: "Ana@X.com" y "ana@x.com" son la misma cuenta.
+        if (isset($input['email'])) {
+            $input['email'] = mb_strtolower(trim($input['email']));
+        }
+
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
-        ])->validate();
+        ], $this->profileMessages())->validate();
 
         return DB::transaction(function () use ($input) {
             $user = User::create([

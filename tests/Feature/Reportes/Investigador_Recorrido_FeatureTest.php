@@ -19,8 +19,8 @@ test('un investigador recien registrado ve el programa, reporta y sigue su infor
     $this->post(route('register.store'), [
         'name' => 'Nuevo Investigador',
         'email' => 'nuevo@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'password' => 'Clave-Segura-2026',
+        'password_confirmation' => 'Clave-Segura-2026',
     ])->assertRedirect();
 
     $this->get(route('programas.index'))

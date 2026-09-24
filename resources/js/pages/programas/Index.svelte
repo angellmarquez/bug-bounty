@@ -37,6 +37,7 @@
     import { Badge } from '@/components/ui/badge';
     import { index as programaRoute, show as programaShow } from '@/routes/programas';
     import type { Programa } from '@/types/domain';
+    import { etiquetaPaginacion } from '@/lib/paginacion';
 
     let {
         programas: programasData,
@@ -226,11 +227,11 @@
                             href={link.url}
                             class="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors hover:bg-secondary {link.active ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground'}"
                         >
-                            {@html link.label}
+                            {etiquetaPaginacion(link.label)}
                         </Link>
                     {:else}
                         <span class="inline-flex h-9 items-center justify-center px-3 text-sm text-muted-foreground">
-                            {@html link.label}
+                            {etiquetaPaginacion(link.label)}
                         </span>
                     {/if}
                 {/each}

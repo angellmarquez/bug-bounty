@@ -160,17 +160,15 @@ return [
     |
     */
 
+    // Sin recuperación de contraseña ni passkeys: la cuenta solo se abre con correo + contraseña
+    // (y 2FA si el usuario lo activa). Menos superficie de ataque: sin enlaces de reseteo ni WebAuthn.
     'features' => [
         Features::registration(),
-        Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([
             'confirm' => true,
             'confirmPassword' => true,
             // 'window' => 0
-        ]),
-        Features::passkeys([
-            'confirmPassword' => true,
         ]),
     ],
 

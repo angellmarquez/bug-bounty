@@ -19,6 +19,7 @@
     import { Button } from '@/components/ui/button';
     import type { EstadoPrograma } from '@/types/enums';
     import type { ReporteCompacto } from '@/types/domain';
+    import { etiquetaPaginacion } from '@/lib/paginacion';
 
     type Filtro = 'por_revisar' | 'en_revision' | 'aprobados' | 'rechazados' | 'todos';
 
@@ -94,11 +95,11 @@
                             href={link.url}
                             class="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors hover:bg-secondary {link.active ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground'}"
                         >
-                            {@html link.label}
+                            {etiquetaPaginacion(link.label)}
                         </Link>
                     {:else}
                         <span class="inline-flex h-9 items-center justify-center px-3 text-sm text-muted-foreground">
-                            {@html link.label}
+                            {etiquetaPaginacion(link.label)}
                         </span>
                     {/if}
                 {/each}

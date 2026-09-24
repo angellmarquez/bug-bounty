@@ -18,8 +18,8 @@ test('new users can register', function () {
     $response = $this->post(route('register.store'), [
         'name' => 'Test User',
         'email' => 'test@example.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'password' => 'Clave-Segura-2026',
+        'password_confirmation' => 'Clave-Segura-2026',
     ]);
 
     $this->assertAuthenticated();
@@ -30,8 +30,8 @@ test('new users are assigned investigador role on registration', function () {
     $this->post(route('register.store'), [
         'name' => 'Investigador Test',
         'email' => 'investigador@test.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'password' => 'Clave-Segura-2026',
+        'password_confirmation' => 'Clave-Segura-2026',
     ]);
 
     $user = User::where('email', 'investigador@test.com')->first();
@@ -45,8 +45,8 @@ test('investigador role is created if it does not exist', function () {
     $this->post(route('register.store'), [
         'name' => 'Nuevo Investigador',
         'email' => 'nuevo@test.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'password' => 'Clave-Segura-2026',
+        'password_confirmation' => 'Clave-Segura-2026',
     ]);
 
     $rol = Rol::where('slug', 'investigador')->first();
@@ -58,8 +58,8 @@ test('registered user has exactly one role after registration', function () {
     $this->post(route('register.store'), [
         'name' => 'Solo Un Rol',
         'email' => 'unrol@test.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'password' => 'Clave-Segura-2026',
+        'password_confirmation' => 'Clave-Segura-2026',
     ]);
 
     $user = User::where('email', 'unrol@test.com')->first();

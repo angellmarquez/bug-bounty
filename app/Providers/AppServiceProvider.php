@@ -117,14 +117,11 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
-            : null,
+        // Contraseña robusta en todos los entornos (antes, fuera de producción valía "password").
+        // En producción además más larga y comprobada contra filtraciones conocidas (haveibeenpwned).
+        Password::defaults(fn (): Password => app()->isProduction()
+            ? Password::min(12)->max(128)->mixedCase()->letters()->numbers()->symbols()->uncompromised()
+            : Password::min(8)->max(128)->mixedCase()->letters()->numbers()->symbols(),
         );
     }
 }

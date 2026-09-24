@@ -35,6 +35,7 @@
     } from '@/components/ui/card';
     import { gravedadSancionColor, estadoSancionColor, gravedadSancionLabel, estadoSancionLabel } from '@/lib/status-colors';
     import type { Sancion } from '@/types/domain';
+    import { etiquetaPaginacion } from '@/lib/paginacion';
 
     const ESTADOS_FILTRO = [
         { value: 'todos', label: 'Todos los estados' },
@@ -241,11 +242,11 @@
                             href={link.url}
                             class="inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors hover:bg-secondary {link.active ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground'}"
                         >
-                            {@html link.label}
+                            {etiquetaPaginacion(link.label)}
                         </a>
                     {:else}
                         <span class="inline-flex h-9 items-center justify-center px-3 text-sm text-muted-foreground">
-                            {@html link.label}
+                            {etiquetaPaginacion(link.label)}
                         </span>
                     {/if}
                 {/each}

@@ -12,10 +12,6 @@ test('security page is displayed', function () {
         'confirm' => true,
         'confirmPassword' => true,
     ]);
-    Features::passkeys([
-        'confirmPassword' => true,
-    ]);
-
     $user = User::factory()->create();
 
     $this->actingAs($user)
@@ -23,8 +19,8 @@ test('security page is displayed', function () {
         ->get(route('security.edit'))
         ->assertInertia(fn (Assert $page) => $page
             ->component('settings/Security')
-            ->where('canManagePasskeys', true)
-            ->where('passkeys', [])
+            ->missing('canManagePasskeys')
+            ->missing('passkeys')
             ->where('canManageTwoFactor', true)
             ->where('twoFactorEnabled', false),
         );
@@ -59,46 +55,22 @@ test('security page renders without two factor when feature is disabled', functi
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('settings/Security')
-            ->where('canManagePasskeys', false)
-            ->where('passkeys', [])
             ->where('canManageTwoFactor', false)
             ->missing('twoFactorEnabled')
             ->missing('requiresConfirmation'),
         );
 });
 
-test('password can be updated', function () {
+test('la contraseña no se puede cambiar desde la aplicacion', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->from(route('security.edit'))
-        ->put(route('user-password.update'), [
+    $this->actingAs($user)
+        ->put('/settings/password', [
             'current_password' => 'password',
-            'password' => 'new-password',
-            'password_confirmation' => 'new-password',
-        ]);
+            'password' => 'Nueva-Clave-2026',
+            'password_confirmation' => 'Nueva-Clave-2026',
+        ])
+        ->assertNotFound();
 
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('security.edit'));
-
-    expect(Hash::check('new-password', $user->refresh()->password))->toBeTrue();
-});
-
-test('correct password must be provided to update password', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->from(route('security.edit'))
-        ->put(route('user-password.update'), [
-            'current_password' => 'wrong-password',
-            'password' => 'new-password',
-            'password_confirmation' => 'new-password',
-        ]);
-
-    $response
-        ->assertSessionHasErrors('current_password')
-        ->assertRedirect(route('security.edit'));
+    expect(Hash::check('password', $user->refresh()->password))->toBeTrue();
 });
