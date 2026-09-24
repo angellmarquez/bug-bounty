@@ -54,6 +54,11 @@ class Reporte extends Model
     use HasFactory, SoftDeletes;
 
     /**
+     * Cómo ve al autor quien modera el informe (triaje ciego, ver ocultaAutorA()).
+     */
+    public const AUTOR_ANONIMO = 'Investigador anónimo';
+
+    /**
      * Estados que mantienen vivo el caso en el ciclo de triaje.
      */
     public const ESTADOS_ABIERTOS = [
@@ -71,10 +76,11 @@ class Reporte extends Model
     public const ESTADOS_PENDIENTES = ['enviado', 'en_revision', 'needs_info'];
 
     /**
-     * Lo único que ve la empresa dueña: nunca borradores, pre-triaje ('enviado')
-     * ni descartados, para que no corrija un fallo esquivando la validación.
+     * Lo único que ve la empresa dueña: los informes ya decididos por moderación, aprobados
+     * (validado, en reparación, cerrado) o descartados (rechazado, duplicado, fuera de alcance).
+     * Nunca un borrador ni uno que todavía se está revisando (enviado, en revisión, needs_info).
      */
-    public const ESTADOS_VISIBLES_EMPRESA = ['en_revision', 'needs_info', 'validado', 'en_reparacion', 'cerrado'];
+    public const ESTADOS_VISIBLES_EMPRESA = ['validado', 'en_reparacion', 'cerrado', 'rechazado', 'duplicado', 'fuera_de_alcance'];
 
     /**
      * Estados que indican que el moderador aprobó (validó) el informe.
@@ -183,5 +189,83 @@ class Reporte extends Model
     public function scopeAbiertos(Builder $query): Builder
     {
         return $query->whereIn('estado', self::ESTADOS_ABIERTOS);
+    }
+
+    /**
+     * El siguiente informe de la cola de un programa: el enviado más antiguo que todavía no
+     * tomó ningún moderador. El primero en llegar es el primero en revisarse.
+     */
+    public static function siguienteEnCola(int $programaId): ?self
+    {
+        return self::query()
+            ->where('programa_id', $programaId)
+            ->where('estado', EstadoReporte::Enviado->value)
+            ->whereNull('asignado_a')
+            ->orderByRaw('COALESCE(enviado_en, created_at) asc')
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * ¿Es el que le toca revisar ahora a los moderadores de su programa? Solo ese (y los que
+     * cada moderador ya tomó) se puede abrir: los demás esperan su turno sin exponerse.
+     */
+    public function esSiguienteEnCola(): bool
+    {
+        if ($this->estado !== EstadoReporte::Enviado || $this->asignado_a !== null) {
+            return false;
+        }
+
+        return (int) self::siguienteEnCola((int) $this->programa_id)?->id === (int) $this->id;
+    }
+
+    /**
+     * Triaje ciego: quien modera el programa del informe (sin ser administrador ni su autor)
+     * no puede saber quién lo envió. Sí ve su rango y su historial, para ponderar el hallazgo.
+     *
+     * @param  array<int, int>|null  $idsModerados  los programas que modera el lector, si ya se consultaron
+     *                                              (vacío para un administrador): ahorra consultas en listados
+     */
+    public function ocultaAutorA(?User $lector, ?array $idsModerados = null): bool
+    {
+        if ($lector === null || (int) $lector->id === (int) $this->investigador_id) {
+            return false;
+        }
+
+        $idsModerados ??= self::programasEnTriajeCiego($lector);
+
+        return in_array((int) $this->programa_id, $idsModerados, true);
+    }
+
+    /**
+     * Los programas en los que el lector modera a ciegas: los que modera, salvo que sea administrador.
+     *
+     * @return array<int, int>
+     */
+    public static function programasEnTriajeCiego(User $lector): array
+    {
+        if ($lector->tieneRol('administrador') || ! $lector->tieneRol('moderador')) {
+            return [];
+        }
+
+        return $lector->idsProgramasModerados();
+    }
+
+    /**
+     * El autor tal como lo ve el lector: con nombre, o anónimo si el triaje es ciego.
+     *
+     * @param  array<int, int>|null  $idsModerados
+     * @return array{id: int, name: string, reputation_score: int}
+     */
+    public function autorPara(?User $lector, ?array $idsModerados = null): array
+    {
+        $investigador = $this->investigador;
+        $oculto = $this->ocultaAutorA($lector, $idsModerados);
+
+        return [
+            'id' => $oculto ? 0 : (int) $investigador->id,
+            'name' => $oculto ? self::AUTOR_ANONIMO : $investigador->name,
+            'reputation_score' => (int) ($investigador->reputation_score ?? 0),
+        ];
     }
 }

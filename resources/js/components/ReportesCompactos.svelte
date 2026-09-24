@@ -2,32 +2,22 @@
     import StateBadge from '@/components/StateBadge.svelte';
     import SeverityBadge from '@/components/SeverityBadge.svelte';
     import RangoBadge from '@/components/RangoBadge.svelte';
-    import VistaRapidaInforme from '@/components/VistaRapidaInforme.svelte';
     import { Button } from '@/components/ui/button';
     import type { ReporteCompacto } from '@/types/domain';
 
     let {
         reportes,
         mostrarPrograma = true,
-        vistaRapida = false,
         etiquetaAccion = () => 'Ver informe',
         destacar = () => false,
     }: {
         reportes: ReporteCompacto[];
         mostrarPrograma?: boolean;
-        /** Permite leer el informe dentro de la propia lista, sin abrir su página. */
-        vistaRapida?: boolean;
         etiquetaAccion?: (reporte: ReporteCompacto) => string;
         destacar?: (reporte: ReporteCompacto) => boolean;
     } = $props();
 
-    let abierto = $state<number | null>(null);
-
-    const columnas = $derived(
-        vistaRapida
-            ? 'md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)_6rem_8.5rem_5.5rem_13.5rem]'
-            : 'md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)_6rem_8.5rem_5.5rem_7.5rem]',
-    );
+    const columnas = 'md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)_6rem_8.5rem_5.5rem_7.5rem]';
 
     function formatearFecha(fecha: string | null): string {
         if (!fecha) return 'Sin enviar';
@@ -89,16 +79,6 @@
                 <p class="text-xs text-muted-foreground">{formatearFecha(reporte.enviado_en)}</p>
 
                 <div class="flex flex-wrap gap-1 md:justify-end">
-                    {#if vistaRapida}
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            aria-expanded={abierto === reporte.id}
-                            onclick={() => (abierto = abierto === reporte.id ? null : reporte.id)}
-                        >
-                            {abierto === reporte.id ? 'Ocultar' : 'Vista rápida'}
-                        </Button>
-                    {/if}
                     <Button
                         size="sm"
                         variant={destacar(reporte) ? 'default' : 'outline'}
@@ -108,12 +88,6 @@
                     </Button>
                 </div>
             </div>
-
-            {#if vistaRapida && abierto === reporte.id}
-                <div class="border-t bg-muted/20 px-3 py-4">
-                    <VistaRapidaInforme reporteId={reporte.id} />
-                </div>
-            {/if}
         </div>
     {/each}
 </div>

@@ -33,10 +33,16 @@
             </p>
         </div>
         <Dialog>
-            <DialogTrigger>
-                <Button variant="destructive" data-test="delete-user-button"
-                    >Delete account</Button
-                >
+            <DialogTrigger asChild>
+                {#snippet children(props)}
+                    <Button
+                        variant="destructive"
+                        data-test="delete-user-button"
+                        {...props}
+                    >
+                        Delete account
+                    </Button>
+                {/snippet}
             </DialogTrigger>
             <DialogContent>
                 <Form
@@ -71,8 +77,10 @@
                         </div>
 
                         <DialogFooter class="gap-2">
-                            <DialogClose>
-                                <Button variant="secondary">Cancel</Button>
+                            <DialogClose asChild>
+                                {#snippet children(props)}
+                                    <Button variant="secondary" {...props}>Cancel</Button>
+                                {/snippet}
                             </DialogClose>
 
                             <Button

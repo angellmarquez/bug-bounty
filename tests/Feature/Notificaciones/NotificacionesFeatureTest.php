@@ -23,7 +23,8 @@ function titulos(User $usuario): array
 }
 
 /**
- * Un programa con su empresa (propietario), un moderador asignado y un informe enviado por un investigador.
+ * Un programa con su empresa (propietario), un moderador asignado y un informe enviado por un investigador,
+ * que el administrador ya le asignó a ese moderador (solo tría los informes que tiene asignados).
  *
  * @return array{programa: Programa, dueno: User, moderador: User, investigador: User, reporte: Reporte}
  */
@@ -33,7 +34,7 @@ function escenarioDeInforme(string $estado = 'enviado'): array
     $programa = programaDeEmpresa($dueno);
     $moderador = moderadorDe($programa);
     $investigador = investigador();
-    $reporte = reporteDe($investigador, $programa, ['estado' => $estado, 'asignado_a' => null]);
+    $reporte = reporteDe($investigador, $programa, ['estado' => $estado, 'asignado_a' => $estado === 'borrador' ? null : $moderador->id]);
 
     return compact('programa', 'dueno', 'moderador', 'investigador', 'reporte');
 }
@@ -42,7 +43,7 @@ function escenarioDeInforme(string $estado = 'enviado'): array
 // Informes
 // ---------------------------------------------------------------------------
 
-test('al enviar un informe avisan los moderadores del programa y al propietario de la empresa, no al autor ni a otros moderadores', function () {
+test('al enviar un informe se avisa a los moderadores del programa, no a la empresa, al autor ni a otros moderadores', function () {
     ['programa' => $programa, 'dueno' => $dueno, 'moderador' => $moderador, 'investigador' => $autor] = escenarioDeInforme('borrador');
     $ajeno = moderadorDe(Programa::factory()->create());
     $reporte = reporteDe($autor, $programa, [
@@ -53,23 +54,28 @@ test('al enviar un informe avisan los moderadores del programa y al propietario 
 
     $this->actingAs($autor)->post(route('reportes.enviar', $reporte))->assertRedirect();
 
+    // El aviso lleva a la cola: el informe se abre cuando le toca, por orden de llegada.
+    // La empresa no sabe nada hasta que moderación lo aprueba o lo descarta.
     expect(titulos($moderador))->toContain('Nuevo informe recibido')
-        ->and(titulos($dueno))->toContain('Nuevo informe recibido')
-        ->and(avisos($moderador)[0]['url'])->toBe("/reportes/{$reporte->id}")
+        ->and(titulos($dueno))->toBe([])
+        ->and(avisos($moderador)[0]['url'])->toBe("/moderacion/programas/{$programa->id}")
         ->and(avisos($moderador)[0]['mensaje'])->toContain('XSS en login')
         ->and(titulos($autor))->toBe([])
         ->and(titulos($ajeno))->toBe([]);
 });
 
 test('cada cambio de estado avisa al investigador, pero no a quien lo provoca', function () {
-    ['moderador' => $moderador, 'investigador' => $autor, 'reporte' => $reporte] = escenarioDeInforme();
+    ['dueno' => $dueno, 'moderador' => $moderador, 'investigador' => $autor, 'reporte' => $reporte] = escenarioDeInforme();
 
     $this->actingAs($moderador)->post(route('reportes.revisar', $reporte))->assertRedirect();
     expect(titulos($autor))->toBe(['Tu informe está en revisión'])
-        ->and(titulos($moderador))->toBe([]);
+        ->and(titulos($moderador))->toBe([])
+        ->and(titulos($dueno))->toBe([]);
 
+    // Descartado: le llega también a la empresa, para que pueda revisarlo.
     $this->actingAs($moderador)->post(route('reportes.rechazar', $reporte), ['nota' => 'No aplica.'])->assertRedirect();
-    expect(titulos($autor))->toContain('Tu informe está rechazado');
+    expect(titulos($autor))->toContain('Tu informe está rechazado')
+        ->and(titulos($dueno))->toBe(['Informe descartado por moderación']);
 });
 
 test('al validar un informe se avisa al investigador y la empresa dueña debe corregirlo', function () {
@@ -92,24 +98,27 @@ test('cuando la empresa pone el informe en reparacion y lo cierra, el investigad
         ->and(titulos($autor))->toContain('Tu informe está en reparación (la empresa lo está corrigiendo)');
 });
 
-test('marcar un informe como duplicado avisa a su autor', function () {
-    ['programa' => $programa, 'moderador' => $moderador, 'investigador' => $autor, 'reporte' => $reporte] = escenarioDeInforme();
+test('marcar un informe como duplicado avisa a su autor y a la empresa', function () {
+    ['programa' => $programa, 'dueno' => $dueno, 'moderador' => $moderador, 'investigador' => $autor, 'reporte' => $reporte] = escenarioDeInforme();
     // El original tiene que haberse enviado antes: solo así el otro puede ser su duplicado.
     $original = reporteDe(investigador(), $programa, ['estado' => 'validado', 'enviado_en' => now()->subHour()]);
 
     $this->actingAs($moderador)->post(route('reportes.marcar-duplicado', $reporte), ['reporte_duplicado_id' => $original->id])->assertRedirect();
 
-    expect(titulos($autor))->toContain('Tu informe fue marcado como duplicado');
+    expect(titulos($autor))->toContain('Tu informe fue marcado como duplicado')
+        ->and(titulos($dueno))->toContain('Informe descartado por moderación');
 });
 
 test('asignar un informe avisa solo al moderador asignado', function () {
     ['programa' => $programa, 'moderador' => $moderador, 'reporte' => $reporte] = escenarioDeInforme();
     $otroModerador = moderadorDe($programa);
+    $admin = administrador();
 
-    $this->actingAs($moderador)->post(route('reportes.asignar', $reporte), ['asignado_a' => $otroModerador->id])->assertRedirect();
+    $this->actingAs($admin)->post(route('reportes.asignar', $reporte), ['asignado_a' => $otroModerador->id])->assertRedirect();
 
     expect(titulos($otroModerador))->toBe(['Se te asignó un informe'])
-        ->and(titulos($moderador))->toBe([]);
+        ->and(titulos($moderador))->toBe([])
+        ->and(titulos($admin))->toBe([]);
 });
 
 test('un comentario avisa a los demas participantes pero no a quien comenta', function () {
@@ -118,9 +127,14 @@ test('un comentario avisa a los demas participantes pero no a quien comenta', fu
 
     $this->actingAs($moderador)->post(route('reportes.comentar', $reporte), ['nota' => '¿Puedes dar más detalle?'])->assertRedirect();
 
+    // Mientras se revisa, la empresa no participa: ni siquiera sabe que el informe existe.
     expect(titulos($autor))->toContain('Nuevo comentario en un informe')
-        ->and(titulos($dueno))->toContain('Nuevo comentario en un informe')
+        ->and(titulos($dueno))->toBe([])
         ->and(titulos($moderador))->toBe([]);
+
+    $reporte->update(['estado' => 'validado']);
+    $this->actingAs($moderador)->post(route('reportes.comentar', $reporte), ['nota' => 'Ya está validado.'])->assertRedirect();
+    expect(titulos($dueno))->toContain('Nuevo comentario en un informe');
 });
 
 // ---------------------------------------------------------------------------

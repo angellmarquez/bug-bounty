@@ -3,6 +3,7 @@
 namespace App\Abac;
 
 use App\Models\Programa;
+use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Reputacion\Rangos;
 use BackedEnum;
@@ -147,6 +148,11 @@ class AtributosAbac
 
         if ($modelo instanceof Programa) {
             $atributos['invited_hacker_ids'] = $modelo->invited_hacker_ids;
+        }
+
+        // Cola por orden de llegada: el moderador solo abre el siguiente informe sin revisor.
+        if ($modelo instanceof Reporte) {
+            $atributos['siguiente_en_cola'] = $modelo->esSiguienteEnCola();
         }
 
         return $atributos;

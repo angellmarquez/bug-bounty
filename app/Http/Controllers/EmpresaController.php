@@ -97,7 +97,7 @@ class EmpresaController extends Controller
         abort_unless($empresa->estado === EstadoEmpresa::Aprobada, 403, 'Tu empresa todavía no tiene acceso operativo.');
         abort_if(! $esAdmin && $rolInterno !== MembresiaEmpresa::PROPIETARIO, 403, 'Solo el propietario de la empresa ve los informes que recibe.');
 
-        $filtro = in_array($request->input('filtro'), ['todos', 'validados', 'en_reparacion', 'cerrados'], true)
+        $filtro = in_array($request->input('filtro'), ['todos', 'validados', 'en_reparacion', 'cerrados', 'descartados'], true)
             ? (string) $request->input('filtro')
             : 'todos';
         $programaId = $request->filled('programa_id') ? (int) $request->input('programa_id') : null;
@@ -116,6 +116,7 @@ class EmpresaController extends Controller
             ->when($filtro === 'validados', fn ($query) => $query->where('estado', 'validado'))
             ->when($filtro === 'en_reparacion', fn ($query) => $query->where('estado', 'en_reparacion'))
             ->when($filtro === 'cerrados', fn ($query) => $query->where('estado', 'cerrado'))
+            ->when($filtro === 'descartados', fn ($query) => $query->whereIn('estado', Reporte::ESTADOS_RECHAZADOS))
             ->latest('id')
             ->paginate(20)
             ->withQueryString()
@@ -134,6 +135,8 @@ class EmpresaController extends Controller
                 'validados' => $recibidos()->where('estado', 'validado')->count(),
                 'en_reparacion' => $recibidos()->where('estado', 'en_reparacion')->count(),
                 'cerrados' => $recibidos()->where('estado', 'cerrado')->count(),
+                // Lo que moderación descartó (rechazado, duplicado, fuera de alcance): la empresa lo revisa igual.
+                'descartados' => $recibidos()->whereIn('estado', Reporte::ESTADOS_RECHAZADOS)->count(),
             ],
             'reportes' => $reportes,
         ]);

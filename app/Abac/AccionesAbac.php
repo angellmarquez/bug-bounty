@@ -22,6 +22,9 @@ final class AccionesAbac
 
     public const ReporteAsignar = 'reportes.asignar';
 
+    /** Tomar un informe para revisarlo (pasa a en revisión y queda asignado a quien lo toma). */
+    public const ReporteRevisar = 'reportes.revisar';
+
     public const ReporteValidar = 'reportes.validar';
 
     public const ReporteRechazar = 'reportes.rechazar';

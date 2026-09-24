@@ -28,18 +28,19 @@ test('el middleware abac permite el acceso autorizado', function () {
         ->assertSee('acceso-ok');
 });
 
-test('el middleware abac permite triaje al moderador del programa con reporte sin asignar', function () {
+test('el middleware abac permite triaje al moderador solo con el reporte asignado a él', function () {
     rutaAbac('reportes.validar');
 
     $reporte = reporteDe(investigador(), atributos: [
         'estado' => EstadoReporte::EnRevision->value,
-        'asignado_a' => null,
     ]);
-    $mod = moderadorDe($reporte);
+    $mod = moderador();
+    $mod->programasModerados()->attach($reporte->programa_id);
 
-    $this->actingAs($mod)
-        ->get("/abac-prueba/{$reporte->id}")
-        ->assertOk();
+    $this->actingAs($mod)->get("/abac-prueba/{$reporte->id}")->assertForbidden();
+
+    asignarA($reporte, $mod);
+    $this->actingAs($mod)->get("/abac-prueba/{$reporte->id}")->assertOk();
 });
 
 test('el middleware abac deniega con 403 y registra la auditoría abac.denegado', function () {

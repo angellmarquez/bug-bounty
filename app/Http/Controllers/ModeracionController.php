@@ -64,8 +64,12 @@ class ModeracionController extends Controller
             ]);
 
         // Los informes más antiguos pendientes, para atenderlos sin abrir cada programa.
+        $programasCiegos = Reporte::programasEnTriajeCiego($usuario);
+        // Para un moderador: el siguiente de la cola de cada programa (el único que puede tomar).
+        $siguientes = $alcance === null ? null : collect($alcance)->map(fn (int $id) => Reporte::siguienteEnCola($id)?->id)->filter()->all();
         $porRevisar = $recibidos()
             ->where('estado', 'enviado')
+            ->when($siguientes !== null, fn ($query) => $query->whereIn('id', $siguientes))
             ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
             ->orderBy('enviado_en')
             ->orderBy('id')
@@ -79,11 +83,8 @@ class ModeracionController extends Controller
                 'severidad' => $reporte->severidad?->value,
                 'programa_nombre' => $reporte->programa->nombre,
                 'enviado_en' => $reporte->enviado_en?->toISOString(),
-                'investigador' => [
-                    'id' => $reporte->investigador->id,
-                    'name' => $reporte->investigador->name,
-                    'reputation_score' => $reporte->investigador->reputation_score,
-                ],
+                // Triaje ciego: el moderador no ve quién envió el informe.
+                'investigador' => $reporte->autorPara($usuario, $programasCiegos),
             ])
             ->all();
 
@@ -110,6 +111,7 @@ class ModeracionController extends Controller
         abort_unless($request->user()->puedeModerarPrograma($programa), 403, 'No moderas este programa.');
 
         $filtro = ColaDeInformes::filtro($request->input('filtro'));
+        $programasCiegos = Reporte::programasEnTriajeCiego($request->user());
 
         return Inertia::render('moderacion/Programa', [
             'programa' => [
@@ -122,10 +124,10 @@ class ModeracionController extends Controller
             ],
             'filtro' => $filtro,
             'conteos' => $cola->conteos($programa),
-            'reportes' => $cola->consulta($programa, $filtro)
+            'reportes' => $cola->consulta($programa, $filtro, $request->user())
                 ->paginate(20)
                 ->withQueryString()
-                ->through(fn (Reporte $reporte): array => $cola->resumen($reporte)),
+                ->through(fn (Reporte $reporte): array => $cola->resumen($reporte, $request->user(), $programasCiegos)),
         ]);
     }
 }

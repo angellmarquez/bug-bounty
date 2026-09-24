@@ -9,7 +9,7 @@ test('moderator can reject a false report and apply a proportional sanction', fu
     $programa = programaDe(administrador());
     $programa->moderadores()->attach($moderador);
     $investigador = investigador();
-    $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado']);
+    $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado', 'asignado_a' => $moderador->id]);
     $this->actingAs($moderador);
 
     $this->post(route('reportes.rechazar', $reporte), [
@@ -30,7 +30,7 @@ test('rejecting a report without false flag does not sanction researcher', funct
     $programa = programaDe(administrador());
     $programa->moderadores()->attach($moderador);
     $investigador = investigador();
-    $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado']);
+    $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado', 'asignado_a' => $moderador->id]);
     $this->actingAs($moderador);
 
     $this->post(route('reportes.rechazar', $reporte), [

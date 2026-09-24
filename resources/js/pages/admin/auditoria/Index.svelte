@@ -152,7 +152,7 @@
         return Object.entries(detalle).filter(([clave]) => clave !== 'estado_anterior' && clave !== 'estado_nuevo');
     }
 
-    const entidades = ['Reporte', 'Programa', 'Usuario', 'Sancion', 'Apelacion', 'Empresa', 'ClavePgp'];
+    const entidades = ['Reporte', 'Programa', 'ObjetivoPrograma', 'Usuario', 'Sancion', 'Apelacion', 'Empresa', 'ClavePgp'];
 
     const totalEntradas = $derived(auditoriaData.total);
 </script>

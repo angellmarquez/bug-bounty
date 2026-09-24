@@ -76,7 +76,8 @@ return [
             'decision' => 'permitir',
         ],
 
-        // El administrador no crea, no tría, no repara ni cierra en el día a día: supervisa y arbitra.
+        // El administrador no crea, no tría, no repara ni cierra en el día a día: supervisa, arbitra
+        // y reparte el trabajo (asignar un informe a un moderador es solo suyo).
         [
             'id' => 'denegar-dia-a-dia-de-reportes-al-administrador',
             'prioridad' => 5,
@@ -85,7 +86,7 @@ return [
                 'reportes.editar',
                 'reportes.enviar',
                 'reportes.eliminar',
-                'reportes.asignar',
+                'reportes.revisar',
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
@@ -325,28 +326,29 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
-        // ABAC Clave: La empresa solo ve el reporte cuando su estado es triajado o resuelto.
-        // Invisible para 'borrador', 'enviado' (new) y 'rechazado'.
+        // ABAC Clave: la empresa solo ve un informe cuando moderación ya lo decidió: aprobado
+        // (validado, en reparación, cerrado) o descartado (rechazado, duplicado, fuera de alcance).
+        // Nunca un borrador ni uno aún en revisión ('enviado', 'en_revision', 'needs_info').
         [
             'id' => 'empresa-ver-reportes-de-sus-programas',
             'prioridad' => 35,
             'acciones' => ['reportes.ver'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
             'objeto' => [
-                'estado' => ['in' => ['en_revision', 'needs_info', 'validado', 'en_reparacion', 'cerrado']],
+                'estado' => ['in' => ['validado', 'en_reparacion', 'cerrado', 'rechazado', 'duplicado', 'fuera_de_alcance']],
                 'programa.empresa_id' => ['=' => '@sujeto.empresa_id'],
             ],
             'entorno' => [],
             'decision' => 'permitir',
         ],
-        // La empresa puede descifrar el PoC una vez validado/en reparación/resuelto
+        // La empresa descifra el PoC de lo que puede ver: aprobado o descartado por moderación
         [
             'id' => 'empresa-descifrar-poc',
             'prioridad' => 35,
             'acciones' => ['reportes.decrypt_poc'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
             'objeto' => [
-                'estado' => ['in' => ['validado', 'en_reparacion', 'cerrado']],
+                'estado' => ['in' => ['validado', 'en_reparacion', 'cerrado', 'rechazado', 'duplicado', 'fuera_de_alcance']],
                 'programa.empresa_id' => ['=' => '@sujeto.empresa_id'],
             ],
             'entorno' => [],
@@ -378,13 +380,17 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
+        // Cola por orden de llegada: el moderador solo abre (y descifra) el informe que le toca,
+        // el enviado más antiguo aún sin revisor, y los que ya tomó. Los demás del programa
+        // quedan fuera de su vista: ni el siguiente en la fila ni los que revisa otro moderador.
         [
-            'id' => 'moderador-ver-reportes-de-sus-programas',
+            'id' => 'moderador-ver-reportes-que-tomo',
             'prioridad' => 35,
-            'acciones' => ['reportes.ver', 'reportes.ver_notas_internas'],
+            'acciones' => ['reportes.ver', 'reportes.ver_notas_internas', 'reportes.decrypt_poc'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
                 'estado' => ['!=' => 'borrador'],
+                'asignado_a' => ['=' => '@sujeto.id'],
                 'programa_id' => ['in' => '@sujeto.programas_moderados'],
                 'investigador_id' => ['!=' => '@sujeto.id'],
             ],
@@ -392,12 +398,12 @@ return [
             'decision' => 'permitir',
         ],
         [
-            'id' => 'moderador-descifrar-poc',
+            'id' => 'moderador-ver-siguiente-de-la-cola',
             'prioridad' => 35,
-            'acciones' => ['reportes.decrypt_poc'],
+            'acciones' => ['reportes.ver', 'reportes.ver_notas_internas', 'reportes.decrypt_poc', 'reportes.revisar'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
-                'estado' => ['!=' => 'borrador'],
+                'siguiente_en_cola' => ['=' => true],
                 'programa_id' => ['in' => '@sujeto.programas_moderados'],
                 'investigador_id' => ['!=' => '@sujeto.id'],
             ],
@@ -422,43 +428,12 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
-        [
-            'id' => 'moderador-asignar-reporte',
-            'prioridad' => 35,
-            'acciones' => ['reportes.asignar'],
-            'sujeto' => ['roles' => ['contains' => 'moderador']],
-            'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'needs_info', 'validado']],
-                'asignado_a' => ['is_null'],
-                'programa_id' => ['in' => '@sujeto.programas_moderados'],
-                'investigador_id' => ['!=' => '@sujeto.id'],
-            ],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
-        // Triaje: permitido en 'enviado' (new), 'en_revision' y 'needs_info'.
-        [
-            'id' => 'moderador-triaje',
-            'prioridad' => 35,
-            'acciones' => [
-                'reportes.validar',
-                'reportes.rechazar',
-                'reportes.marcar_duplicado',
-            ],
-            'sujeto' => ['roles' => ['contains' => 'moderador']],
-            'objeto' => [
-                'estado' => ['in' => ['enviado', 'en_revision', 'needs_info']],
-                'asignado_a' => ['is_null'],
-                'programa_id' => ['in' => '@sujeto.programas_moderados'],
-                'investigador_id' => ['!=' => '@sujeto.id'],
-            ],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
+        // Triaje: el moderador toma el siguiente de la cola con "Iniciar revisión" (queda asignado
+        // a él) y desde entonces solo él lo tría. Asignar/reasignar a otro es exclusivo del admin.
         [
             'id' => 'moderador-triaje-asignado',
             'prioridad' => 35,
-            'acciones' => ['reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado'],
+            'acciones' => ['reportes.revisar', 'reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
                 'estado' => ['in' => ['enviado', 'en_revision', 'needs_info']],
@@ -476,6 +451,7 @@ return [
             'prioridad' => 5,
             'acciones' => [
                 'reportes.asignar',
+                'reportes.revisar',
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
@@ -496,6 +472,7 @@ return [
             'prioridad' => 5,
             'acciones' => [
                 'reportes.asignar',
+                'reportes.revisar',
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',

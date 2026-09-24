@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Apelacion;
 use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
+use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\Sancion;
@@ -79,6 +80,7 @@ class AppServiceProvider extends ServiceProvider
         Relation::morphMap([
             'Reporte' => Reporte::class,
             'Programa' => Programa::class,
+            'ObjetivoPrograma' => ObjetivoPrograma::class,
             'Usuario' => User::class,
             'Sancion' => Sancion::class,
             'Apelacion' => Apelacion::class,

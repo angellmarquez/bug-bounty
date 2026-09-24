@@ -21,7 +21,6 @@ use App\Services\Reportes\LimiteDeEnvios;
 use App\Services\Reputacion\Rangos;
 use App\Services\Reputacion\ReputationService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -66,9 +65,13 @@ class ReporteController extends Controller
                             });
                     });
 
-                // Un moderador ve los informes enviados de los programas que modera.
+                // Un moderador ve los informes que tomó y el siguiente de la cola de cada programa
+                // que modera (primero en llegar, primero en revisarse); el resto espera su turno.
                 if ($idsModerados !== []) {
-                    $scope->orWhere(fn (Builder $moderados) => $moderados->where('estado', '!=', 'borrador')->whereIn('programa_id', $idsModerados));
+                    $siguientes = collect($idsModerados)->map(fn (int $id) => Reporte::siguienteEnCola($id)?->id)->filter()->all();
+                    $scope->orWhere(fn (Builder $moderados) => $moderados->where('estado', '!=', 'borrador')
+                        ->whereIn('programa_id', $idsModerados)
+                        ->where(fn (Builder $suyos) => $suyos->where('asignado_a', $user->id)->orWhereIn('id', $siguientes)));
                 }
             });
         }
@@ -93,7 +96,16 @@ class ReporteController extends Controller
             });
         }
 
-        $reportes = $query->latest()->paginate(15)->withQueryString();
+        $programasCiegos = Reporte::programasEnTriajeCiego($user);
+        $reportes = $query->latest()->paginate(15)->withQueryString()
+            // Del autor solo lo que muestra la lista, y anónimo para quien lo modera (triaje ciego).
+            ->through(fn (Reporte $reporte): array => [
+                ...$reporte->attributesToArray(),
+                'investigador_id' => $reporte->ocultaAutorA($user, $programasCiegos) ? 0 : $reporte->investigador_id,
+                'programa' => $reporte->programa->only(['id', 'nombre']),
+                'investigador' => $reporte->autorPara($user, $programasCiegos),
+                'asignadoA' => $reporte->asignadoA?->only(['id', 'name']),
+            ]);
 
         $programas = Programa::select('id', 'nombre')
             ->when(! $isAdmin && ! $isModerador && ! $isEmpresa, function ($q) {
@@ -129,7 +141,7 @@ class ReporteController extends Controller
     public function show(Reporte $reporte): InertiaResponse
     {
         $reporte->load('programa.empresa');
-        abort_unless($this->puedeVerContenido($reporte), 403, 'No tienes permiso para ver este reporte.');
+        abort_unless($this->puedeVerContenido($reporte), 403, $this->motivoSinAcceso($reporte));
         Gate::authorize('abac', [
             AccionesAbac::ReporteVer,
             $reporte,
@@ -151,16 +163,31 @@ class ReporteController extends Controller
             $reporte->makeVisible('notas_internas');
         }
 
-        $eventos = $reporte->eventos->map(fn ($evento) => [
-            'id' => $evento->id,
-            'reporte_id' => $evento->reporte_id,
-            'tipo' => $evento->tipo->value,
-            'actor_id' => $evento->actor_id,
-            'descripcion' => $evento->nota,
-            'metadata' => $evento->datos,
-            'created_at' => $evento->created_at?->toISOString(),
-            'actor' => $evento->actor?->only(['id', 'name']),
-        ]);
+        $user = request()->user();
+        $puedeModerar = $user?->puedeModerarPrograma($reporte->programa_id) ?? false;
+
+        // Capa 3: Triaje Ciego (Blind Triage)
+        // Quien modera el reporte (no siendo el autor ni administrador) no ve la identidad
+        // del investigador, pero sí su rango (reputación) y métricas de historial.
+        $esCiego = $reporte->ocultaAutorA($user);
+
+        $eventos = $reporte->eventos->map(function ($evento) use ($esCiego, $reporte) {
+            $esDelAutor = (int) $evento->actor_id === (int) $reporte->investigador_id;
+            $actorData = $esCiego && $esDelAutor
+                ? ['id' => 0, 'name' => Reporte::AUTOR_ANONIMO]
+                : $evento->actor?->only(['id', 'name']);
+
+            return [
+                'id' => $evento->id,
+                'reporte_id' => $evento->reporte_id,
+                'tipo' => $evento->tipo->value,
+                'actor_id' => $esCiego && $esDelAutor ? 0 : $evento->actor_id,
+                'descripcion' => $evento->nota,
+                'metadata' => $evento->datos,
+                'created_at' => $evento->created_at?->toISOString(),
+                'actor' => $actorData,
+            ];
+        });
 
         $puedeDescifrarPoc = Gate::allows('abac', [
             AccionesAbac::ReporteDecryptPoc,
@@ -168,21 +195,25 @@ class ReporteController extends Controller
             $this->empresaContexto(),
         ]);
 
-        $user = request()->user();
         $contenido = $this->contenidoParaLector($reporte, $puedeDescifrarPoc);
         $cifradoIndisponible = $contenido['indisponible'];
         $claveHuella = $contenido['clave_huella'];
         $descripcion = $contenido['descripcion'];
         $poc = $contenido['poc'];
 
-        $reporteArray = $reporte->toArray();
+        // Solo se serializan columnas: las relaciones se envían aparte, ya filtradas (el
+        // investigador completo llevaba su email y datos de cuenta al navegador).
+        $reporteArray = $reporte->attributesToArray();
         $reporteArray['descripcion'] = $descripcion;
         $reporteArray['poc'] = $poc;
+        if ($esCiego) {
+            $reporteArray['investigador_id'] = 0;
+        }
 
         // Permisos de triaje por ABAC
         $puedeAsignar = Gate::allows('abac', [AccionesAbac::ReporteAsignar, $reporte]);
         $puedeValidar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'validado');
-        $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
+        $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteRevisar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
         $puedePedirInfo = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'needs_info');
         $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
         $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
@@ -241,18 +272,9 @@ class ReporteController extends Controller
                 ->toArray();
         }
 
-        $puedeModerar = request()->user()->puedeModerarPrograma($reporte->programa_id);
+        $investigadorPayload = $reporte->autorPara($user);
 
-        // Capa 3: Triaje Ciego (Blind Triage)
-        // Mientras el reporte está en estado 'enviado', se enmascara la identidad e historial
-        // del investigador para moderadores (excepto administradores o el autor).
-        $estadoVal = $reporte->estado->value;
-        $esCiego = $estadoVal === EstadoReporte::Enviado->value && ! ($user?->tieneRol('administrador') || (int) $user?->id === (int) $reporte->investigador_id);
-        $investigadorPayload = $esCiego
-            ? ['id' => 0, 'name' => 'Investigador Anónimo (Triaje Ciego)', 'reputation_score' => null]
-            : $reporte->investigador->only(['id', 'name', 'reputation_score']);
-
-        $historialInvestigador = ($puedeModerar && ! $esCiego) ? $this->historialInvestigador($reporte->investigador) : null;
+        $historialInvestigador = $puedeModerar ? $this->historialInvestigador($reporte->investigador) : null;
 
         return Inertia::render('reportes/Show', [
             'historialInvestigador' => $historialInvestigador,
@@ -265,13 +287,8 @@ class ReporteController extends Controller
                         ? null
                         : ($reporte->programa->empresa->nombre_comercial ?? $reporte->programa->empresa->razon_social),
                     // El alcance solo le hace falta a quien revisa: comprueba que el hallazgo esté en él.
-                    // Queda cifrado en la base, así que se descifra recién acá, para quien modera.
-                    ...($puedeModerar ? [
-                        'bugs_buscados' => app(PgpService::class)->descifrarPrograma($reporte->programa->descripcion, $reporte->programa->bugs_buscados, $reporte->programa)['bugs_buscados'],
-                        'objetivos' => $reporte->programa->objetivos()->get(['id', 'tipo', 'valor', 'descripcion'])
-                            ->map(fn ($o) => [...$o->toArray(), ...app(PgpService::class)->descifrarObjetivo($o->valor, $o->descripcion, $o)])
-                            ->all(),
-                    ] : []),
+                    // Queda cifrado en la base, así que se descifra recién acá, para quien modera de forma segura.
+                    ...($puedeModerar ? $this->alcanceProgramaParaModerador($reporte->programa) : []),
                 ],
                 'investigador' => $investigadorPayload,
                 'asignadoA' => $reporte->asignadoA?->only(['id', 'name']),
@@ -296,6 +313,9 @@ class ReporteController extends Controller
             ],
             'moderadoresAsignables' => $moderadoresAsignables,
             'esperaTurno' => $esperaTurno,
+            'avisoCola' => $reporte->asignado_a === null && $reporte->esSiguienteEnCola() && $puedeRevisar
+                ? 'Es el siguiente informe de la cola: el más antiguo que nadie revisa todavía. Al iniciar la revisión queda asignado a ti.'
+                : null,
         ]);
     }
 
@@ -573,29 +593,6 @@ class ReporteController extends Controller
     /**
      * Contenido del informe en JSON, para leerlo dentro de una lista sin abrir su página.
      */
-    public function vistaRapida(Reporte $reporte): JsonResponse
-    {
-        $reporte->load('programa.empresa');
-        $this->asegurarAcceso($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte, $this->empresaContexto()]);
-
-        $puedeDescifrarPoc = Gate::allows('abac', [AccionesAbac::ReporteDecryptPoc, $reporte, $this->empresaContexto()]);
-        $contenido = $this->contenidoParaLector($reporte, $puedeDescifrarPoc);
-
-        return response()->json([
-            'id' => $reporte->id,
-            'descripcion' => $contenido['descripcion'],
-            'poc' => $contenido['poc'],
-            'poc_schema' => $reporte->programa->poc_schema,
-            'cifrado_indisponible' => $contenido['indisponible'],
-            'categoria' => $reporte->categoria,
-            'vector_cvss' => $reporte->vector_cvss,
-            'puntuacion_cvss' => $reporte->puntuacion_cvss,
-            'puede_revisar' => Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte, $this->empresaContexto()])
-                && $this->transicionPosible($reporte, 'en_revision'),
-        ]);
-    }
-
     /**
      * Contenido del informe para quien lo está leyendo. La PoC solo se descifra si
      * `reportes.decrypt_poc` lo permite; entonces queda UN registro de auditoría
@@ -613,15 +610,18 @@ class ReporteController extends Controller
                 return ['descripcion' => $descifrado['descripcion'], 'poc' => null, 'clave_huella' => $descifrado['clave_huella'], 'indisponible' => false];
             } catch (PgpException $e) {
                 report($e);
+                Auditoria::registrar('reportes.descifrado_fallido', $reporte, ['error' => class_basename($e)]);
 
                 return ['descripcion' => null, 'poc' => null, 'clave_huella' => $reporte->clave_huella, 'indisponible' => true];
             }
         }
 
         try {
-            $descifrado = app(PgpService::class)->descifrarReporte((string) $reporte->descripcion, $reporte->poc);
+            $descifrado = app(PgpService::class)->descifrarReporte((string) $reporte->descripcion, $reporte->poc, $reporte);
         } catch (PgpException $e) {
             report($e);
+            // Un intento fallido también queda en Auditoría: quién quiso leer el informe y no pudo.
+            Auditoria::registrar('reportes.descifrado_fallido', $reporte, ['error' => class_basename($e)]);
 
             return ['descripcion' => null, 'poc' => null, 'clave_huella' => $reporte->clave_huella, 'indisponible' => true];
         }
@@ -658,6 +658,40 @@ class ReporteController extends Controller
     }
 
     /**
+     * @return array{bugs_buscados: string|null, objetivos: array<int, array<string, mixed>>}
+     */
+    private function alcanceProgramaParaModerador(Programa $programa): array
+    {
+        $pgp = app(PgpService::class);
+        $bugsBuscados = null;
+
+        try {
+            $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados, $programa);
+            $bugsBuscados = $descifrado['bugs_buscados'];
+        } catch (PgpException $e) {
+            report($e);
+            $bugsBuscados = null;
+        }
+
+        $objetivos = $programa->objetivos()->get(['id', 'tipo', 'valor', 'descripcion'])
+            ->map(function ($o) use ($pgp) {
+                try {
+                    return [...$o->toArray(), ...$pgp->descifrarObjetivo($o->valor, $o->descripcion, $o)];
+                } catch (PgpException $e) {
+                    report($e);
+
+                    return [...$o->toArray(), 'valor' => '[Contenido no disponible]', 'descripcion' => null];
+                }
+            })
+            ->all();
+
+        return [
+            'bugs_buscados' => $bugsBuscados,
+            'objetivos' => $objetivos,
+        ];
+    }
+
+    /**
      * @return array{reputation_score: int, informes: int, aprobados: int, descartados: int}
      */
     private function historialInvestigador(User $investigador): array
@@ -679,16 +713,24 @@ class ReporteController extends Controller
     public function revisar(Reporte $reporte, Request $request): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
+        Gate::authorize('abac', [AccionesAbac::ReporteRevisar, $reporte]);
 
         $this->validarTransicion($reporte, 'en_revision');
         $revisor = $request->user();
         $estadoAnterior = $reporte->estado->value;
 
-        $reporte->update([
-            'estado' => 'en_revision',
-            'asignado_a' => $reporte->asignado_a ?? $revisor->id,
-        ]);
+        // Tomarlo es atómico: si dos moderadores pulsan a la vez, solo uno se lo queda.
+        $tomado = Reporte::query()
+            ->whereKey($reporte->id)
+            ->where('estado', $estadoAnterior)
+            ->where(fn ($libre) => $libre->whereNull('asignado_a')->orWhere('asignado_a', $revisor->id))
+            ->update(['estado' => 'en_revision', 'asignado_a' => $reporte->asignado_a ?? $revisor->id, 'updated_at' => now()]);
+
+        if ($tomado === 0) {
+            throw ValidationException::withMessages(['estado' => 'Otro moderador acaba de tomar este informe. Vuelve a la cola para revisar el siguiente.']);
+        }
+
+        $reporte->refresh();
 
         $reporte->eventos()->create([
             'actor_id' => $revisor->id,
@@ -963,6 +1005,26 @@ class ReporteController extends Controller
             .'La recompensa es para quien encontró la vulnerabilidad primero, así que se atienden por orden de llegada.';
     }
 
+    /**
+     * Por qué no se entrega el informe. Al moderador se le explica la cola: solo abre el
+     * siguiente sin revisor y los que ya tomó, nunca los que esperan turno ni los de otro.
+     */
+    private function motivoSinAcceso(Reporte $reporte): string
+    {
+        $user = request()->user();
+
+        if ($user === null || $user->tieneRol('administrador') || ! $user->puedeModerarPrograma($reporte->programa_id)
+            || $reporte->estado === EstadoReporte::Borrador) {
+            return 'No tienes permiso para ver este reporte.';
+        }
+
+        if ($reporte->asignado_a !== null) {
+            return 'Este informe lo está revisando otro moderador.';
+        }
+
+        return 'Aún no es su turno: los informes se revisan por orden de llegada. Toma el siguiente desde la cola de moderación.';
+    }
+
     /** La empresa confirmó un informe validado: es el momento en que el investigador gana los puntos. */
     private function confirmarPorEmpresa(Reporte $reporte, ReputationService $reputacion): void
     {
@@ -1020,9 +1082,9 @@ class ReporteController extends Controller
             return false;
         }
 
-        // Un moderador accede a los informes de los programas que modera.
+        // Un moderador accede a los informes que tomó y al siguiente de la cola de su programa.
         if ($user->puedeModerarPrograma($reporte->programa_id)) {
-            return true;
+            return Gate::allows('abac', [AccionesAbac::ReporteVer, $reporte]);
         }
 
         // La empresa dueña del programa solo ve informes que ya están en revisión, solicitando info, validados, en reparación o cerrados.

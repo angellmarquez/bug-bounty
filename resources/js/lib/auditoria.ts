@@ -98,7 +98,11 @@ const ETIQUETAS: Record<string, string> = {
     'sancion.revocada': 'Revocó una sanción',
     'apelacion.creada': 'Presentó una apelación',
     'apelacion.resuelta': 'Resolvió una apelación',
+    'reportes.poc_descifrado': 'Descifró la PoC de un reporte',
+    'reportes.descifrado_fallido': 'Intentó descifrar un reporte (falló)',
+    'pgp.contenido_descifrado': 'Descifró contenido confidencial',
     'pgp.clave_generada': 'Se generó la clave PGP de la plataforma',
+    'pgp.clave_empresa_generada': 'Se generó la clave PGP de una empresa',
     'abac.denegado': 'Intento de acción denegado',
 };
 

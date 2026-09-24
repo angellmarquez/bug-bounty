@@ -62,8 +62,11 @@
         { value: 'en_pausa', label: 'En pausa' },
         { value: 'archivado', label: 'Archivado' },
     ];
+    let busqueda = $state('');
 
-    let busqueda = $state(filtros.busqueda ?? '');
+    $effect(() => {
+        busqueda = filtros.busqueda ?? '';
+    });
 
     function aplicarFiltro(key: string, value: string | null) {
         const params: Record<string, string> = {};
@@ -191,17 +194,19 @@
     {:else}
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each programasData.data as programa (programa.id)}
-                <Link href={programaShow(programa.id)}>
-                    <Card class="h-full transition-colors hover:border-primary">
-                        <CardHeader class="pb-3">
-                            <div class="flex items-start justify-between gap-2">
-                                <CardTitle class="text-sm font-semibold leading-tight">
+                <Card class="flex h-full flex-col justify-between transition-colors hover:border-primary">
+                    <CardHeader class="pb-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <CardTitle class="text-sm font-semibold leading-tight">
+                                <Link href={programaShow(programa.id)} class="hover:text-primary transition-colors">
                                     {programa.nombre}
-                                </CardTitle>
-                                <ProgramaStateBadge estado={programa.estado} />
-                            </div>
-                        </CardHeader>
-                        <CardContent class="space-y-3">
+                                </Link>
+                            </CardTitle>
+                            <ProgramaStateBadge estado={programa.estado} />
+                        </div>
+                    </CardHeader>
+                    <CardContent class="flex flex-1 flex-col justify-between space-y-3">
+                        <div class="space-y-3">
                             <p class="line-clamp-2 text-xs text-muted-foreground">
                                 {programa.descripcion}
                             </p>
@@ -219,7 +224,9 @@
                                     {/each}
                                 </div>
                             {/if}
+                        </div>
 
+                        <div>
                             <div class="flex items-center justify-between text-xs text-muted-foreground mt-4">
                                 <span>
                                     {formatearFecha(programa.inicia_en)} - {formatearFecha(programa.termina_en)}
@@ -228,8 +235,15 @@
                                     <span>{programa.reportes_count} reportes</span>
                                 {/if}
                             </div>
-                            {#if programa.puede_editar}
-                                <div class="mt-4 flex justify-end">
+                            <div class="mt-4 flex justify-end gap-2">
+                                <Button asChild variant="outline" size="sm">
+                                    {#snippet children(props)}
+                                        <Link href={programaShow(programa.id)} {...props}>
+                                            Ver
+                                        </Link>
+                                    {/snippet}
+                                </Button>
+                                {#if programa.puede_editar}
                                     <Button asChild variant="outline" size="sm">
                                         {#snippet children(props)}
                                             <Link href={programaEdit(programa.id)} {...props}>
@@ -238,11 +252,11 @@
                                             </Link>
                                         {/snippet}
                                     </Button>
-                                </div>
-                            {/if}
-                        </CardContent>
-                    </Card>
-                </Link>
+                                {/if}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             {/each}
         </div>
 

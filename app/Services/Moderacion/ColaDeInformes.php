@@ -4,6 +4,7 @@ namespace App\Services\Moderacion;
 
 use App\Models\Programa;
 use App\Models\Reporte;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -21,13 +22,22 @@ class ColaDeInformes
     }
 
     /**
+     * Con un moderador (no admin) como lector, la cola se limita a lo que puede abrir: el
+     * siguiente informe sin revisor (primero en llegar, primero en revisarse) y los que ya tomó.
+     *
      * @return Builder<Reporte>
      */
-    public function consulta(Programa $programa, string $filtro): Builder
+    public function consulta(Programa $programa, string $filtro, ?User $lector = null): Builder
     {
+        $soloLoSuyo = $lector !== null && ! $lector->tieneRol('administrador');
+        $siguiente = $soloLoSuyo ? Reporte::siguienteEnCola($programa->id)?->id : null;
+
         return Reporte::query()
             ->where('programa_id', $programa->id)
             ->where('estado', '!=', 'borrador')
+            ->when($soloLoSuyo, fn ($query) => $query->where(fn ($suyos) => $suyos
+                ->where('asignado_a', $lector?->id)
+                ->when($siguiente !== null, fn ($o) => $o->orWhere('id', $siguiente))))
             ->with([
                 'programa:id,nombre',
                 'investigador' => fn ($query) => $query
@@ -64,9 +74,13 @@ class ColaDeInformes
     }
 
     /**
+     * Resumen del informe para la cola. Con triaje ciego (ver Reporte::ocultaAutorA()) el
+     * moderador ve el rango e historial del autor, pero no su nombre ni su id.
+     *
+     * @param  array<int, int>|null  $programasCiegos  Reporte::programasEnTriajeCiego($lector), si ya se calculó
      * @return array<string, mixed>
      */
-    public function resumen(Reporte $reporte): array
+    public function resumen(Reporte $reporte, User $lector, ?array $programasCiegos = null): array
     {
         return [
             'id' => $reporte->id,
@@ -80,9 +94,7 @@ class ColaDeInformes
             'es_duplicado_de' => $reporte->es_duplicado_de,
             'asignado_a' => $reporte->asignadoA?->only(['id', 'name']),
             'investigador' => [
-                'id' => $reporte->investigador->id,
-                'name' => $reporte->investigador->name,
-                'reputation_score' => $reporte->investigador->reputation_score,
+                ...$reporte->autorPara($lector, $programasCiegos),
                 'reportes_descartados' => (int) $reporte->investigador->getAttribute('reportes_descartados'),
             ],
         ];

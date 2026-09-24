@@ -112,7 +112,8 @@ test('un informe solo se asigna a moderadores de su programa que no sean su auto
     $reporte = reporteDe($autor, $programa, ['estado' => 'enviado']);
     $delPrograma = moderadorDe($programa);
     $ajeno = moderadorDe(programaAbierto());
-    $this->actingAs($delPrograma);
+    // Asignar es exclusivo del administrador.
+    $this->actingAs(administrador());
 
     $this->post(route('reportes.asignar', $reporte), ['asignado_a' => $ajeno->id])->assertSessionHasErrors('asignado_a');
     $this->post(route('reportes.asignar', $reporte), ['asignado_a' => $autor->id])->assertSessionHasErrors('asignado_a');
@@ -126,7 +127,7 @@ test('la lista de candidatos a revisar solo incluye moderadores del programa', f
     $reporte = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
     $suyo = moderadorDe($programa, ['name' => 'Suyo']);
     moderadorDe(programaAbierto(), ['name' => 'Ajeno']);
-    $this->actingAs($suyo);
+    $this->actingAs(administrador());
 
     $nombres = collect($this->get(route('reportes.show', $reporte))->inertiaProps()['moderadoresAsignables'])->pluck('name')->all();
 
@@ -152,6 +153,5 @@ test('un moderador ya no ve la cola ni los informes de programas que no modera',
 
     $this->get(route('reportes.show', $enElSuyo))->assertOk();
     $this->get(route('reportes.show', $enElAjeno))->assertForbidden();
-    $this->getJson(route('reportes.vista-rapida', $enElAjeno))->assertForbidden();
     $this->post(route('reportes.revisar', $enElAjeno))->assertForbidden();
 });

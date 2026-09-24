@@ -64,6 +64,7 @@
         moderadoresAsignables = [],
         candidatosDuplicado = [],
         esperaTurno = null,
+        avisoCola = null,
     }: {
         reporte: Reporte;
         puedeVerNotasInternas: boolean;
@@ -80,6 +81,7 @@
         moderadoresAsignables?: { id: number; name: string }[];
         candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
         esperaTurno?: string | null;
+        avisoCola?: string | null;
     } = $props();
 
     // Derivado: tras cada acción de triaje Inertia entrega props nuevas a esta misma instancia.
@@ -194,6 +196,12 @@
                 </div>
             </CardContent>
         </Card>
+    {/if}
+
+    {#if avisoCola}
+        <div role="status" class="rounded-md border border-chart-2/50 bg-chart-2/10 p-3 text-sm text-chart-2" data-test="aviso-cola">
+            {avisoCola}
+        </div>
     {/if}
 
     {#if esperaTurno}

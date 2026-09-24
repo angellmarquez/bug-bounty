@@ -62,7 +62,7 @@ test('admin can view reportes de otros to review them', function () {
     $this->assertTrue($response->inertiaProps()['puedeVerNotasInternas']);
 });
 
-test('empresa member views triaged reportes of its programas but not pre-triage nor rejected ones', function (string $estado, bool $ve) {
+test('la empresa ve los informes de sus programas ya decididos por moderacion, aprobados o descartados, nunca los que se revisan', function (string $estado, bool $ve) {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
@@ -72,9 +72,11 @@ test('empresa member views triaged reportes of its programas but not pre-triage 
     $this->get(route('reportes.show', $reporte))->assertStatus($ve ? 200 : 403);
 })->with([
     ['enviado', false],
-    ['rechazado', false],
-    ['en_revision', true],
-    ['needs_info', true],
+    ['en_revision', false],
+    ['needs_info', false],
+    ['rechazado', true],
+    ['duplicado', true],
+    ['fuera_de_alcance', true],
     ['validado', true],
     ['en_reparacion', true],
     ['cerrado', true],

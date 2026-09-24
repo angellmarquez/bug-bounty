@@ -8,6 +8,7 @@ use App\Services\Pgp\Exceptions\PgpDecryptionFailedException;
 use App\Services\Pgp\Exceptions\PgpDriverUnavailableException;
 use App\Services\Pgp\Exceptions\PgpException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -21,12 +22,16 @@ use Throwable;
  */
 class GpgBinaryDriver implements PgpDriver
 {
+    private readonly string $homedir;
+
     public function __construct(
         private readonly string $binary,
-        private readonly string $homedir,
+        string $homedir,
         private readonly string $passphrase = '',
         private readonly int $timeout = 120,
-    ) {}
+    ) {
+        $this->homedir = self::normalizePath($homedir);
+    }
 
     public function name(): string
     {
@@ -47,7 +52,7 @@ class GpgBinaryDriver implements PgpDriver
      */
     protected function contactsHome(): string
     {
-        return $this->homedir.'-contacts';
+        return self::normalizePath($this->homedir.'-contacts');
     }
 
     /**
@@ -304,36 +309,44 @@ class GpgBinaryDriver implements PgpDriver
 
         $dir = $this->homedir;
         $localUser = null;
+        $esEfemero = false;
 
-        if ($privateKey !== null) {
-            $dir = $this->ephemeralHomedir();
-            $this->run(['--import'], $this->normalizeArmored($privateKey), $dir);
-            $stored = $this->primaryKeyInfo($dir);
+        try {
+            if ($privateKey !== null) {
+                $dir = $this->ephemeralHomedir();
+                $esEfemero = true;
+                $this->run(['--import'], $this->normalizeArmored($privateKey), $dir);
+                $stored = $this->primaryKeyInfo($dir);
 
-            if ($stored === null) {
-                throw new PgpException('No se pudo importar la clave privada para firmar.');
+                if ($stored === null) {
+                    throw new PgpException('No se pudo importar la clave privada para firmar.');
+                }
+
+                $localUser = $stored->fingerprint;
             }
 
-            $localUser = $stored->fingerprint;
+            $args = ['--armor', '--detach-sign'];
+
+            if ($localUser !== null) {
+                $args[] = '--local-user';
+                $args[] = $localUser;
+            }
+
+            $args[] = '--output';
+            $args[] = '-';
+
+            $result = $this->run($args, $message, $dir);
+
+            if (trim($result['output']) === '' || str_contains($result['error'], 'no default secret key')) {
+                throw new PgpException('No se pudo firmar el mensaje. Asegúrate de que la clave privada de la plataforma está importada.');
+            }
+
+            return $this->normalizeArmored($result['output']);
+        } finally {
+            if ($esEfemero) {
+                $this->destruirHomedirEfemero($dir);
+            }
         }
-
-        $args = ['--armor', '--detach-sign'];
-
-        if ($localUser !== null) {
-            $args[] = '--local-user';
-            $args[] = $localUser;
-        }
-
-        $args[] = '--output';
-        $args[] = '-';
-
-        $result = $this->run($args, $message, $dir);
-
-        if (trim($result['output']) === '' || str_contains($result['error'], 'no default secret key')) {
-            throw new PgpException('No se pudo firmar el mensaje. Asegúrate de que la clave privada de la plataforma está importada.');
-        }
-
-        return $this->normalizeArmored($result['output']);
     }
 
     /**
@@ -411,13 +424,17 @@ class GpgBinaryDriver implements PgpDriver
                 ];
             }
 
-            $esCarreraDeAgente = str_contains($error, 'gpg-agent') && (
-                str_contains($error, 'no se puede crear el socket')
-                || str_contains($error, "can't connect")
-                || str_contains($error, 'failed to start')
-            );
+            // Sin agente (o con uno caído) gpg no llega a las claves privadas: se arranca con
+            // gpgconf y se reintenta. Con el agente vivo esto nunca ocurre y no cuesta nada.
+            $problemaDeAgente = str_contains($error, 'no hay un agente gpg')
+                || str_contains($error, 'no gpg-agent running')
+                || (str_contains($error, 'gpg-agent') && (
+                    str_contains($error, 'no se puede crear el socket')
+                    || str_contains($error, "can't connect")
+                    || str_contains($error, 'failed to start')
+                ));
 
-            if (! $esCarreraDeAgente || $intento === $intentos) {
+            if (! $problemaDeAgente || $intento === $intentos) {
                 throw new PgpException(
                     sprintf(
                         'gpg falló con código %d: %s',
@@ -427,10 +444,41 @@ class GpgBinaryDriver implements PgpDriver
                 );
             }
 
-            usleep(300_000 * $intento);
+            $this->lanzarAgente($homedir);
+            usleep(200_000 * $intento);
         }
 
         throw new PgpException('gpg falló: no se pudo conectar con gpg-agent tras varios intentos.');
+    }
+
+    /**
+     * Arranca el gpg-agent del homedir con `gpgconf --launch` (vuelve al instante si ya corre).
+     *
+     * El agente es un proceso que sigue vivo después de la llamada y hereda la entrada/salida
+     * de quien lo lanza. Si lo arrancaba el propio gpg (autoarranque), se quedaba con las
+     * tuberías de Symfony Process: PHP esperaba a que se cerraran y cada llamada agotaba los
+     * 15 s aunque gpg ya hubiera respondido, y luego el agente se bloqueaba escribiendo en una
+     * tubería que nadie leía. En la web eso se veía como "contenido no disponible". Por eso gpg
+     * corre con --no-autostart y el agente se lanza aquí con la entrada/salida en el dispositivo
+     * nulo: no queda atado a ninguna tubería de PHP.
+     */
+    private function lanzarAgente(string $homedir): void
+    {
+        $homedir = self::normalizePath($homedir);
+        $gpgconf = (string) preg_replace('/gpg(\.exe)?$/i', 'gpgconf$1', $this->binary);
+        $nulo = DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null';
+
+        $proceso = @proc_open(
+            [$gpgconf, '--homedir', $homedir, '--launch', 'gpg-agent'],
+            [0 => ['file', $nulo, 'r'], 1 => ['file', $nulo, 'w'], 2 => ['file', $nulo, 'w']],
+            $tuberias,
+            function_exists('base_path') ? base_path() : null,
+        );
+
+        // Si no arranca, el reintento de gpg falla con un error claro en vez de colgarse.
+        if (is_resource($proceso)) {
+            proc_close($proceso);
+        }
     }
 
     /**
@@ -438,7 +486,7 @@ class GpgBinaryDriver implements PgpDriver
      */
     private function runShell(string $binary, string $argument): Process
     {
-        $process = new Process([$binary, $argument]);
+        $process = new Process([$binary, $argument], null, self::entornoDelSistema());
         $process->setTimeout(10);
         $process->run();
 
@@ -462,9 +510,12 @@ class GpgBinaryDriver implements PgpDriver
     {
         return [
             $this->binary,
-            '--homedir', $homedir,
+            '--homedir', self::normalizePath($homedir),
             '--batch',
             '--no-tty',
+            // El agente lo arranca el driver con `gpgconf --launch` (ver lanzarAgente()): el
+            // autoarranque de gpg se colgaba desde el servidor web y tiraba el agente que ya corría.
+            '--no-autostart',
             '--pinentry-mode', 'loopback',
             '--passphrase', $this->passphrase,
         ];
@@ -481,24 +532,48 @@ class GpgBinaryDriver implements PgpDriver
      */
     private function gpgProcess(array $command): Process
     {
-        return new Process($command, function_exists('base_path') ? base_path() : null);
+        return new Process($command, function_exists('base_path') ? base_path() : null, self::entornoDelSistema());
+    }
+
+    /**
+     * Entorno para los procesos de gpg: el del sistema operativo, sin las variables de la app.
+     *
+     * Fuera del CLI (servidor web), Symfony Process arma el entorno del hijo solo con $_SERVER
+     * y $_ENV, que tras arrancar Laravel son las variables del .env: faltan SYSTEMROOT,
+     * LOCALAPPDATA, TEMP... Sin SYSTEMROOT, Winsock no arranca en Windows y gpg no llega al
+     * agente ("can't connect to the gpg-agent: Input/output error"), así que ningún informe
+     * se podía descifrar desde la web. Además se le pasaban a gpg secretos como DB_PASSWORD.
+     *
+     * @return array<string, string|false>
+     */
+    public static function entornoDelSistema(): array
+    {
+        $sistema = getenv();
+
+        // `false` hace que Symfony quite la variable en lugar de heredarla.
+        $ajenas = array_fill_keys(array_keys(array_diff_key($_SERVER + $_ENV, $sistema)), false);
+
+        return $ajenas + $sistema;
     }
 
     private function ensureHomedir(string $dir): void
     {
+        $dir = self::normalizePath($dir);
+
         if (isset($this->ensuredHomedirs[$dir])) {
             return;
-        }
-
-        if (! preg_match('#^(?:[A-Za-z]:)?[\\\\/]#', $dir) && function_exists('base_path')) {
-            $dir = base_path($dir);
         }
 
         if (! is_dir($dir) && ! @mkdir($dir, 0700, true) && ! is_dir($dir)) {
             throw new RuntimeException("No se pudo crear el homedir de GnuPG [{$dir}].");
         }
 
+        if ($real = realpath($dir)) {
+            $dir = $real;
+        }
+
         $this->ensureAgentConf($dir);
+        $this->lanzarAgente($dir);
         $this->ensuredHomedirs[$dir] = true;
     }
 
@@ -653,6 +728,22 @@ class GpgBinaryDriver implements PgpDriver
         return strtoupper((string) preg_replace('/[^A-Fa-f0-9]/', '', $fingerprint));
     }
 
+    public static function normalizePath(string $path): string
+    {
+        $trimmed = trim($path);
+        if (! preg_match('#^(?:[A-Za-z]:)?[\\\\/]#', $trimmed) && function_exists('base_path')) {
+            $trimmed = base_path($trimmed);
+        }
+
+        $replaced = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $trimmed);
+
+        if (is_dir($replaced) && ($real = realpath($replaced))) {
+            return $real;
+        }
+
+        return $replaced;
+    }
+
     private function encryptionAlgorithm(string $algorithm): string
     {
         return str_starts_with($algorithm, 'rsa') ? 'rsa4096' : 'cv25519';
@@ -677,6 +768,30 @@ class GpgBinaryDriver implements PgpDriver
     private function ephemeralHomedir(): string
     {
         return sys_get_temp_dir().'/pgp_ephemeral_'.Str::random(16);
+    }
+
+    private function matarAgente(string $homedir): void
+    {
+        $gpgconf = (string) preg_replace('/gpg(\.exe)?$/i', 'gpgconf$1', $this->binary);
+
+        try {
+            $p = new Process([$gpgconf, '--homedir', $homedir, '--kill', 'gpg-agent'], null, self::entornoDelSistema());
+            $p->setTimeout(5);
+            $p->run();
+        } catch (Throwable) {
+            // ignore
+        }
+    }
+
+    private function destruirHomedirEfemero(string $dir): void
+    {
+        $this->matarAgente($dir);
+
+        try {
+            File::deleteDirectory($dir);
+        } catch (Throwable) {
+            // ignore
+        }
     }
 
     private function assertAvailable(): void

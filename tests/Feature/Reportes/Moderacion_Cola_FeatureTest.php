@@ -66,13 +66,13 @@ test('un moderador solo ve en la cola los programas que se le asignaron', functi
     $this->get(route('programas.show', $ajeno))->assertForbidden();
 });
 
-test('la cola de un programa lista sus informes pendientes con datos del investigador', function () {
+test('la cola de un programa lista sus informes pendientes con el historial del investigador, sin su identidad', function () {
     $programaModerado = programaConEmpresa();
-    $this->actingAs(moderadorDe($programaModerado));
+    $this->actingAs($moderador = moderadorDe($programaModerado));
     $programa = $programaModerado;
     $autor = investigador(['name' => 'Ana Hacker']);
     $pendiente = reporteDe($autor, $programa, ['estado' => 'enviado', 'enviado_en' => now()]);
-    reporteDe($autor, $programa, ['estado' => 'rechazado']);
+    reporteDe($autor, $programa, ['estado' => 'rechazado', 'asignado_a' => $moderador->id]);
     reporteDe(investigador(), $programa, ['estado' => 'borrador']);
     reporteDe(investigador(), programaConEmpresa(), ['estado' => 'enviado']);
 
@@ -83,7 +83,8 @@ test('la cola de un programa lista sus informes pendientes con datos del investi
             ->where('filtro', 'por_revisar')
             ->has('reportes.data', 1)
             ->where('reportes.data.0.id', $pendiente->id)
-            ->where('reportes.data.0.investigador.name', 'Ana Hacker')
+            ->where('reportes.data.0.investigador.name', Reporte::AUTOR_ANONIMO)
+            ->where('reportes.data.0.investigador.id', 0)
             ->where('reportes.data.0.investigador.reportes_descartados', 1)
             ->where('conteos', [
                 'por_revisar' => 1,
@@ -112,7 +113,7 @@ test('iniciar la revision cambia el estado y queda en el timeline del investigad
     $programaModerado = programaConEmpresa();
     $moderador = moderadorDe($programaModerado, ['name' => 'Moderador Luis']);
     $autor = investigador();
-    $reporte = reporteDe($autor, $programaModerado, ['estado' => 'enviado']);
+    $reporte = reporteDe($autor, $programaModerado, ['estado' => 'enviado', 'asignado_a' => $moderador->id]);
 
     $this->actingAs($moderador)
         ->post(route('reportes.revisar', $reporte))
@@ -170,7 +171,7 @@ test('el revisor puede marcar un duplicado eligiendo entre los informes del prog
     $moderador = moderadorDe($programaModerado);
     $programa = $programaModerado;
     $original = reporteDe(investigador(), $programa, ['estado' => 'validado']);
-    $duplicado = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+    $duplicado = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'asignado_a' => $moderador->id]);
     reporteDe(investigador(), programaConEmpresa(), ['estado' => 'validado']);
     $this->actingAs($moderador);
 
@@ -188,7 +189,7 @@ test('el revisor puede marcar un duplicado eligiendo entre los informes del prog
         ->es_duplicado_de->toBe($original->id);
 });
 
-test('la pagina de moderacion lista directamente los informes por revisar, del mas antiguo al mas reciente', function () {
+test('la pagina de moderacion ofrece solo el siguiente informe de la cola: el primero en llegar', function () {
     $programaModerado = programaConEmpresa();
     $this->actingAs(moderadorDe($programaModerado));
     $programa = $programaModerado;
@@ -199,10 +200,20 @@ test('la pagina de moderacion lista directamente los informes por revisar, del m
 
     $this->get(route('moderacion.index'))
         ->assertInertia(fn ($page) => $page
-            ->has('porRevisar', 2)
+            ->has('porRevisar', 1)
             ->where('porRevisar.0.id', $antiguo->id)
-            ->where('porRevisar.1.id', $reciente->id)
-            ->where('porRevisar.0.investigador.reputation_score', fn ($valor) => is_int($valor)));
+            ->where('porRevisar.0.investigador.reputation_score', fn ($valor) => is_int($valor))
+            ->where('resumen.por_revisar', 2));
+
+    // El que llegó después espera su turno: no se puede abrir ni tomar todavía.
+    $this->get(route('reportes.show', $reciente))->assertForbidden();
+    $this->post(route('reportes.revisar', $reciente))->assertForbidden();
+
+    // Tomado el primero, el siguiente pasa a ser el de la cola.
+    $this->post(route('reportes.revisar', $antiguo))->assertRedirect();
+    $this->get(route('moderacion.index'))
+        ->assertInertia(fn ($page) => $page->has('porRevisar', 1)->where('porRevisar.0.id', $reciente->id));
+    $this->get(route('reportes.show', $reciente))->assertOk();
 });
 
 test('guardar y enviar deja el informe visible para el moderador y la empresa', function () {
@@ -234,11 +245,14 @@ test('guardar y enviar deja el informe visible para el moderador y la empresa', 
     $this->actingAs(moderadorDe($programa))->get(route('moderacion.index'))
         ->assertInertia(fn ($page) => $page->has('porRevisar', 1)->where('porRevisar.0.id', $enviado->id));
 
-    // La empresa no ve el pre-triaje: le llega cuando el moderador lo toma.
+    // La empresa no ve lo que se está revisando: le llega cuando moderación lo aprueba o lo descarta.
     $this->actingAs(miembroDeEmpresa($empresa))->get(route('empresa.reportes'))
         ->assertInertia(fn ($page) => $page->has('reportes.data', 0));
 
     $enviado->update(['estado' => 'en_revision']);
+    $this->get(route('empresa.reportes'))->assertInertia(fn ($page) => $page->has('reportes.data', 0));
+
+    $enviado->update(['estado' => 'validado']);
     $this->get(route('empresa.reportes'))
         ->assertInertia(fn ($page) => $page->has('reportes.data', 1)->where('reportes.data.0.id', $enviado->id));
 });
@@ -259,7 +273,7 @@ function informeEnviadoConContenido(Programa $programa, User $autor): Reporte
     return Reporte::where('titulo', 'XSS en el buscador')->latest('id')->firstOrFail();
 }
 
-test('la vista rapida devuelve el contenido descifrado a quien puede ver el informe', function (string $lector) {
+test('la pagina del informe muestra el contenido descifrado a quien puede verlo', function (string $lector) {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = programaConEmpresa(['empresa_id' => $empresa->id, 'poc_schema' => [
         ['name' => 'pasos', 'label' => 'Pasos para reproducir', 'type' => 'textarea', 'required' => true],
@@ -280,16 +294,17 @@ test('la vista rapida devuelve el contenido descifrado a quien puede ver el info
     }
 
     $this->actingAs($usuario)
-        ->getJson(route('reportes.vista-rapida', $reporte))
+        ->get(route('reportes.show', $reporte))
         ->assertOk()
-        ->assertJsonPath('descripcion', 'El parametro q se refleja sin escapar.')
-        ->assertJsonPath('poc.pasos', 'Abrir /buscar?q=<script>alert(1)</script>')
-        ->assertJsonPath('poc_schema.0.label', 'Pasos para reproducir')
-        ->assertJsonPath('categoria', 'xss')
-        ->assertJsonPath('cifrado_indisponible', false);
+        ->assertInertia(fn ($page) => $page
+            ->where('reporte.descripcion', 'El parametro q se refleja sin escapar.')
+            ->where('reporte.poc.pasos', 'Abrir /buscar?q=<script>alert(1)</script>')
+            ->where('reporte.programa.poc_schema.0.label', 'Pasos para reproducir')
+            ->where('reporte.categoria', 'xss')
+            ->where('cifradoIndisponible', false));
 })->with(['moderador', 'administrador', 'autor', 'empresa duena']);
 
-test('la vista rapida no se entrega a quien no puede ver el informe', function (string $lector) {
+test('la pagina del informe no se entrega a quien no puede verlo', function (string $lector) {
     $programa = programaConEmpresa();
     $reporte = informeEnviadoConContenido($programa, investigador());
 
@@ -299,18 +314,18 @@ test('la vista rapida no se entrega a quien no puede ver el informe', function (
         'otra empresa' => miembroDeEmpresa(Empresa::factory()->aprobada()->create()),
     };
 
-    $this->actingAs($usuario)->getJson(route('reportes.vista-rapida', $reporte))->assertForbidden();
+    $this->actingAs($usuario)->get(route('reportes.show', $reporte))->assertForbidden();
 })->with(['otro investigador', 'moderador de otro programa', 'otra empresa']);
 
-test('la vista rapida indica si el revisor puede iniciar la revision', function () {
+test('la pagina del informe indica si el revisor puede iniciar la revision', function () {
     $programa = programaConEmpresa();
     $enviado = informeEnviadoConContenido($programa, investigador());
-    $this->actingAs(moderadorDe($programa));
+    $this->actingAs(moderadorDe($enviado));
 
-    $this->getJson(route('reportes.vista-rapida', $enviado))->assertJsonPath('puede_revisar', true);
+    $this->get(route('reportes.show', $enviado))->assertInertia(fn ($page) => $page->where('accionesDisponibles.revisar', true));
 
     $enviado->update(['estado' => 'validado']);
-    $this->getJson(route('reportes.vista-rapida', $enviado))->assertJsonPath('puede_revisar', false);
+    $this->get(route('reportes.show', $enviado))->assertInertia(fn ($page) => $page->where('accionesDisponibles.revisar', false));
 });
 
 test('el revisor ve el alcance del programa y el historial del investigador en el informe', function () {
@@ -321,10 +336,10 @@ test('el revisor ve el alcance del programa y el historial del investigador en e
     reporteDe($autor, $programa, ['estado' => 'validado']);
     reporteDe($autor, $programa, ['estado' => 'rechazado']);
     $reporte = informeEnviadoConContenido($programa, $autor);
-    // En 'enviado' el triaje es ciego; el historial aparece al tomarlo en revisión.
-    $reporte->update(['estado' => 'en_revision']);
+    $moderador = moderadorDe($programaModerado);
+    $reporte->update(['estado' => 'en_revision', 'asignado_a' => $moderador->id]);
 
-    $this->actingAs(moderadorDe($programaModerado))->get(route('reportes.show', $reporte))
+    $this->actingAs($moderador)->get(route('reportes.show', $reporte))
         ->assertInertia(fn ($page) => $page
             ->where('historialInvestigador', ['reputation_score' => 30, 'informes' => 3, 'aprobados' => 1, 'descartados' => 1])
             ->where('reporte.programa.bugs_buscados', 'Inyecciones y XSS')
@@ -343,9 +358,10 @@ test('al entrar a un programa el revisor ve sus informes para revisarlos ahi mis
     $programaModerado = programaConEmpresa();
     $programa = $programaModerado;
     $enviado = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()]);
-    reporteDe(investigador(), $programa, ['estado' => 'validado']);
+    $this->actingAs($moderador = moderadorDe($programaModerado));
+    reporteDe(investigador(), $programa, ['estado' => 'validado', 'asignado_a' => $moderador->id]);
+    reporteDe(investigador(), $programa, ['estado' => 'rechazado', 'asignado_a' => moderador()->id]);
     reporteDe(investigador(), $programa, ['estado' => 'borrador']);
-    $this->actingAs(moderadorDe($programaModerado));
 
     $this->get(route('programas.show', $programa))
         ->assertInertia(fn ($page) => $page
@@ -353,10 +369,14 @@ test('al entrar a un programa el revisor ve sus informes para revisarlos ahi mis
             ->where('filtroInformes', 'por_revisar')
             ->has('informes', 1)
             ->where('informes.0.id', $enviado->id)
-            ->where('conteosInformes', ['por_revisar' => 1, 'en_revision' => 0, 'aprobados' => 1, 'rechazados' => 0, 'todos' => 2]));
+            ->where('conteosInformes', ['por_revisar' => 1, 'en_revision' => 0, 'aprobados' => 1, 'rechazados' => 1, 'todos' => 3]));
 
     $this->get(route('programas.show', [$programa, 'filtro' => 'aprobados']))
         ->assertInertia(fn ($page) => $page->has('informes', 1)->where('informes.0.estado', 'validado'));
+
+    // El que decidió otro moderador cuenta en el total, pero no se le muestra.
+    $this->get(route('programas.show', [$programa, 'filtro' => 'rechazados']))
+        ->assertInertia(fn ($page) => $page->has('informes', 0));
 });
 
 test('quien no revisa no recibe los informes del programa', function (string $rol) {
@@ -377,7 +397,7 @@ test('iniciar la revision desde una lista vuelve a la misma pagina', function ()
     $programa = $programaModerado;
     $reporte = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
 
-    $this->actingAs(moderadorDe($programaModerado))
+    $this->actingAs(moderadorDe($reporte))
         ->from(route('programas.show', $programa))
         ->post(route('reportes.revisar', $reporte))
         ->assertRedirect(route('programas.show', $programa));

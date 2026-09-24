@@ -115,9 +115,10 @@ test('empresa reportes page is paginated and filterable', function () {
     $this->actingAs(miembroDeEmpresa($empresa));
 
     foreach (range(1, 25) as $i) {
-        reporteDe(investigador(), $programa, ['estado' => 'en_revision']);
+        reporteDe(investigador(), $programa, ['estado' => 'rechazado']);
     }
     reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+    reporteDe(investigador(), $programa, ['estado' => 'en_revision']);
     $validado = reporteDe(investigador(), $otro, ['estado' => 'validado', 'titulo' => 'Bug validado unico']);
     reporteDe(investigador(), $programa, ['estado' => 'borrador']);
     reporteDe(investigador(), programaBorradorDe(Empresa::factory()->aprobada()->create()), ['estado' => 'enviado']);
@@ -128,7 +129,8 @@ test('empresa reportes page is paginated and filterable', function () {
             ->component('empresa/Reportes')
             ->has('reportes.data', 20)
             ->where('reportes.total', 26)
-            ->where('conteos.validados', 1));
+            ->where('conteos.validados', 1)
+            ->where('conteos.descartados', 25));
 
     $this->get(route('empresa.reportes', ['filtro' => 'validados']))
         ->assertInertia(fn ($page) => $page->has('reportes.data', 1)->where('reportes.data.0.id', $validado->id));

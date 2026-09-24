@@ -12,6 +12,7 @@ test('descifrado de PoC por un moderador genera registro inmutable en auditoria'
     $investigador = investigador();
     $reporte = reporteDe($investigador, $programa, [
         'estado' => EstadoReporte::EnRevision->value,
+        'asignado_a' => $moderador->id,
     ]);
 
     $this->actingAs($moderador)
@@ -26,46 +27,54 @@ test('descifrado de PoC por un moderador genera registro inmutable en auditoria'
     ]);
 });
 
-test('triaje ciego en estado enviado anonimiza el autor e historial ante el moderador', function () {
+test('triaje ciego: el moderador nunca ve la identidad del autor, sí su rango', function (string $estado) {
     $moderador = moderador();
     $programa = Programa::factory()->create();
     $moderador->programasModerados()->attach($programa->id);
 
     $investigador = investigador(['name' => 'Alice SecretHacker', 'reputation_score' => 250]);
-    $reporte = reporteDe($investigador, $programa, [
-        'estado' => EstadoReporte::Enviado->value,
-    ]);
+    // En 'enviado' lo abre por ser el siguiente de la cola; después, porque lo tomó.
+    $reporte = reporteDe($investigador, $programa, ['estado' => $estado, 'asignado_a' => $estado === EstadoReporte::Enviado->value ? null : $moderador->id]);
 
     $response = $this->actingAs($moderador)
         ->get(route('reportes.show', $reporte));
 
     $response->assertSuccessful();
-    $page = $response->viewData('page');
-    $props = $page['props'];
+    $props = $response->viewData('page')['props'];
 
-    expect($props['reporte']['investigador']['name'])->toBe('Investigador Anónimo (Triaje Ciego)')
-        ->and($props['reporte']['investigador']['reputation_score'])->toBeNull();
+    expect($props['reporte']['investigador'])->toBe(['id' => 0, 'name' => Reporte::AUTOR_ANONIMO, 'reputation_score' => 250])
+        ->and($props['reporte']['investigador_id'])->toBe(0)
+        ->and(json_encode($props))->not->toContain('Alice SecretHacker')
+        ->and(json_encode($props))->not->toContain($investigador->email);
+})->with([EstadoReporte::Enviado->value, EstadoReporte::EnRevision->value, EstadoReporte::Validado->value]);
+
+test('el administrador sí ve al autor del informe', function () {
+    $investigador = investigador(['name' => 'Alice SecretHacker']);
+    $reporte = reporteDe($investigador, Programa::factory()->create(), ['estado' => EstadoReporte::EnRevision->value]);
+
+    $props = $this->actingAs(administrador())->get(route('reportes.show', $reporte))->viewData('page')['props'];
+
+    expect($props['reporte']['investigador']['name'])->toBe('Alice SecretHacker');
 });
 
-test('triaje desanonimiza autor cuando el reporte avanza a en revision', function () {
+test('un descifrado fallido del moderador también queda en auditoría', function () {
     $moderador = moderador();
     $programa = Programa::factory()->create();
     $moderador->programasModerados()->attach($programa->id);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => $moderador->id]);
+    $reporte->forceFill(['descripcion' => '-----BEGIN PGP MESSAGE-----
+roto
+-----END PGP MESSAGE-----'])->save();
 
-    $investigador = investigador(['name' => 'Alice SecretHacker', 'reputation_score' => 250]);
-    $reporte = reporteDe($investigador, $programa, [
-        'estado' => EstadoReporte::EnRevision->value,
+    $this->actingAs($moderador)->get(route('reportes.show', $reporte))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page->where('cifradoIndisponible', true));
+
+    $this->assertDatabaseHas('auditorias', [
+        'usuario_id' => $moderador->id,
+        'accion' => 'reportes.descifrado_fallido',
+        'entidad_id' => $reporte->id,
     ]);
-
-    $response = $this->actingAs($moderador)
-        ->get(route('reportes.show', $reporte));
-
-    $response->assertSuccessful();
-    $page = $response->viewData('page');
-    $props = $page['props'];
-
-    expect($props['reporte']['investigador']['name'])->toBe('Alice SecretHacker')
-        ->and($props['reporte']['investigador']['reputation_score'])->toBe(250);
 });
 
 test('marcar como duplicado falla con 422 si el reporte original es posterior al actual (prevención de robo)', function () {
@@ -77,6 +86,7 @@ test('marcar como duplicado falla con 422 si el reporte original es posterior al
     $reporteLegitimo = reporteDe(investigador(), $programa, [
         'estado' => EstadoReporte::EnRevision->value,
         'created_at' => now()->subDays(2),
+        'asignado_a' => $moderador->id,
     ]);
 
     // Reporte sospechoso recibido después (hace 1 hora)
@@ -107,6 +117,7 @@ test('marcar como duplicado tiene éxito si el original es anterior en el tiempo
     $duplicado = reporteDe(investigador(), $programa, [
         'estado' => EstadoReporte::EnRevision->value,
         'created_at' => now()->subDay(),
+        'asignado_a' => $moderador->id,
     ]);
 
     $this->actingAs($moderador)
@@ -173,6 +184,7 @@ test('el moderador pide informacion y el investigador responde reenviando el inf
     $reporte = reporteDe($autor, $programa, [
         'estado' => EstadoReporte::EnRevision->value,
         'poc' => pocCifrado(['evidencia' => 'Pasos iniciales.']),
+        'asignado_a' => $moderador->id,
     ]);
 
     $this->actingAs($moderador)

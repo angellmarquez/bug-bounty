@@ -22,7 +22,7 @@ function sancionadoPorUnModerador(string $gravedad = 'media'): array
     $programa = Programa::factory()->create();
     $moderador = moderadorDe($programa);
     $sancionado = investigador();
-    $reporte = reporteDe($sancionado, $programa, ['estado' => 'enviado']);
+    $reporte = reporteDe($sancionado, $programa, ['estado' => 'enviado', 'asignado_a' => $moderador->id]);
 
     test()->actingAs($moderador)->post(route('reportes.rechazar', $reporte), [
         'nota' => 'Evidencia fabricada.',

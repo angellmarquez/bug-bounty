@@ -20,7 +20,7 @@
     import { Input } from '@/components/ui/input';
     import type { ReporteCompacto } from '@/types/domain';
 
-    type Filtro = 'todos' | 'validados' | 'en_reparacion' | 'cerrados';
+    type Filtro = 'todos' | 'validados' | 'en_reparacion' | 'cerrados' | 'descartados';
 
     let {
         empresa,
@@ -46,6 +46,7 @@
         { valor: 'validados', etiqueta: 'Validados' },
         { valor: 'en_reparacion', etiqueta: 'En reparación' },
         { valor: 'cerrados', etiqueta: 'Cerrados' },
+        { valor: 'descartados', etiqueta: 'Descartados' },
     ];
 
     let busqueda = $state(filtros.busqueda);

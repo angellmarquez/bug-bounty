@@ -157,13 +157,29 @@ function publicadorDeEmpresa(Empresa $empresa, array $atributos = []): User
 
 /**
  * Moderador de un programa concreto: un moderador solo ve y revisa los programas que se le asignan.
+ * Con un informe, además queda asignado a él (como si lo hubiera hecho el administrador): el
+ * moderador solo hace triaje de los informes que tiene asignados.
  */
 function moderadorDe(Programa|Reporte $alcance, array $atributos = []): User
 {
     $moderador = moderador($atributos);
     $moderador->programasModerados()->attach($alcance instanceof Reporte ? $alcance->programa_id : $alcance->id);
 
+    if ($alcance instanceof Reporte) {
+        asignarA($alcance, $moderador);
+    }
+
     return $moderador;
+}
+
+/**
+ * El administrador asigna el informe a un moderador (solo el admin asigna).
+ */
+function asignarA(Reporte $reporte, User $moderador): Reporte
+{
+    $reporte->forceFill(['asignado_a' => $moderador->id])->save();
+
+    return $reporte;
 }
 
 function administrador(array $atributos = []): User

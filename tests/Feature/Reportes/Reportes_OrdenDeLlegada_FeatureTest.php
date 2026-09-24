@@ -14,13 +14,15 @@ function colaDeDos(string $estadoPrimero = 'enviado', string $estadoSegundo = 'e
 {
     $propietario = propietarioDeEmpresa();
     $programa = programaDeEmpresa($propietario);
+    $moderador = moderadorDe($programa);
 
+    // El administrador le asignó ambos informes: el moderador solo tría los que tiene asignados.
     return [
         'propietario' => $propietario,
         'programa' => $programa,
-        'moderador' => moderadorDe($programa),
-        'primero' => reporteDe(investigador(), $programa, ['estado' => $estadoPrimero, 'enviado_en' => now()->subHours(2)]),
-        'segundo' => reporteDe(investigador(), $programa, ['estado' => $estadoSegundo, 'enviado_en' => now()->subHour()]),
+        'moderador' => $moderador,
+        'primero' => reporteDe(investigador(), $programa, ['estado' => $estadoPrimero, 'enviado_en' => now()->subHours(2), 'asignado_a' => $moderador->id]),
+        'segundo' => reporteDe(investigador(), $programa, ['estado' => $estadoSegundo, 'enviado_en' => now()->subHour(), 'asignado_a' => $moderador->id]),
     ];
 }
 
@@ -54,9 +56,10 @@ test('rechazar o marcar duplicado no espera turno porque no da puntos', function
 test('un informe de otro programa no bloquea la cola', function () {
     ['moderador' => $moderador, 'programa' => $programa] = colaDeDos();
     reporteDe(investigador(), programaDeEmpresa(propietarioDeEmpresa()), ['estado' => 'enviado', 'enviado_en' => now()->subDays(3)]);
-    $solo = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()->subDays(2)]);
+    $solo = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()->subDays(2), 'asignado_a' => $moderador->id]);
 
-    $this->actingAs($moderador)->post(route('reportes.validar', $solo))->assertSessionHasNoErrors();
+    $this->actingAs($moderador)->post(route('reportes.validar', $solo))->assertRedirect()->assertSessionHasNoErrors();
+    expect($solo->fresh()->estado->value)->toBe('validado');
 });
 
 test('la pagina no ofrece validar fuera de turno y explica cual va primero', function () {
@@ -129,7 +132,7 @@ test('reenviar tras needs_info conserva el turno del primer envio', function () 
 
 test('cuenta la fecha de envio, no la del borrador: un borrador viejo enviado tarde no es el original', function () {
     ['moderador' => $moderador, 'programa' => $programa] = colaDeDos();
-    $enviadoPrimero = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()->subHours(5)]);
+    $enviadoPrimero = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()->subHours(5), 'asignado_a' => $moderador->id]);
     $borradorViejo = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()->subHours(4)]);
     $borradorViejo->forceFill(['created_at' => now()->subDays(10)])->save();
 

@@ -31,7 +31,8 @@
 <div class="space-y-5">
     {#if cifradoIndisponible}
         <p role="alert" class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-            El contenido cifrado no está disponible: la plataforma no tiene una clave PGP activa.
+            No se pudo descifrar el contenido del informe en este momento. Vuelve a intentarlo en unos segundos; si
+            persiste, el administrador puede revisar el estado del cifrado en Claves PGP.
         </p>
     {:else}
         <section class="space-y-1">

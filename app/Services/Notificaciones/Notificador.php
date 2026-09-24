@@ -53,17 +53,15 @@ class Notificador
             $propietarios = $this->propietarios($programa->empresa);
 
             match ($evento->tipo) {
+                // Solo a los moderadores y hacia la cola: el informe se abre cuando le llega el turno.
+                // La empresa no se entera hasta que moderación lo aprueba o lo descarta.
                 TipoEventoReporte::Enviado => $this->enviar(
-                    $this->moderadoresDe($programa)->merge($propietarios),
-                    new AvisoPlataforma('informe', 'Nuevo informe recibido', "{$ref} en {$programa->nombre}", $url),
+                    $this->moderadoresDe($programa),
+                    new AvisoPlataforma('informe', 'Nuevo informe recibido', "{$ref} en {$programa->nombre}", "/moderacion/programas/{$programa->id}"),
                     $actor,
                 ),
                 TipoEventoReporte::CambioDeEstado => $this->cambioDeEstado($evento, $reporte, $actor, $ref, $url, $propietarios),
-                TipoEventoReporte::MarcadoDuplicado => $this->enviar(
-                    [$reporte->investigador],
-                    new AvisoPlataforma('informe', 'Tu informe fue marcado como duplicado', $ref, $url),
-                    $actor,
-                ),
+                TipoEventoReporte::MarcadoDuplicado => $this->duplicado($reporte, $actor, $ref, $url, $propietarios),
                 TipoEventoReporte::Asignacion => $this->enviar(
                     [User::query()->find((int) ($evento->datos['asignado_a'] ?? 0))],
                     new AvisoPlataforma('informe', 'Se te asignó un informe', $ref, $url),
@@ -95,6 +93,26 @@ class Notificador
                 $actor,
             );
         }
+
+        // Los descartados también le llegan a la empresa, para que pueda revisarlos.
+        if (in_array($nuevo, Reporte::ESTADOS_RECHAZADOS, true)) {
+            $this->enviar(
+                $propietarios,
+                new AvisoPlataforma('informe', 'Informe descartado por moderación', "{$ref} ({$estado})", $url),
+                $actor,
+            );
+        }
+    }
+
+    /**
+     * El autor se entera de que su informe es duplicado; la empresa, de que quedó descartado.
+     *
+     * @param  Collection<int, User>  $propietarios
+     */
+    private function duplicado(Reporte $reporte, ?User $actor, string $ref, string $url, Collection $propietarios): void
+    {
+        $this->enviar([$reporte->investigador], new AvisoPlataforma('informe', 'Tu informe fue marcado como duplicado', $ref, $url), $actor);
+        $this->enviar($propietarios, new AvisoPlataforma('informe', 'Informe descartado por moderación', "{$ref} (duplicado)", $url), $actor);
     }
 
     /** @param  Collection<int, User>  $propietarios */
@@ -105,8 +123,9 @@ class Notificador
             return;
         }
 
+        // La empresa solo participa cuando ya puede ver el informe (aprobado o descartado).
         $participantes = collect([$reporte->investigador, $reporte->asignado_a ? User::query()->find($reporte->asignado_a) : null])
-            ->merge($propietarios);
+            ->merge(in_array($reporte->estado->value, Reporte::ESTADOS_VISIBLES_EMPRESA, true) ? $propietarios : []);
 
         $quien = $actor->name ?? 'Alguien';
 

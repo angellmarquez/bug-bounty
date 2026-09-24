@@ -29,12 +29,12 @@ test('el triaje del moderador (validar, rechazar, duplicado) queda auditado', fu
     $programa = Programa::factory()->create();
     $moderador = moderadorDe($programa);
 
-    $reporte = reporteDe(investigador(), $programa, ['estado' => 'en_revision', 'asignado_a' => null]);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'en_revision', 'asignado_a' => $moderador->id]);
     $this->actingAs($moderador)->post(route('reportes.validar', $reporte))->assertRedirect();
 
     expect(Auditoria::where('accion', 'reportes.validado')->where('entidad_type', 'Reporte')->where('entidad_id', $reporte->id)->where('usuario_id', $moderador->id)->exists())->toBeTrue();
 
-    $otro = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'asignado_a' => null]);
+    $otro = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'asignado_a' => $moderador->id]);
     $this->actingAs($moderador)->post(route('reportes.rechazar', $otro), ['nota' => 'no aplica'])->assertRedirect();
 
     expect(Auditoria::where('accion', 'reportes.rechazado')->where('entidad_id', $otro->id)->exists())->toBeTrue();

@@ -12,6 +12,7 @@ use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Moderacion\ColaDeInformes;
+use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\Rangos;
 use Illuminate\Http\RedirectResponse;
@@ -129,7 +130,8 @@ class ProgramaController extends Controller
 
         // El alcance (descripcion, bugs_buscados y objetivos) queda cifrado en la base:
         // se descifra recién acá, al entrar al detalle de este programa puntual.
-        $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados, $programa);
+        $alcance = $this->alcanceDescifrado($programa, $pgp);
+        $programasCiegos = Reporte::programasEnTriajeCiego($request->user());
 
         return Inertia::render('programas/Show', [
             'puedeEditar' => $puedeEditar,
@@ -137,25 +139,22 @@ class ProgramaController extends Controller
             'filtroInformes' => $filtroInformes,
             'conteosInformes' => $puedeModerar ? $cola->conteos($programa) : null,
             'informes' => $puedeModerar
-                ? $cola->consulta($programa, $filtroInformes)->limit(10)->get()
-                    ->map(fn (Reporte $reporte): array => $cola->resumen($reporte))->all()
+                ? $cola->consulta($programa, $filtroInformes, $request->user())->limit(10)->get()
+                    ->map(fn (Reporte $reporte): array => $cola->resumen($reporte, $request->user(), $programasCiegos))->all()
                 : [],
             'programa' => [
                 ...$programa->toArray(),
-                'descripcion' => $descifrado['descripcion'],
-                'bugs_buscados' => $descifrado['bugs_buscados'],
+                'descripcion' => $alcance['descripcion'],
+                'bugs_buscados' => $alcance['bugs_buscados'],
                 'empresa' => $programa->empresa === null ? null : [
                     'nombre' => $programa->empresa->nombre_comercial ?? $programa->empresa->razon_social,
                     'sitio_web' => $programa->empresa->sitio_web,
                 ],
                 // El autor solo es relevante para quien gestiona el programa.
                 'creador' => $puedeGestionar ? $programa->creador?->only(['id', 'name']) : null,
-                'objetivos' => $programa->objetivos->map(function (ObjetivoPrograma $o) use ($pgp): array {
-                    $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion, $o);
-
-                    return [...$o->toArray(), ...$objetivoDescifrado];
-                }),
+                'objetivos' => $alcance['objetivos'],
             ],
+            'cifradoIndisponible' => $alcance['cifrado_indisponible'],
             'puedeReportar' => $puedeReportar,
             // Un moderador no puede reportar en el programa que modera: se le explica en lugar de ocultar el botón sin más.
             'moderaEstePrograma' => $request->user()->tieneRol('moderador') && in_array($programa->id, $request->user()->idsProgramasModerados(), true),
@@ -182,19 +181,16 @@ class ProgramaController extends Controller
         $this->authorizeProgramAction(AccionesAbac::ProgramaEditar, $programa);
         $programa->load(['objetivos']);
 
-        $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados, $programa);
+        $alcance = $this->alcanceDescifrado($programa, $pgp);
 
         return Inertia::render('programas/gestion/Edit', [
             'programa' => [
                 ...$programa->toArray(),
-                'descripcion' => $descifrado['descripcion'],
-                'bugs_buscados' => $descifrado['bugs_buscados'],
-                'objetivos' => $programa->objetivos->map(function (ObjetivoPrograma $o) use ($pgp): array {
-                    $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion, $o);
-
-                    return [...$o->toArray(), ...$objetivoDescifrado];
-                }),
+                'descripcion' => $alcance['descripcion'],
+                'bugs_buscados' => $alcance['bugs_buscados'],
+                'objetivos' => $alcance['objetivos'],
             ],
+            'cifradoIndisponible' => $alcance['cifrado_indisponible'],
         ]);
     }
 
@@ -459,5 +455,44 @@ class ProgramaController extends Controller
         ], request()->user()->id);
 
         return redirect()->back()->with('success', 'Invitación removida exitosamente.');
+    }
+
+    /**
+     * @return array{descripcion: string|null, bugs_buscados: string|null, objetivos: array<int, array<string, mixed>>, cifrado_indisponible: bool}
+     */
+    private function alcanceDescifrado(Programa $programa, PgpService $pgp): array
+    {
+        $cifradoIndisponible = false;
+
+        try {
+            $descifrado = $pgp->descifrarPrograma($programa->descripcion, $programa->bugs_buscados, $programa);
+            $descripcion = $descifrado['descripcion'];
+            $bugsBuscados = $descifrado['bugs_buscados'];
+        } catch (PgpException $e) {
+            report($e);
+            $cifradoIndisponible = true;
+            $descripcion = null;
+            $bugsBuscados = null;
+        }
+
+        $objetivos = $programa->objetivos->map(function (ObjetivoPrograma $o) use ($pgp, &$cifradoIndisponible): array {
+            try {
+                $objetivoDescifrado = $pgp->descifrarObjetivo($o->valor, $o->descripcion, $o);
+
+                return [...$o->toArray(), ...$objetivoDescifrado];
+            } catch (PgpException $e) {
+                report($e);
+                $cifradoIndisponible = true;
+
+                return [...$o->toArray(), 'valor' => '[Contenido no disponible]', 'descripcion' => null];
+            }
+        })->all();
+
+        return [
+            'descripcion' => $descripcion,
+            'bugs_buscados' => $bugsBuscados,
+            'objetivos' => $objetivos,
+            'cifrado_indisponible' => $cifradoIndisponible,
+        ];
     }
 }

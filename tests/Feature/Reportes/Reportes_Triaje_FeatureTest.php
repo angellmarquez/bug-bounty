@@ -4,9 +4,9 @@ use App\Models\Empresa;
 use App\Models\Programa;
 use App\Models\User;
 
-test('moderador can asignar reporte enviado', function () {
+test('el administrador asigna un reporte enviado a un moderador del programa', function () {
     $programaModerado = Programa::factory()->create();
-    $user = moderadorDe($programaModerado);
+    $user = administrador();
     $this->actingAs($user);
 
     $analista = moderadorDe($programaModerado);
@@ -25,7 +25,7 @@ test('moderador can asignar reporte enviado', function () {
 
 test('asignar creates asignacion event', function () {
     $programaModerado = Programa::factory()->create();
-    $user = moderadorDe($programaModerado);
+    $user = administrador();
     $this->actingAs($user);
 
     $analista = moderadorDe($programaModerado);
@@ -47,7 +47,7 @@ test('moderador can validate reporte enviado', function () {
     $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado', 'asignado_a' => $user->id]);
 
     $response = $this->post(route('reportes.validar', $reporte));
 
@@ -63,7 +63,7 @@ test('validar creates cambio_estado event', function () {
     $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado', 'asignado_a' => $user->id]);
 
     $this->post(route('reportes.validar', $reporte));
 
@@ -78,7 +78,7 @@ test('moderador can rechazar reporte with nota', function () {
     $user = moderadorDe($programaModerado);
     $this->actingAs($user);
 
-    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
+    $reporte = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado', 'asignado_a' => $user->id]);
 
     $response = $this->post(route('reportes.rechazar', $reporte), [
         'nota' => 'No cumple con los criterios del programa.',
@@ -102,7 +102,7 @@ test('moderador can mark reporte as duplicado', function () {
     $this->actingAs($user);
 
     $original = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
-    $duplicado = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado']);
+    $duplicado = reporteDe(investigador(), $programaModerado, ['estado' => 'enviado', 'asignado_a' => $user->id]);
 
     $response = $this->post(route('reportes.marcar-duplicado', $duplicado), [
         'reporte_duplicado_id' => $original->id,
@@ -261,8 +261,8 @@ test('un informe validado se puede cerrar directamente', function () {
 
 test('la pagina solo ofrece las acciones validas para el estado actual', function (string $estado, array $esperadas) {
     $programaModerado = Programa::factory()->create();
-    $this->actingAs(moderadorDe($programaModerado));
     $reporte = reporteDe(investigador(), $programaModerado, ['estado' => $estado]);
+    $this->actingAs(moderadorDe($reporte));
 
     $acciones = $this->get(route('reportes.show', $reporte))->inertiaProps()['accionesDisponibles'];
 
@@ -354,11 +354,12 @@ test('empresa member can read but not triaje reportes of its programas', functio
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
 
-    $reporte = reporteDe(investigador(), $programa, ['estado' => 'en_revision']);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'rechazado']);
 
     $this->get(route('reportes.show', $reporte))->assertOk();
     $this->post(route('reportes.validar', $reporte))->assertForbidden();
-    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'en_revision']);
+    $this->post(route('reportes.rechazar', $reporte), ['nota' => 'x'])->assertForbidden();
+    $this->assertDatabaseHas('reportes', ['id' => $reporte->id, 'estado' => 'rechazado']);
 });
 
 test('show page passes triaje props for moderador', function () {
@@ -372,9 +373,66 @@ test('show page passes triaje props for moderador', function () {
     $response->assertOk();
     $props = $response->inertiaProps();
 
+    // Es el siguiente de la cola y nadie lo tomó: solo puede iniciar la revisión.
     $this->assertTrue($props['puedeTriar']);
-    $this->assertTrue($props['accionesDisponibles']['asignar']);
+    $this->assertTrue($props['accionesDisponibles']['revisar']);
+    $this->assertFalse($props['accionesDisponibles']['asignar']);
+    $this->assertFalse($props['accionesDisponibles']['validar']);
+    $this->assertFalse($props['accionesDisponibles']['rechazar']);
+    $this->assertStringContainsString('siguiente informe de la cola', (string) $props['avisoCola']);
+
+    $this->post(route('reportes.revisar', $reporte))->assertRedirect();
+    $props = $this->get(route('reportes.show', $reporte))->inertiaProps();
+
+    expect($reporte->fresh()->asignado_a)->toBe($user->id);
+    $this->assertTrue($props['puedeTriar']);
+    $this->assertFalse($props['accionesDisponibles']['asignar']);
     $this->assertTrue($props['accionesDisponibles']['validar']);
+    $this->assertTrue($props['accionesDisponibles']['rechazar']);
+    $this->assertNull($props['avisoCola']);
+});
+
+test('el moderador no asigna informes ni abre o tría los que esperan turno o revisa otro', function () {
+    $programa = Programa::factory()->create();
+    $moderador = moderadorDe($programa);
+    $otro = moderadorDe($programa);
+    $this->actingAs($moderador);
+
+    $siguiente = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()->subHour()]);
+    $enEspera = reporteDe(investigador(), $programa, ['estado' => 'enviado', 'enviado_en' => now()]);
+    $deOtro = reporteDe(investigador(), $programa, ['estado' => 'en_revision', 'asignado_a' => $otro->id, 'enviado_en' => now()->subDay()]);
+
+    $this->post(route('reportes.asignar', $siguiente), ['asignado_a' => $moderador->id])->assertForbidden();
+
+    // Del siguiente de la cola solo se puede iniciar la revisión: el resto exige haberlo tomado.
+    $this->post(route('reportes.validar', $siguiente))->assertForbidden();
+    $this->post(route('reportes.rechazar', $siguiente), ['nota' => 'x'])->assertForbidden();
+    $this->post(route('reportes.pedir-info', $siguiente), ['nota' => 'x'])->assertForbidden();
+
+    foreach ([$enEspera, $deOtro] as $reporte) {
+        $this->get(route('reportes.show', $reporte))->assertForbidden();
+        $this->post(route('reportes.revisar', $reporte))->assertForbidden();
+        $this->post(route('reportes.validar', $reporte))->assertForbidden();
+        $this->post(route('reportes.rechazar', $reporte), ['nota' => 'x'])->assertForbidden();
+        $this->post(route('reportes.pedir-info', $reporte), ['nota' => 'x'])->assertForbidden();
+    }
+
+    expect($siguiente->fresh()->asignado_a)->toBeNull()
+        ->and($enEspera->fresh()->estado->value)->toBe('enviado')
+        ->and($deOtro->fresh()->estado->value)->toBe('en_revision')
+        ->and($deOtro->fresh()->asignado_a)->toBe($otro->id);
+});
+
+test('dos moderadores no pueden tomar el mismo informe', function () {
+    $programa = Programa::factory()->create();
+    $primero = moderadorDe($programa);
+    $segundo = moderadorDe($programa);
+    $reporte = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
+
+    $this->actingAs($primero)->post(route('reportes.revisar', $reporte))->assertRedirect();
+    $this->actingAs($segundo)->post(route('reportes.revisar', $reporte))->assertForbidden();
+
+    expect($reporte->fresh()->asignado_a)->toBe($primero->id);
 });
 
 test('show page does not pass triaje for investigador', function () {
@@ -396,7 +454,7 @@ test('validar no da puntos: los da la empresa al confirmar el informe', function
     $investigador = investigador();
     $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado']);
 
-    $this->actingAs(moderadorDe($programa))->post(route('reportes.validar', $reporte))->assertRedirect();
+    $this->actingAs(moderadorDe($reporte))->post(route('reportes.validar', $reporte))->assertRedirect();
     expect($investigador->fresh()->reputation_score)->toBe(0);
 
     $this->actingAs($propietario)->post(route('reportes.reparacion', $reporte))->assertRedirect();

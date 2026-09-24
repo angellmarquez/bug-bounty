@@ -62,21 +62,39 @@ dataset('matriz_abac', [
     // ------------------------------------------------------------------
     // Reportes — moderador (triaje, solo en los programas que se le asignan)
     // ------------------------------------------------------------------
-    'moderador ve un reporte enviado de su programa' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Enviado->value]), true],
-    'moderador ve notas internas de un reporte en revisión de su programa' => ['reportes.ver_notas_internas', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value]), true],
+    // Cola por orden de llegada: abre el siguiente sin revisor y los que tomó; nada más.
+    'moderador ve el siguiente reporte de la cola de su programa' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Enviado->value]), true],
+    'moderador toma el siguiente reporte de la cola' => ['reportes.revisar', fn () => reporteModerado(['estado' => EstadoReporte::Enviado->value]), true],
+    'moderador no ve un reporte que espera turno detrás de otro' => ['reportes.ver', function () {
+        [$moderador, $primero] = reporteModerado(['estado' => EstadoReporte::Enviado->value, 'enviado_en' => now()->subHour()]);
+
+        return [$moderador, reporteDe(investigador(), $primero->programa, ['estado' => EstadoReporte::Enviado->value, 'enviado_en' => now()])];
+    }, false],
+    'moderador no toma un reporte que espera turno' => ['reportes.revisar', function () {
+        [$moderador, $primero] = reporteModerado(['estado' => EstadoReporte::Enviado->value, 'enviado_en' => now()->subHour()]);
+
+        return [$moderador, reporteDe(investigador(), $primero->programa, ['estado' => EstadoReporte::Enviado->value, 'enviado_en' => now()])];
+    }, false],
+    'moderador no ve un reporte que revisa otro moderador' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => moderador()->id]), false],
+    'moderador ve notas internas de un reporte que tomó' => ['reportes.ver_notas_internas', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => 'yo']), true],
+    'moderador sigue viendo un reporte que tomó y ya validó' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Validado->value, 'asignado_a' => 'yo']), true],
     'moderador no ve los borradores' => ['reportes.ver', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value]), false],
     'moderador no ve reportes de un programa que no modera' => ['reportes.ver', fn () => [moderador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Enviado->value])], false],
-    'moderador asigna un reporte enviado sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::Enviado->value, 'asignado_a' => null]), true],
-    'moderador asigna un reporte en revisión sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), true],
-    'moderador asigna un reporte validado sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::Validado->value, 'asignado_a' => null]), true],
+    // Asignar es exclusivo del administrador: el moderador nunca asigna, ni a otro ni a sí mismo.
+    'moderador no asigna un reporte enviado sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::Enviado->value, 'asignado_a' => null]), false],
+    'moderador no asigna un reporte en revisión sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), false],
+    'moderador no asigna un reporte validado sin asignar' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::Validado->value, 'asignado_a' => null]), false],
     'moderador no reasigna un reporte que ya tiene responsable' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => moderador()->id]), false],
     'moderador no asigna un borrador' => ['reportes.asignar', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value, 'asignado_a' => null]), false],
-    'moderador valida un reporte sin asignar' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), true],
+    // El moderador solo tría los reportes que el administrador le asignó.
+    'moderador no valida un reporte sin asignar' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), false],
+    'moderador no rechaza un reporte sin asignar' => ['reportes.rechazar', fn () => reporteModerado(['estado' => EstadoReporte::Enviado->value, 'asignado_a' => null]), false],
     'moderador valida un reporte asignado a sí mismo' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => 'yo']), true],
     'moderador no valida un reporte asignado a otro moderador' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => moderador()->id]), false],
     'moderador no valida un reporte borrador' => ['reportes.validar', fn () => reporteModerado(['estado' => EstadoReporte::Borrador->value]), false],
     'moderador no valida un reporte de un programa que no modera' => ['reportes.validar', fn () => [moderador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null])], false],
-    'moderador marca duplicado un reporte en revisión' => ['reportes.marcar_duplicado', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), true],
+    'moderador marca duplicado un reporte en revisión asignado a él' => ['reportes.marcar_duplicado', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => 'yo']), true],
+    'moderador no marca duplicado un reporte sin asignar' => ['reportes.marcar_duplicado', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => null]), false],
     'moderador no cierra un reporte en reparación (lo cierra la empresa)' => ['reportes.cerrar', fn () => reporteModerado(['estado' => EstadoReporte::EnReparacion->value, 'asignado_a' => null]), false],
     'inv no interviene en el triaje de un reporte asignado' => ['reportes.validar', fn () => [($inv = investigador()), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => $inv->id])], false],
 
@@ -86,6 +104,7 @@ dataset('matriz_abac', [
     // ------------------------------------------------------------------
     'admin ve cualquier reporte' => ['reportes.ver', fn () => [administrador(), reporteDe(investigador())], true],
     'admin ve notas internas de un borrador' => ['reportes.ver_notas_internas', fn () => [administrador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Borrador->value])], true],
+    'admin asigna un reporte a un moderador' => ['reportes.asignar', fn () => [administrador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::Enviado->value])], true],
     'admin no valida reportes: eso es del moderador/empresa' => ['reportes.validar', fn () => [administrador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], false],
     'admin no cierra reportes: eso es del moderador/empresa' => ['reportes.cerrar', fn () => [administrador(), reporteDe(investigador())], false],
     'admin no crea reportes' => ['reportes.crear', fn () => [administrador(), programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])], false],
@@ -217,7 +236,8 @@ dataset('matriz_abac', [
     // ------------------------------------------------------------------
     'investigador descifra PoC de su propio reporte' => ['reportes.decrypt_poc', fn () => [($inv = investigador()), reporteDe($inv)], true],
     'investigador no descifra PoC ajeno' => ['reportes.decrypt_poc', fn () => [investigador(), reporteDe(investigador())], false],
-    'moderador descifra PoC de reporte de su programa' => ['reportes.decrypt_poc', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value]), true],
+    'moderador descifra PoC de un reporte que tomó' => ['reportes.decrypt_poc', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => 'yo']), true],
+    'moderador no descifra PoC de un reporte que revisa otro' => ['reportes.decrypt_poc', fn () => reporteModerado(['estado' => EstadoReporte::EnRevision->value, 'asignado_a' => moderador()->id]), false],
     'moderador no descifra PoC de programa que no modera' => ['reportes.decrypt_poc', fn () => [moderador(), reporteDe(investigador(), atributos: ['estado' => EstadoReporte::EnRevision->value])], false],
     'empresa descifra PoC de reporte validado' => ['reportes.decrypt_poc', function () {
         $propietario = propietarioDeEmpresa();
@@ -247,18 +267,31 @@ dataset('matriz_abac', [
 
         return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Enviado->value])];
     }, false],
-    'empresa no ve reporte rechazado en su programa' => ['reportes.ver', function () {
+    // La empresa recibe lo que moderación ya decidió, aprobado o descartado; nunca lo que se revisa.
+    'empresa ve reporte rechazado en su programa' => ['reportes.ver', function () {
         $propietario = propietarioDeEmpresa();
         $programa = programaDeEmpresa($propietario);
 
         return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Rechazado->value])];
-    }, false],
-    'empresa ve reporte en revisión en su programa' => ['reportes.ver', function () {
+    }, true],
+    'empresa ve reporte duplicado en su programa' => ['reportes.ver', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::Duplicado->value])];
+    }, true],
+    'empresa no ve reporte en revisión en su programa' => ['reportes.ver', function () {
         $propietario = propietarioDeEmpresa();
         $programa = programaDeEmpresa($propietario);
 
         return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::EnRevision->value])];
-    }, true],
+    }, false],
+    'empresa no ve reporte con información pedida en su programa' => ['reportes.ver', function () {
+        $propietario = propietarioDeEmpresa();
+        $programa = programaDeEmpresa($propietario);
+
+        return [$propietario, reporteDe(investigador(), $programa, ['estado' => EstadoReporte::NeedsInfo->value])];
+    }, false],
     'empresa ve reporte validado en su programa' => ['reportes.ver', function () {
         $propietario = propietarioDeEmpresa();
         $programa = programaDeEmpresa($propietario);

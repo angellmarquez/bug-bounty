@@ -103,7 +103,6 @@
             <CardContent>
                 <ReportesCompactos
                     reportes={porRevisar}
-                    vistaRapida
                     destacar={() => true}
                     etiquetaAccion={() => 'Revisar informe'}
                 />

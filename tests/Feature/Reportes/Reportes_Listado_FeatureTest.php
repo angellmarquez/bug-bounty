@@ -68,19 +68,23 @@ test('admin sees the reportes of all programas to review them', function () {
     $this->assertContains($reporte->id, $ids);
 });
 
-test('empresa member sees only triaged reportes of its programas', function () {
+test('la empresa solo lista los informes de sus programas que moderacion ya decidio', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $ajeno = Programa::factory()->create(['empresa_id' => Empresa::factory()->aprobada()->create()->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
 
+    $validado = reporteDe(investigador(), $programa, ['estado' => 'validado']);
+    $rechazado = reporteDe(investigador(), $programa, ['estado' => 'rechazado']);
     $enRevision = reporteDe(investigador(), $programa, ['estado' => 'en_revision']);
     $enviado = reporteDe(investigador(), $programa, ['estado' => 'enviado']);
     $borrador = reporteDe(investigador(), $programa, ['estado' => 'borrador']);
-    $deOtraEmpresa = reporteDe(investigador(), $ajeno, ['estado' => 'en_revision']);
+    $deOtraEmpresa = reporteDe(investigador(), $ajeno, ['estado' => 'validado']);
 
     $ids = collect($this->get(route('reportes.index'))->inertiaProps()['reportes']['data'])->pluck('id')->toArray();
-    $this->assertContains($enRevision->id, $ids);
+    $this->assertContains($validado->id, $ids);
+    $this->assertContains($rechazado->id, $ids);
+    $this->assertNotContains($enRevision->id, $ids);
     $this->assertNotContains($enviado->id, $ids);
     $this->assertNotContains($borrador->id, $ids);
     $this->assertNotContains($deOtraEmpresa->id, $ids);
