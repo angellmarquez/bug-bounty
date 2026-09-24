@@ -21,7 +21,7 @@
         SelectValue,
     } from '@/components/ui/select';
     import type { PocSchemaField } from '@/types/domain';
-    import { validarPoc } from '@/lib/poc-schema';
+    import { esBooleanoVerdadero, validarPoc } from '@/lib/poc-schema';
 
     let {
         schema = [],
@@ -84,7 +84,7 @@
         }
         if (!value || value.trim() === '') {
             const field = schema.find((f) => f.name === name);
-            if (field?.required) {
+            if (field && esBooleanoVerdadero(field.required)) {
                 fieldErrors[`${name}.${index}`] = `${field.label} #${index + 1} no puede estar vacio`;
             }
         }
@@ -107,7 +107,7 @@
                             <div class="flex items-center gap-2">
                                 <Label for={field.name} class="text-sm font-medium">
                                     {field.label}
-                                    {#if field.required}
+                                    {#if esBooleanoVerdadero(field.required)}
                                         <span class="text-destructive">*</span>
                                     {/if}
                                 </Label>
@@ -121,7 +121,7 @@
                                 {/if}
                             </div>
 
-                            {#if field.repeatable}
+                            {#if esBooleanoVerdadero(field.repeatable)}
                                 <div class="space-y-2">
                                     {#if Array.isArray(data[field.name])}
                                         {#each (data[field.name] as string[]) as _, i (i)}
@@ -239,7 +239,7 @@
     {#each schema as field}
         ### {field.label}
 
-        {#if field.repeatable && Array.isArray(data[field.name])}
+        {#if esBooleanoVerdadero(field.repeatable) && Array.isArray(data[field.name])}
             {#each (data[field.name] as string[]) as item, i}
                 {i + 1}. {item || '_vacio_'}
             {/each}

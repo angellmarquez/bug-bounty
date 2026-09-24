@@ -93,7 +93,6 @@
 
     const isAdmin = $derived(userRoles.includes('administrador'));
     const cuenta = $derived(page.props.cuenta as CuentaEstado | null | undefined);
-    const invitacionesPendientes = $derived(cuenta?.invitaciones_pendientes ?? 0);
 
     const greeting = $derived.by(() => {
         const hour = new Date().getHours();
@@ -141,22 +140,6 @@
     <RolesUsuario />
 
     <EstadoCuentaCard />
-
-    {#if invitacionesPendientes > 0}
-        <div data-test="tarjeta-invitaciones"><Card class="border-indigo-500/40">
-            <CardHeader>
-                <CardTitle>
-                    Tienes {invitacionesPendientes} invitación{invitacionesPendientes === 1 ? '' : 'es'} a una empresa
-                </CardTitle>
-                <CardDescription>
-                    Una empresa quiere que publiques sus programas. Revisa qué implica antes de aceptar.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button href="/invitaciones">Ver invitaciones</Button>
-            </CardContent>
-        </Card></div>
-    {/if}
 
     {#if statCards.length > 0}
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

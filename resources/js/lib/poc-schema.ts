@@ -13,16 +13,27 @@ export const CAMPO_POC_POR_DEFECTO: PocSchemaField = {
     help: 'Describe paso a paso cómo reproducir la vulnerabilidad (o pega el payload/PoC).',
 };
 
+export function esBooleanoVerdadero(val: unknown): boolean {
+    return val === true || val === 1 || val === '1' || val === 'true';
+}
+
 export function schemaEfectivo(
     schema: PocSchemaField[] | null | undefined,
 ): PocSchemaField[] {
-    return schema && schema.length > 0 ? schema : [CAMPO_POC_POR_DEFECTO];
+    if (!schema || schema.length === 0) {
+        return [CAMPO_POC_POR_DEFECTO];
+    }
+    return schema.map((field) => ({
+        ...field,
+        required: esBooleanoVerdadero(field.required),
+        repeatable: esBooleanoVerdadero(field.repeatable),
+    }));
 }
 
 export function schemaVacio(schema: PocSchemaField[]): Record<string, unknown> {
     const data: Record<string, unknown> = {};
     for (const field of schema) {
-        if (field.repeatable) {
+        if (esBooleanoVerdadero(field.repeatable)) {
             data[field.name] = [field.defaultValue ?? ''];
         } else {
             data[field.name] = field.defaultValue ?? '';
@@ -37,9 +48,11 @@ export function validarPoc(
 ): Record<string, string> {
     const errors: Record<string, string> = {};
     for (const field of schema) {
+        const isRequired = esBooleanoVerdadero(field.required);
+        const isRepeatable = esBooleanoVerdadero(field.repeatable);
         const value = data[field.name];
-        if (field.required) {
-            if (field.repeatable) {
+        if (isRequired) {
+            if (isRepeatable) {
                 const items = (Array.isArray(value) ? value : []) as string[];
                 if (items.length === 0) {
                     errors[field.name] =
@@ -57,15 +70,17 @@ export function validarPoc(
             }
         }
         if (
-            !field.repeatable &&
+            !isRepeatable &&
             field.type === 'url' &&
             value &&
-            typeof value === 'string'
+            typeof value === 'string' &&
+            value.trim() !== ''
         ) {
             try {
                 new URL(value);
             } catch {
-                errors[field.name] = `${field.label} debe ser una URL válida`;
+                errors[field.name] =
+                    `${field.label} debe ser una URL válida (ej. https://...)`;
             }
         }
     }

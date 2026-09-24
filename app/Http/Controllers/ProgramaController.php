@@ -199,6 +199,7 @@ class ProgramaController extends Controller
         $validated = $request->validated();
         $user = $request->user();
         $validated['nivel_acceso'] ??= 'bajo';
+        $validated['poc_schema'] = $this->normalizarPocSchema($validated['poc_schema'] ?? null);
 
         // El programa siempre se crea para la empresa del publicador/propietario que lo pide:
         // nadie elige la empresa por otro (ver ABAC: crear/editar/publicar es cosa de la empresa dueña).
@@ -252,6 +253,10 @@ class ProgramaController extends Controller
         $validated = $request->validated();
         $objetivos = $validated['objetivos'] ?? null;
         unset($validated['objetivos']);
+
+        if (array_key_exists('poc_schema', $validated)) {
+            $validated['poc_schema'] = $this->normalizarPocSchema($validated['poc_schema']);
+        }
 
         // La empresa dueña no cambia en un update (el request ya la descarta), así
         // que sigue siendo la misma clave a la que estaba cifrado el programa.
@@ -494,5 +499,23 @@ class ProgramaController extends Controller
             'objetivos' => $objetivos,
             'cifrado_indisponible' => $cifradoIndisponible,
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>|null  $schema
+     * @return array<int, array<string, mixed>>|null
+     */
+    private function normalizarPocSchema(?array $schema): ?array
+    {
+        if ($schema === null) {
+            return null;
+        }
+
+        return array_values(array_map(function (array $campo): array {
+            $campo['required'] = filter_var($campo['required'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $campo['repeatable'] = filter_var($campo['repeatable'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+            return $campo;
+        }, $schema));
     }
 }

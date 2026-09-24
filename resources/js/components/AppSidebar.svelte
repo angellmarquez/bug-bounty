@@ -13,7 +13,6 @@
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import MessageSquare from '@lucide/svelte/icons/message-square';
     import Building2 from '@lucide/svelte/icons/building-2';
-    import Mail from '@lucide/svelte/icons/mail';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavMain from '@/components/NavMain.svelte';
@@ -120,13 +119,6 @@
             });
         }
 
-        if (isInvestigador) {
-            items.push({
-                title: 'Invitaciones',
-                href: '/invitaciones',
-                icon: Mail,
-            });
-        }
 
         if (isEmpresa) {
             items.push({

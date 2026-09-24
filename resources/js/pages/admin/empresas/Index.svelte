@@ -85,7 +85,6 @@
                                 <Button size="sm" onclick={() => cambiarEstado(empresa.id, 'aprobar')}>Aprobar</Button>
                                 <Button size="sm" variant="destructive" onclick={() => cambiarEstado(empresa.id, 'rechazar')}>Rechazar</Button>
                             {:else if empresa.estado === 'aprobada'}
-                                <Button size="sm" variant="outline" href={`/empresa?empresa=${empresa.id}`}>Abrir panel</Button>
                                 <Button size="sm" variant="destructive" onclick={() => cambiarEstado(empresa.id, 'suspender')}>Suspender</Button>
                             {:else if empresa.estado === 'suspendida'}
                                 <Button size="sm" onclick={() => router.post(`/admin/empresas/${empresa.id}/reactivar`, {}, { preserveState: true })}>Reactivar</Button>
