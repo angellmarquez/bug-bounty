@@ -14,6 +14,7 @@
     import MessageSquare from '@lucide/svelte/icons/message-square';
     import Building2 from '@lucide/svelte/icons/building-2';
     import Trophy from '@lucide/svelte/icons/trophy';
+    import Mail from '@lucide/svelte/icons/mail';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavMain from '@/components/NavMain.svelte';
@@ -112,6 +113,11 @@
                 title: 'Programas',
                 href: programasIndex(),
                 icon: Shield,
+            });
+            items.push({
+                title: 'Mis invitaciones',
+                href: '/invitaciones',
+                icon: Mail,
             });
         }
 

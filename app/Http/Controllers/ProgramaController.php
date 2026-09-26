@@ -14,6 +14,7 @@ use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Moderacion\AutoAsignadorModeradores;
 use App\Services\Moderacion\ColaDeInformes;
+use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\Rangos;
@@ -465,7 +466,7 @@ class ProgramaController extends Controller
         ]);
     }
 
-    public function invitarHacker(Request $request, Programa $programa): RedirectResponse
+    public function invitarHacker(Request $request, Programa $programa, Notificador $notificador): RedirectResponse
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaInvitarHacker, $programa);
 
@@ -496,10 +497,12 @@ class ProgramaController extends Controller
             'investigador_email' => $investigador->email,
         ], $request->user()->id);
 
+        $notificador->hackerInvitadoAPrograma($programa, $investigador, $request->user());
+
         return redirect()->back()->with('success', "Investigador {$investigador->name} invitado al programa privado exitosamente.");
     }
 
-    public function cancelarInvitacionHacker(Programa $programa, User $user): RedirectResponse
+    public function cancelarInvitacionHacker(Programa $programa, User $user, Notificador $notificador): RedirectResponse
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaInvitarHacker, $programa);
 
@@ -508,6 +511,8 @@ class ProgramaController extends Controller
         Auditoria::registrar('programas.hacker_invitacion_cancelada', $programa, [
             'investigador_id' => $user->id,
         ], request()->user()->id);
+
+        $notificador->invitacionProgramaCancelada($programa, $user);
 
         return redirect()->back()->with('success', 'Invitación removida exitosamente.');
     }

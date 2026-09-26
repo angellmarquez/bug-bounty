@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Auditoria;
 use App\Models\Programa;
+use App\Services\Notificaciones\Notificador;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,16 +52,16 @@ class InvitacionController extends Controller
         ]);
     }
 
-    public function aceptarPrograma(Request $request, Programa $programa): RedirectResponse
+    public function aceptarPrograma(Request $request, Programa $programa, Notificador $notificador): RedirectResponse
     {
-        $this->responder($request, $programa, 'aceptada');
+        $this->responder($request, $programa, 'aceptada', $notificador);
 
         return redirect()->route('programas.show', $programa)->with('success', "Invitación aceptada. Ahora puedes acceder a «{$programa->nombre}» y enviar reportes.");
     }
 
-    public function rechazarPrograma(Request $request, Programa $programa): RedirectResponse
+    public function rechazarPrograma(Request $request, Programa $programa, Notificador $notificador): RedirectResponse
     {
-        $this->responder($request, $programa, 'rechazada');
+        $this->responder($request, $programa, 'rechazada', $notificador);
 
         return redirect()->route('invitaciones.index')->with('success', "Has rechazado la invitación al programa «{$programa->nombre}».");
     }
@@ -69,7 +70,7 @@ class InvitacionController extends Controller
      * Solo se responde una invitación pendiente: una rechazada o retirada por la
      * empresa no se puede "aceptar" después para colarse en el programa.
      */
-    private function responder(Request $request, Programa $programa, string $estado): void
+    private function responder(Request $request, Programa $programa, string $estado, Notificador $notificador): void
     {
         $user = $request->user();
 
@@ -82,5 +83,7 @@ class InvitacionController extends Controller
         abort_if($actualizadas === 0, 404, 'No tienes una invitación pendiente para este programa.');
 
         Auditoria::registrar($estado === 'aceptada' ? 'programas.invitacion_aceptada' : 'programas.invitacion_rechazada', $programa, ['investigador_id' => $user->id]);
+
+        $notificador->invitacionProgramaRespondida($programa, $user, $estado === 'aceptada');
     }
 }

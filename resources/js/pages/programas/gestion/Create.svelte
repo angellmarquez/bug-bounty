@@ -13,6 +13,8 @@
     import { Form, page } from '@inertiajs/svelte';
     import Plus from '@lucide/svelte/icons/plus';
     import Trash2 from '@lucide/svelte/icons/trash-2';
+    import Globe from '@lucide/svelte/icons/globe';
+    import Lock from '@lucide/svelte/icons/lock';
     import AppHead from '@/components/AppHead.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
@@ -22,7 +24,6 @@
     import { Card, CardContent } from '@/components/ui/card';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
-    import { Checkbox } from '@/components/ui/checkbox';
     import { Spinner } from '@/components/ui/spinner';
     import {
         Select,
@@ -39,6 +40,8 @@
 
     // Niveles de acceso (con su rango) definidos en config/reputacion.php.
     const niveles = $derived((page.props.reputacionConfig as ReputacionConfig).niveles);
+
+    let esPublico = $state(true);
 
     // Se empieza con un objetivo vacío: el programa necesita al menos uno.
     let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>([
@@ -134,11 +137,52 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-6">
-                        <Label class="flex items-center space-x-3">
-                            <Checkbox name="es_publico" value="1" checked={true} />
-                            <span>Público</span>
-                        </Label>
+                    <div class="space-y-3">
+                        <Label class="text-base font-medium">Visibilidad del programa</Label>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label
+                                class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50 {esPublico ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'}"
+                            >
+                                <input
+                                    type="radio"
+                                    name="visibilidad_radio"
+                                    class="sr-only"
+                                    checked={esPublico}
+                                    onchange={() => (esPublico = true)}
+                                />
+                                <Globe class="mt-0.5 h-5 w-5 shrink-0 {esPublico ? 'text-primary' : 'text-muted-foreground'}" />
+                                <div class="space-y-1">
+                                    <p class="text-sm font-medium {esPublico ? 'text-foreground' : 'text-muted-foreground'}">
+                                        Público (Directorio abierto)
+                                    </p>
+                                    <p class="text-xs leading-relaxed text-muted-foreground">
+                                        Visible en el listado para todos los investigadores que cumplan el nivel de reputación requerido.
+                                    </p>
+                                </div>
+                            </label>
+
+                            <label
+                                class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50 {!esPublico ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'}"
+                            >
+                                <input
+                                    type="radio"
+                                    name="visibilidad_radio"
+                                    class="sr-only"
+                                    checked={!esPublico}
+                                    onchange={() => (esPublico = false)}
+                                />
+                                <Lock class="mt-0.5 h-5 w-5 shrink-0 {!esPublico ? 'text-primary' : 'text-muted-foreground'}" />
+                                <div class="space-y-1">
+                                    <p class="text-sm font-medium {!esPublico ? 'text-foreground' : 'text-muted-foreground'}">
+                                        Privado (Por invitación exclusiva)
+                                    </p>
+                                    <p class="text-xs leading-relaxed text-muted-foreground">
+                                        Oculto del directorio público. Tú decides qué investigadores participan invitándolos por su correo.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
+                        <input type="hidden" name="es_publico" value={esPublico ? '1' : '0'} />
                     </div>
 
                     <div class="max-w-sm space-y-2">

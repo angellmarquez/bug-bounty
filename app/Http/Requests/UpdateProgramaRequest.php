@@ -29,6 +29,15 @@ class UpdateProgramaRequest extends FormRequest
         ]);
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('es_publico')) {
+            $this->merge([
+                'es_publico' => $this->boolean('es_publico'),
+            ]);
+        }
+    }
+
     /**
      * @return array<string, array<int, string|ValidationRule>>
      */
