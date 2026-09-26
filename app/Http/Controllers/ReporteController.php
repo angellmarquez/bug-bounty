@@ -324,7 +324,7 @@ class ReporteController extends Controller
         $user = $request->user();
         abort_unless($this->puedeReportar($user), 403, 'Solo los investigadores envían informes.');
 
-        $programas = Programa::where('estado', 'activo')
+        $programas = Programa::with('empresa')->where('estado', 'activo')
             ->where(function ($q) use ($user) {
                 $q->where('es_publico', true)
                     ->orWhereHas('hackersInvitados', function ($qi) use ($user) {
@@ -348,8 +348,24 @@ class ReporteController extends Controller
         }
 
         return Inertia::render('reportes/Create', [
-            'programas' => $programas->map(fn ($p) => $p->only(['id', 'nombre', 'slug', 'poc_schema'])),
-            'programaInicial' => $programaInicial?->only(['id', 'nombre', 'slug', 'poc_schema']),
+            'programas' => $programas->map(function (Programa $p): array {
+                $empresa = $p->empresa ? ($p->empresa->nombre_comercial ?? $p->empresa->razon_social) : null;
+
+                return [
+                    'id' => $p->id,
+                    'nombre' => $empresa ? "{$p->nombre} ({$empresa})" : $p->nombre,
+                    'slug' => $p->slug,
+                    'poc_schema' => $p->poc_schema,
+                ];
+            }),
+            'programaInicial' => $programaInicial ? [
+                'id' => $programaInicial->id,
+                'nombre' => ($empresaInit = $programaInicial->empresa ? ($programaInicial->empresa->nombre_comercial ?? $programaInicial->empresa->razon_social) : null)
+                    ? "{$programaInicial->nombre} ({$empresaInit})"
+                    : $programaInicial->nombre,
+                'slug' => $programaInicial->slug,
+                'poc_schema' => $programaInicial->poc_schema,
+            ] : null,
         ]);
     }
 

@@ -105,29 +105,35 @@
         return 'Buenas noches';
     });
 
+    const isEmpresa = $derived(userRoles.includes('empresa'));
+
     // El admin no participa en el día a día de los reportes: sin tarjetas de
     // volumen/estado de reportes en su panel (eso es de investigador/moderador/empresa).
     const statCards = $derived.by(() => {
         if (isAdmin) return [];
 
+        const rutaTotal = isEmpresa ? '/empresa/reportes' : reportesIndex();
+        const rutaAbiertos = isEmpresa ? '/empresa/reportes?filtro=en_reparacion' : '/reportes?estado=en_revision';
+        const rutaCerrados = isEmpresa ? '/empresa/reportes?filtro=resueltos' : '/reportes?estado=cerrado';
+
         return [
             {
                 title: 'Total Reportes',
                 value: stats.reportes_total,
-                description: 'Reportes presentados',
-                href: reportesIndex(),
+                description: isEmpresa ? 'Reportes recibidos' : 'Reportes presentados',
+                href: rutaTotal,
             },
             {
                 title: 'Reportes Abiertos',
                 value: stats.reportes_abiertos,
-                description: 'En ciclo de triaje',
-                href: '/reportes?estado=en_revision',
+                description: isEmpresa ? 'En revisión o reparación' : 'En ciclo de triaje',
+                href: rutaAbiertos,
             },
             {
                 title: 'Reportes Cerrados',
                 value: stats.reportes_cerrados,
                 description: 'Resueltos',
-                href: '/reportes?estado=cerrado',
+                href: rutaCerrados,
             },
             {
                 title: 'Salón de la Fama',

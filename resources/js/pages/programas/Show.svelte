@@ -101,12 +101,12 @@
 
     function cambiarEstado(estado: string) {
         if (estado === 'archivado' && !confirm('¿Archivar este programa? Dejará de aceptar nuevos reportes.')) return;
-        if (estado === 'resuelto' && !confirm('¿Poner este programa como resuelto? Dejará de recibir informes y se eliminará el programa.')) return;
+        if (estado === 'resuelto' && !confirm('¿Poner este programa como resuelto? Dejará de aceptar nuevos informes de vulnerabilidad.')) return;
         router.post(`/programas/${programa.id}/cambiar-estado`, { estado });
     }
 
     function resolverPrograma() {
-        if (!confirm(`¿Poner el programa "${programa.nombre}" como resuelto? Dejará de recibir informes y se eliminará el programa.`)) return;
+        if (!confirm(`¿Poner el programa "${programa.nombre}" como resuelto? Dejará de aceptar nuevos informes de vulnerabilidad.`)) return;
         router.post(`/programas/${programa.id}/resolver`);
     }
 
