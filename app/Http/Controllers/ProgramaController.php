@@ -12,6 +12,7 @@ use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
+use App\Services\Moderacion\AutoAsignadorModeradores;
 use App\Services\Moderacion\ColaDeInformes;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
@@ -355,6 +356,8 @@ class ProgramaController extends Controller
             'reportes_asociados' => $reportesCount,
         ], request()->user()?->id);
 
+        app(AutoAsignadorModeradores::class)->atenderProgramasPendientes();
+
         $esEmpresa = request()->user()?->roles()->where('slug', 'empresa')->exists() ?? false;
 
         return redirect()->route($esEmpresa ? 'empresa.dashboard' : 'programas.index')
@@ -391,6 +394,12 @@ class ProgramaController extends Controller
         }
 
         $programa->update(['estado' => $estadoDestino]);
+
+        if ($estadoDestino === 'activo') {
+            app(AutoAsignadorModeradores::class)->asignarAPrograma($programa);
+        } else {
+            app(AutoAsignadorModeradores::class)->atenderProgramasPendientes();
+        }
 
         Auditoria::registrar('programas.estado_cambiado', $programa, ['estado_anterior' => $estadoActual, 'estado_nuevo' => $estadoDestino]);
 

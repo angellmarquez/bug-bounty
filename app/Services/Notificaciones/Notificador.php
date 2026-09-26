@@ -268,6 +268,36 @@ class Notificador
         ));
     }
 
+    public function moderadoresCapacidadAlcanzada(Programa $programa): void
+    {
+        $this->seguro(function () use ($programa): void {
+            $this->enviar(
+                $this->administradores(),
+                new AvisoPlataforma(
+                    'moderador',
+                    'Capacidad de moderación alcanzada',
+                    "El programa «{$programa->nombre}» está activo pero todos los moderadores alcanzaron su límite de programas. Da de alta más moderadores o asígnalo manualmente.",
+                    '/admin/moderadores',
+                ),
+            );
+        });
+    }
+
+    public function programaAutoAsignadoTrasLiberarse(Programa $programa, User $moderador): void
+    {
+        $this->seguro(function () use ($programa, $moderador): void {
+            $this->enviar(
+                $this->administradores(),
+                new AvisoPlataforma(
+                    'moderacion',
+                    'Programa auto-asignado',
+                    "El programa «{$programa->nombre}» fue asignado automáticamente a {$moderador->name} tras liberarse cupo de moderación.",
+                    '/admin/moderadores',
+                ),
+            );
+        });
+    }
+
     // ------------------------------------------------------------------
     // Cifrado de la plataforma
     // ------------------------------------------------------------------

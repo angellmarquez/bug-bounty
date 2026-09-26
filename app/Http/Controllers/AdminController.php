@@ -14,6 +14,7 @@ use App\Models\Rol;
 use App\Models\Sancion;
 use App\Models\User;
 use App\Services\Empresas\MembresiaEmpresa;
+use App\Services\Moderacion\AutoAsignadorModeradores;
 use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
@@ -162,8 +163,15 @@ class AdminController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ModeradorAsignar]);
 
+        $autoAsignador = app(AutoAsignadorModeradores::class);
+        $limitePorModerador = $autoAsignador->limitePorModerador();
+
         $moderador = Rol::where('slug', 'moderador')->first();
-        $moderadores = $moderador?->usuarios()->latest('users.created_at')->paginate(15) ?? User::query()->whereKey(0)->paginate(15);
+        $moderadores = $moderador?->usuarios()
+            ->withCount(['programasModerados as programas_activos_count' => fn ($q) => $q->where('estado', 'activo')])
+            ->latest('users.created_at')
+            ->paginate(15) ?? User::query()->whereKey(0)->paginate(15);
+
         $usuariosDisponibles = User::query()
             ->whereHas('roles', fn ($query) => $query->where('slug', 'investigador'))
             ->whereDoesntHave('roles', fn ($query) => $query->whereIn('slug', ['administrador', 'moderador']))
@@ -179,13 +187,20 @@ class AdminController extends Controller
             ])
             ->values();
 
+        $programasSinModerador = Programa::query()
+            ->where('estado', 'activo')
+            ->doesntHave('moderadores')
+            ->get(['id', 'nombre']);
+
         return Inertia::render('admin/moderadores/Index', [
             'moderadores' => $moderadores,
             'usuariosDisponibles' => $usuariosDisponibles,
             'programas' => Programa::query()
                 ->with('moderadores:id')
                 ->orderBy('nombre')
-                ->get(['id', 'nombre']),
+                ->get(['id', 'nombre', 'estado']),
+            'limitePorModerador' => $limitePorModerador,
+            'programasSinModerador' => $programasSinModerador,
         ]);
     }
 

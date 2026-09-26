@@ -12,6 +12,7 @@
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import AppHead from '@/components/AppHead.svelte';
     import EmptyState from '@/components/EmptyState.svelte';
+    import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
     import PageHeader from '@/components/PageHeader.svelte';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,10 +22,14 @@
         moderadores: moderadoresData,
         usuariosDisponibles,
         programas,
+        limitePorModerador = 5,
+        programasSinModerador = [],
     }: {
-        moderadores: { data: User[]; total: number };
+        moderadores: { data: (User & { programas_activos_count?: number })[]; total: number };
         usuariosDisponibles: User[];
-        programas: { id: number; nombre: string; moderadores: { id: number }[] }[];
+        programas: { id: number; nombre: string; estado?: string; moderadores: { id: number }[] }[];
+        limitePorModerador?: number;
+        programasSinModerador?: { id: number; nombre: string }[];
     } = $props();
 
     let programaSeleccionado = $state<Record<number, string>>({});
@@ -61,6 +66,25 @@
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4">
     <PageHeader title="Moderadores" description={`${moderadoresData.total} moderador${moderadoresData.total === 1 ? '' : 'es'} asignado${moderadoresData.total === 1 ? '' : 's'}`} />
 
+    {#if programasSinModerador.length > 0}
+        <div class="flex items-start gap-3 rounded-lg border border-chart-4/50 bg-chart-4/10 p-4 text-sm text-chart-4">
+            <AlertTriangle class="h-5 w-5 shrink-0 mt-0.5" />
+            <div class="space-y-1">
+                <p class="font-semibold">Capacidad de moderación alcanzada</p>
+                <p class="text-xs text-muted-foreground">
+                    Hay <strong>{programasSinModerador.length} programa(s) activo(s)</strong> sin moderadores asignados porque todos los moderadores activos han alcanzado su límite recomendado ({limitePorModerador} programas activos). Apenas un moderador se libere o desasigne de un programa, el sistema le asignará estos programas pendientes automáticamente.
+                </p>
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                    {#each programasSinModerador as prog (prog.id)}
+                        <span class="rounded bg-background/80 px-2 py-0.5 text-xs font-mono font-medium border border-border">
+                            {prog.nombre}
+                        </span>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    {/if}
+
     <Card>
         <CardHeader><CardTitle>Asignar moderador</CardTitle></CardHeader>
         <CardContent class="space-y-2">
@@ -88,7 +112,13 @@
                 <Card>
                     <CardContent class="space-y-4 pt-6">
                         <div class="flex items-center justify-between gap-3">
-                            <div><p class="text-sm font-medium">{moderador.name}</p><p class="text-xs text-muted-foreground">{moderador.email}</p></div>
+                            <div class="space-y-0.5">
+                                <p class="text-sm font-medium">{moderador.name}</p>
+                                <p class="text-xs text-muted-foreground">{moderador.email}</p>
+                                <p class="text-[11px] {(moderador.programas_activos_count ?? 0) >= limitePorModerador ? 'text-chart-4 font-semibold' : 'text-muted-foreground'}">
+                                    Carga: {moderador.programas_activos_count ?? 0} / {limitePorModerador} programas activos
+                                </p>
+                            </div>
                             <Button size="sm" variant="destructive" onclick={() => revocar(moderador.id)}>Revocar</Button>
                         </div>
                         <div class="space-y-1" data-test="programas-moderados">

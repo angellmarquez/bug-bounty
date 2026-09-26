@@ -41,6 +41,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read Collection<int, Sancion> $sanciones
  * @property-read Collection<int, Apelacion> $apelaciones
  * @property-read Collection<int, Auditoria> $auditorias
+ * @property-read Collection<int, Programa> $programasModerados
+ * @property-read int|null $programas_activos_count
  */
 #[Fillable(['name', 'email', 'password', 'is_active'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
