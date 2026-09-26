@@ -135,10 +135,27 @@ class PocCumpleSchema implements ValidationRule
             return;
         }
 
-        if ($tipo === 'url' && filter_var($valor, FILTER_VALIDATE_URL) === false) {
-            $fail("{$etiqueta} debe ser una URL válida.");
+        if ($tipo === 'url') {
+            if (filter_var($valor, FILTER_VALIDATE_URL) === false) {
+                $fail("{$etiqueta} debe ser una URL válida (ej. https://...).");
 
-            return;
+                return;
+            }
+
+            $host = strtolower((string) parse_url($valor, PHP_URL_HOST));
+            $esPrivada = $host === 'localhost'
+                || $host === '127.0.0.1'
+                || $host === '0.0.0.0'
+                || str_starts_with($host, '192.168.')
+                || str_starts_with($host, '10.')
+                || str_starts_with($host, '169.254.')
+                || (bool) preg_match('/^172\.(1[6-9]|2[0-9]|3[0-1])\./', $host);
+
+            if ($esPrivada) {
+                $fail("{$etiqueta} no puede apuntar a localhost o direcciones de red interna.");
+
+                return;
+            }
         }
 
         if ($tipo === 'number' && ! is_numeric($valor)) {

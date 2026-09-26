@@ -21,8 +21,8 @@ function colaDeDos(string $estadoPrimero = 'enviado', string $estadoSegundo = 'e
         'propietario' => $propietario,
         'programa' => $programa,
         'moderador' => $moderador,
-        'primero' => reporteDe(investigador(), $programa, ['estado' => $estadoPrimero, 'enviado_en' => now()->subHours(2), 'asignado_a' => $moderador->id]),
-        'segundo' => reporteDe(investigador(), $programa, ['estado' => $estadoSegundo, 'enviado_en' => now()->subHour(), 'asignado_a' => $moderador->id]),
+        'primero' => reporteDe(investigador(), $programa, ['estado' => $estadoPrimero, 'enviado_en' => now()->subHours(2), 'asignado_a' => $moderador->id, 'severidad' => null]),
+        'segundo' => reporteDe(investigador(), $programa, ['estado' => $estadoSegundo, 'enviado_en' => now()->subHour(), 'asignado_a' => $moderador->id, 'severidad' => null]),
     ];
 }
 

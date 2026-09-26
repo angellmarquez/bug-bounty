@@ -858,11 +858,16 @@ class ReporteController extends Controller
             }
         }
 
+        $datosEvento = ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'rechazado'];
+        if (! empty($validated['motivo_rechazo'])) {
+            $datosEvento['motivo_rechazo'] = $validated['motivo_rechazo'];
+        }
+
         $reporte->eventos()->create([
             'actor_id' => $request->user()->id,
             'tipo' => 'cambio_estado',
             'nota' => $validated['nota'] ?? 'Reporte rechazado.',
-            'datos' => ['estado_anterior' => $estadoAnterior, 'estado_nuevo' => 'rechazado'],
+            'datos' => $datosEvento,
         ]);
 
         Auditoria::registrar('reportes.rechazado', $reporte, [

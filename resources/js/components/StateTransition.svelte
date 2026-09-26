@@ -50,7 +50,24 @@
     let reporteDuplicadoId = $state('');
     let sancionar = $state(false);
     let gravedadSancion = $state('leve');
+    let motivoRechazo = $state('');
     let processing = $state(false);
+
+    const MOTIVOS_RECHAZO_TEXTO: Record<string, string> = {
+        falso_positivo: 'El reporte corresponde a un falso positivo o salida de escáner automatizado sin explotación real.',
+        fuera_de_alcance: 'El activo o tipo de vulnerabilidad reportada está fuera del alcance de este programa.',
+        sin_impacto: 'La observación representa una práctica informativa o sin impacto demostrable de seguridad.',
+        falta_evidencia: 'Los pasos de reproducción no permitieron replicar el fallo en el entorno de pruebas.',
+    };
+
+    function alCambiarMotivoRechazo() {
+        if (motivoRechazo && MOTIVOS_RECHAZO_TEXTO[motivoRechazo] && !nota) {
+            nota = MOTIVOS_RECHAZO_TEXTO[motivoRechazo];
+        }
+        if (motivoRechazo === 'falso_positivo') {
+            sancionar = true;
+        }
+    }
 
     const rutaMap: Record<TransicionAccion, string> = {
         asignar: 'asignar',
@@ -110,9 +127,12 @@
         if (nota) data.nota = nota;
         if (accion === 'asignar' && asignadoA) data.asignado_a = asignadoA;
         if (accion === 'marcar_duplicado' && reporteDuplicadoId) data.reporte_duplicado_id = reporteDuplicadoId;
-        if (accion === 'rechazar' && sancionar) {
-            data.sancionar = '1';
-            data.gravedad_sancion = gravedadSancion;
+        if (accion === 'rechazar') {
+            if (motivoRechazo) data.motivo_rechazo = motivoRechazo;
+            if (sancionar) {
+                data.sancionar = '1';
+                data.gravedad_sancion = gravedadSancion;
+            }
         }
 
         router.post(`/reportes/${reporteId}/${rutaMap[accion]}`, data, {
@@ -134,6 +154,7 @@
         reporteDuplicadoId = '';
         sancionar = false;
         gravedadSancion = 'leve';
+        motivoRechazo = '';
     }
 </script>
 
@@ -190,17 +211,34 @@
             {/if}
 
             {#if accion === 'rechazar'}
+                <div class="space-y-2">
+                    <Label for="motivo_rechazo">Motivo estándar de rechazo</Label>
+                    <select
+                        id="motivo_rechazo"
+                        bind:value={motivoRechazo}
+                        onchange={alCambiarMotivoRechazo}
+                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                        <option value="">Selecciona un motivo estándar...</option>
+                        <option value="falso_positivo">Falso positivo / Escáner sin impacto</option>
+                        <option value="fuera_de_alcance">Fuera del alcance del programa (Out-of-Scope)</option>
+                        <option value="sin_impacto">Sin impacto demostrable (Informativo)</option>
+                        <option value="falta_evidencia">Falta de evidencia o no reproducible</option>
+                        <option value="otro">Otro motivo (especificar en la nota)</option>
+                    </select>
+                </div>
+
                 <label class="flex items-center gap-2 text-sm">
                     <input type="checkbox" bind:checked={sancionar} />
-                    Marcar como reporte falso y aplicar sanción
+                    <span>Aplicar sanción de reputación por reporte fraudulento/spam</span>
                 </label>
                 {#if sancionar}
                     <div class="space-y-2">
                         <Label for="gravedad_sancion">Gravedad de la sanción</Label>
                         <select id="gravedad_sancion" bind:value={gravedadSancion} class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-                            <option value="leve">Leve</option>
-                            <option value="media">Media</option>
-                            <option value="grave">Grave</option>
+                            <option value="leve">Leve (-25 pts)</option>
+                            <option value="media">Media (-80 pts, 7 días suspensión)</option>
+                            <option value="grave">Grave (-250 pts, 30 días suspensión)</option>
                         </select>
                     </div>
                 {/if}

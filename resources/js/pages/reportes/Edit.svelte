@@ -77,8 +77,17 @@
     function validarPasoActual(): boolean {
         erroresPaso = {};
         if (pasoActual === 1) {
-            if (!formulario.titulo.trim()) erroresPaso.titulo = 'El título es obligatorio';
-            if (!formulario.descripcion.trim()) erroresPaso.descripcion = 'La descripción es obligatoria';
+            if (!formulario.titulo.trim()) {
+                erroresPaso.titulo = 'El título es obligatorio';
+            } else if (formulario.titulo.trim().length < 5) {
+                erroresPaso.titulo = 'El título debe tener al menos 5 caracteres';
+            }
+
+            if (!formulario.descripcion.trim()) {
+                erroresPaso.descripcion = 'La descripción es obligatoria';
+            } else if (formulario.descripcion.trim().length < 50) {
+                erroresPaso.descripcion = 'La descripción debe tener al menos 50 caracteres para detallar el hallazgo';
+            }
         } else if (pasoActual === 3 && pocSchema.length > 0) {
             erroresPaso = validarPoc(formulario.poc, pocSchema);
         }

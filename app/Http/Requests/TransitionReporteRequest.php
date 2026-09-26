@@ -25,6 +25,7 @@ class TransitionReporteRequest extends FormRequest
             'asignado_a' => ['nullable', 'integer', 'exists:users,id'],
             'sancionar' => ['nullable', 'boolean'],
             'gravedad_sancion' => ['nullable', 'string', 'in:leve,media,grave'],
+            'motivo_rechazo' => ['nullable', 'string', 'in:falso_positivo,fuera_de_alcance,sin_impacto,falta_evidencia,otro'],
         ];
     }
 

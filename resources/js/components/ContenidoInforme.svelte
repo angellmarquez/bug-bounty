@@ -1,4 +1,8 @@
 <script lang="ts">
+    import Terminal from '@lucide/svelte/icons/terminal';
+    import Copy from '@lucide/svelte/icons/copy';
+    import Check from '@lucide/svelte/icons/check';
+    import { Button } from '@/components/ui/button';
     import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
     import { entradasPoc, esUrlSegura } from '@/lib/poc-display';
     import type { PocSchemaField } from '@/types/domain';
@@ -21,11 +25,56 @@
         cifradoIndisponible?: boolean;
     } = $props();
 
+    let copiado = $state(false);
+
     const entradas = $derived(entradasPoc(poc, pocSchema));
     const categoriaLegible = $derived(
         CATEGORIAS_REPORTE.find((opcion) => opcion.value === categoria)?.label ?? categoria,
     );
     const hayClasificacion = $derived(Boolean(categoria || vectorCvss || puntuacionCvss));
+
+    const comandoCurl = $derived.by(() => {
+        if (!poc) return null;
+
+        // Si ya hay un comando cURL explícito:
+        if (typeof poc.request_curl === 'string' && poc.request_curl.trim().startsWith('curl')) {
+            return poc.request_curl.trim();
+        }
+
+        // Buscar una URL segura en los campos del PoC:
+        let urlTarget: string | null = null;
+        for (const [k, v] of Object.entries(poc)) {
+            if (typeof v === 'string' && esUrlSegura(v)) {
+                urlTarget = v;
+                break;
+            }
+        }
+
+        if (!urlTarget) return null;
+
+        const metodo = typeof poc.metodo_http === 'string' ? poc.metodo_http.toUpperCase() : 'GET';
+        const payload = typeof poc.payload_request === 'string' ? poc.payload_request.trim() : null;
+
+        if (payload) {
+            const safePayload = payload.replace(/"/g, '\\"');
+            return `curl -i -X ${metodo} "${urlTarget}" \\\n  -H "Content-Type: application/json" \\\n  -d "${safePayload}"`;
+        }
+
+        return `curl -i -X ${metodo} "${urlTarget}"`;
+    });
+
+    async function copiarComando() {
+        if (!comandoCurl) return;
+        try {
+            await navigator.clipboard.writeText(comandoCurl);
+            copiado = true;
+            setTimeout(() => {
+                copiado = false;
+            }, 2000);
+        } catch {
+            // Fallback si el portapapeles no está disponible
+        }
+    }
 </script>
 
 <div class="space-y-5">
@@ -90,5 +139,35 @@
                 </dl>
             {/if}
         </section>
+
+        {#if comandoCurl}
+            <section class="space-y-2 rounded-lg border border-border bg-muted/30 p-3.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <Terminal class="h-4 w-4 text-primary" />
+                        <h4 class="text-xs font-semibold uppercase tracking-wide">Comando de Reproducción (cURL)</h4>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        class="h-7 text-xs gap-1"
+                        onclick={copiarComando}
+                    >
+                        {#if copiado}
+                            <Check class="h-3.5 w-3.5 text-emerald-500" />
+                            <span>Copiado</span>
+                        {:else}
+                            <Copy class="h-3.5 w-3.5" />
+                            <span>Copiar cURL</span>
+                        {/if}
+                    </Button>
+                </div>
+                <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-md bg-neutral-950 p-2.5 font-mono text-xs text-emerald-400 dark:bg-black">{comandoCurl}</pre>
+                <p class="text-[11px] text-muted-foreground">
+                    ⚠️ <strong>Uso seguro:</strong> Ejecutar únicamente en un entorno de pruebas o laboratorio autorizado para verificar el hallazgo de forma aislada.
+                </p>
+            </section>
+        {/if}
     {/if}
 </div>

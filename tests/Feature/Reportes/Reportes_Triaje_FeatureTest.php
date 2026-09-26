@@ -452,7 +452,7 @@ test('validar no da puntos: los da la empresa al confirmar el informe', function
     $propietario = propietarioDeEmpresa();
     $programa = programaDeEmpresa($propietario);
     $investigador = investigador();
-    $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado']);
+    $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado', 'severidad' => null]);
 
     $this->actingAs(moderadorDe($reporte))->post(route('reportes.validar', $reporte))->assertRedirect();
     expect($investigador->fresh()->reputation_score)->toBe(0);
@@ -472,7 +472,7 @@ test('cerrar un informe suma al investigador los puntos de reputación del event
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
     $investigador = investigador();
-    $reporte = reporteDe($investigador, $programa, ['estado' => 'validado']);
+    $reporte = reporteDe($investigador, $programa, ['estado' => 'validado', 'severidad' => null]);
 
     $this->post(route('reportes.cerrar', $reporte))->assertRedirect();
 
