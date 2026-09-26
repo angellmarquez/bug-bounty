@@ -818,7 +818,7 @@ class ReporteController extends Controller
             ->with('success', 'Reporte asignado exitosamente.');
     }
 
-    public function validar(Reporte $reporte, ColaDeValidacion $cola): RedirectResponse
+    public function validar(Reporte $reporte, ColaDeValidacion $cola, ReputationService $reputacion): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteValidar, $reporte]);
@@ -827,6 +827,9 @@ class ReporteController extends Controller
         $this->exigirTurno($reporte, $cola, ColaDeValidacion::PENDIENTES_DE_TRIAJE);
         $estadoAnterior = $reporte->estado->value;
         $reporte->update(['estado' => 'validado']);
+
+        // Revocación automática en cascada de sanciones previas si el reporte fue validado
+        $reputacion->revocarSancionesDeReporte($reporte, 'Revocada automáticamente tras validación del informe.', request()->user());
 
         $reporte->eventos()->create([
             'actor_id' => request()->user()->id,
@@ -1043,6 +1046,7 @@ class ReporteController extends Controller
     /** La empresa confirmó un informe validado: es el momento en que el investigador gana los puntos. */
     private function confirmarPorEmpresa(Reporte $reporte, ReputationService $reputacion): void
     {
+        $reputacion->revocarSancionesDeReporte($reporte, 'Revocada automáticamente tras confirmación del informe.', request()->user());
         $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_validado', $reporte);
         Auditoria::registrar('reportes.confirmado_por_empresa', $reporte, [], request()->user()?->id);
     }

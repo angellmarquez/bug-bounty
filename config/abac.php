@@ -429,15 +429,6 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
-        [
-            'id' => 'moderador-resolver-apelaciones',
-            'prioridad' => 30,
-            'acciones' => ['apelaciones.resolver'],
-            'sujeto' => ['roles' => ['contains' => 'moderador']],
-            'objeto' => [],
-            'entorno' => [],
-            'decision' => 'permitir',
-        ],
         // Triaje: el moderador toma el siguiente de la cola con "Iniciar revisión" (queda asignado
         // a él) y desde entonces solo él lo tría. Asignar/reasignar a otro es exclusivo del admin.
         [
@@ -496,11 +487,11 @@ return [
             'decision' => 'denegar',
         ],
         [
-            'id' => 'denegar-resolver-apelacion-de-sancion-propia-al-moderador',
+            'id' => 'denegar-resolver-apelaciones-a-moderador',
             'prioridad' => 5,
             'acciones' => ['apelaciones.resolver'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
-            'objeto' => ['sancion.aplicada_por' => ['=' => '@sujeto.id']],
+            'objeto' => [],
             'entorno' => [],
             'decision' => 'denegar',
         ],

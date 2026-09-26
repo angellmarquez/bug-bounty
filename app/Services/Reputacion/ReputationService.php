@@ -384,7 +384,18 @@ class ReputationService
             if ($aprobada) {
                 $this->revocarSancion($apelacion->sancion, $nota, avisar: false);
             } else {
-                $apelacion->sancion->update(['estado' => EstadoSancion::Aplicada->value]);
+                $sancion = $apelacion->sancion;
+                $updates = ['estado' => EstadoSancion::Aplicada->value];
+
+                if ($sancion->suspension_hasta && $sancion->suspension_desde) {
+                    $totalDias = (int) $sancion->suspension_desde->diffInDays($sancion->suspension_hasta);
+                    $diasConsumidos = max(0, (int) $sancion->suspension_desde->diffInDays($apelacion->created_at));
+                    $diasRestantes = max(1, $totalDias - $diasConsumidos);
+                    $updates['suspension_desde'] = now();
+                    $updates['suspension_hasta'] = now()->addDays($diasRestantes);
+                }
+
+                $sancion->update($updates);
             }
 
             $this->auditar($resolutorId, 'apelacion.resuelta', $apelacion, [
@@ -472,6 +483,88 @@ class ReputationService
         }
 
         return ! Apelacion::query()->where('sancion_id', $sancion->id)->exists();
+    }
+
+    /**
+     * Revoca automáticamente cualquier sanción asociada a un reporte (por ejemplo, si
+     * fue rechazado/sancionado por error y posteriormente se valida o repara).
+     * Si tenía apelación pendiente, la aprueba automáticamente con nota explicativa.
+     */
+    public function revocarSancionesDeReporte(Reporte $reporte, string $motivo, ?User $resolutor = null): int
+    {
+        $sanciones = $reporte->sanciones()
+            ->whereIn('estado', [EstadoSancion::Aplicada, EstadoSancion::Apelada])
+            ->get();
+
+        $revocadas = 0;
+        foreach ($sanciones as $sancion) {
+            $apelacionPendiente = $sancion->apelaciones()
+                ->where('estado', EstadoApelacion::Pendiente)
+                ->first();
+
+            if ($apelacionPendiente !== null) {
+                $admin = ($resolutor && $resolutor->roles()->where('slug', 'administrador')->exists())
+                    ? $resolutor
+                    : (User::query()->whereHas('roles', fn ($q) => $q->where('slug', 'administrador'))->first()
+                        ?? $resolutor
+                        ?? $sancion->aplicadaPor
+                        ?? User::query()->first());
+
+                if ($admin !== null) {
+                    $this->resolverApelacion($apelacionPendiente, true, $admin, $motivo);
+                    $revocadas++;
+
+                    continue;
+                }
+            }
+
+            $this->revocarSancion($sancion, $motivo);
+            $revocadas++;
+        }
+
+        return $revocadas;
+    }
+
+    /**
+     * Revisa apelaciones pendientes para aplicar el SLA de respuesta y protección cautelar:
+     * - Si supera las horas SLA (por defecto 48h): alerta urgente al Administrador.
+     * - Si supera el plazo máximo (por defecto 5 días): levanta provisionalmente la suspensión
+     *   para proteger al usuario mientras el administrador audita.
+     *
+     * @return array{alertadas: int, protegidas: int}
+     */
+    public function auditarSlaApelaciones(): array
+    {
+        $horasAlerta = (int) config('reputacion.sla_alerta_horas', 48);
+        $diasMaximo = (int) config('reputacion.plazo_maximo_resolucion_dias', 5);
+
+        $pendientes = Apelacion::query()
+            ->where('estado', EstadoApelacion::Pendiente)
+            ->with(['usuario', 'sancion'])
+            ->get();
+
+        $alertadas = 0;
+        $protegidas = 0;
+
+        foreach ($pendientes as $apelacion) {
+            $horas = (int) $apelacion->created_at?->diffInHours(now());
+
+            if ($horas >= $horasAlerta) {
+                $this->notificador()->apelacionRetrasada($apelacion, $horas);
+                $alertadas++;
+            }
+
+            $dias = (int) $apelacion->created_at?->diffInDays(now());
+            if ($dias >= $diasMaximo && $apelacion->sancion->suspension_hasta?->gt(now())) {
+                // Levantamiento cautelar por inacción para no perjudicar al usuario
+                $apelacion->sancion->update([
+                    'suspension_hasta' => now(),
+                ]);
+                $protegidas++;
+            }
+        }
+
+        return ['alertadas' => $alertadas, 'protegidas' => $protegidas];
     }
 
     private function notificador(): Notificador

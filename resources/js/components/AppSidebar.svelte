@@ -73,8 +73,8 @@
         }
 
         // El admin no triaja reportes ni ve la cola de moderación, pero sí resuelve
-        // apelaciones (arbitraje de última instancia, no operación diaria).
-        if (isModerador || isAdmin) {
+        // apelaciones (arbitraje de última instancia exclusivo para garantizar imparcialidad).
+        if (isAdmin) {
             items.push({
                 title: 'Apelaciones',
                 href: '/moderacion/apelaciones',

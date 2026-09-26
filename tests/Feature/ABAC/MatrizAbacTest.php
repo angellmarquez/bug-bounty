@@ -142,7 +142,7 @@ dataset('matriz_abac', [
     'inv no apela su sanción fuera de plazo' => ['apelaciones.crear', fn () => [($inv = investigador()), apelacionDe($inv, ['plazo_apelacion' => now()->subDay()])], false],
     'inv no apela su sanción revocada' => ['apelaciones.crear', fn () => [($inv = investigador()), apelacionDe($inv, ['estado' => 'revocada'])], false],
     'inv no resuelve apelaciones' => ['apelaciones.resolver', fn () => [investigador(), apelacionDe(investigador())], false],
-    'moderador resuelve apelaciones' => ['apelaciones.resolver', fn () => [moderador(), apelacionDe(investigador())], true],
+    'moderador no resuelve apelaciones' => ['apelaciones.resolver', fn () => [moderador(), apelacionDe(investigador())], false],
     'admin resuelve cualquier apelación' => ['apelaciones.resolver', fn () => [administrador(), apelacionDe(investigador())], true],
 
     // ------------------------------------------------------------------
@@ -164,7 +164,12 @@ dataset('matriz_abac', [
     'suspendido sigue pudiendo apelar su sanción' => ['apelaciones.crear', fn () => [($inv = investigador()), apelacionDe($inv, ['suspension_desde' => now()->subDay(), 'suspension_hasta' => now()->addDays(5)])], true],
     'suspendido no crea reportes' => ['reportes.crear', function () {
         $inv = investigador();
-        apelacionDe($inv, ['suspension_desde' => now()->subDay(), 'suspension_hasta' => now()->addDays(5)]);
+        Sancion::factory()->create([
+            'usuario_id' => $inv->id,
+            'estado' => 'aplicada',
+            'suspension_desde' => now()->subDay(),
+            'suspension_hasta' => now()->addDays(5),
+        ]);
 
         return [$inv, programaDe(investigador(), ['estado' => EstadoPrograma::Activo->value])];
     }, false],

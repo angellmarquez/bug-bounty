@@ -42,6 +42,7 @@ use Illuminate\Support\Carbon;
  * @property-read User $investigador
  * @property-read User|null $asignadoA
  * @property-read Collection<int, EventoReporte> $eventos
+ * @property-read Collection<int, Sancion> $sanciones
  * @property-read Reporte|null $duplicadoDe
  * @property-read Collection<int, Reporte> $duplicados
  * @property-read Collection<int, EntradaReputacion> $entradasReputacion
@@ -178,6 +179,16 @@ class Reporte extends Model
     public function entradasReputacion(): HasMany
     {
         return $this->hasMany(EntradaReputacion::class);
+    }
+
+    /**
+     * Sanciones disciplinarias originadas por este reporte (si las hubiera).
+     *
+     * @return HasMany<Sancion, $this>
+     */
+    public function sanciones(): HasMany
+    {
+        return $this->hasMany(Sancion::class);
     }
 
     /**

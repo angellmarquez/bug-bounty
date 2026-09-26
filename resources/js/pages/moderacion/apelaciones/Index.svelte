@@ -71,7 +71,7 @@
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
     <PageHeader
         title="Apelaciones"
-        description="{apelaciones.total} apelación{apelaciones.total !== 1 ? 'es' : ''} · {pendientes} pendiente{pendientes !== 1 ? 's' : ''} en esta página. Las resuelve otro moderador o un administrador, nunca quien aplicó la sanción."
+        description="{apelaciones.total} apelación{apelaciones.total !== 1 ? 'es' : ''} · {pendientes} pendiente{pendientes !== 1 ? 's' : ''} en esta página. Las resuelve exclusivamente el administrador para garantizar máxima seguridad e imparcialidad."
     />
 
     <Card>

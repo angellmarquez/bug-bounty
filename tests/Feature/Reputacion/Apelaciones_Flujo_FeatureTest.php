@@ -49,7 +49,7 @@ function resolverApelacion(User $quien, Apelacion $apelacion, bool $aprobada, st
 // Cadena completa
 // ---------------------------------------------------------------------------
 
-test('cadena completa: sancion, apelacion y aprobacion por otro moderador devuelven puntos y levantan la suspension', function () {
+test('cadena completa: sancion, apelacion y aprobacion por el administrador devuelven puntos y levantan la suspension', function () {
     [$sancionador, $sancionado, $sancion] = sancionadoPorUnModerador('media');
     $servicio = app(ReputationService::class);
 
@@ -64,13 +64,13 @@ test('cadena completa: sancion, apelacion y aprobacion por otro moderador devuel
     $apelacion = apelar($sancionado, $sancion);
     expect($sancion->fresh()->estado)->toBe(EstadoSancion::Apelada);
 
-    $otroModerador = moderador();
-    resolverApelacion($otroModerador, $apelacion, true, 'Se acepta la apelación.')
+    $admin = administrador();
+    resolverApelacion($admin, $apelacion, true, 'Se acepta la apelación.')
         ->assertRedirect(route('apelaciones.index'))
         ->assertSessionHas('success');
 
     expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Aprobada)
-        ->and($apelacion->fresh()->resuelta_por)->toBe($otroModerador->id)
+        ->and($apelacion->fresh()->resuelta_por)->toBe($admin->id)
         ->and($sancion->fresh()->estado)->toBe(EstadoSancion::Revocada)
         ->and($servicio->saldo($sancionado))->toBe(0)
         ->and($sancionado->fresh()->reputation_score)->toBe(0);
@@ -86,7 +86,7 @@ test('si la apelacion se rechaza la sancion sigue vigente, la suspension tambien
     $saldoSancionado = app(ReputationService::class)->saldo($sancionado);
     $apelacion = apelar($sancionado, $sancion);
 
-    resolverApelacion(moderador(), $apelacion, false, 'La evidencia es concluyente.')->assertRedirect();
+    resolverApelacion(administrador(), $apelacion, false, 'La evidencia es concluyente.')->assertRedirect();
 
     expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Rechazada)
         ->and($sancion->fresh()->estado)->toBe(EstadoSancion::Aplicada)
@@ -105,17 +105,20 @@ test('si la apelacion se rechaza la sancion sigue vigente, la suspension tambien
 });
 
 // ---------------------------------------------------------------------------
-// Quién puede resolver ("juez y parte")
+// Quién puede resolver (exclusivo Administrador)
 // ---------------------------------------------------------------------------
 
-test('el moderador que aplico la sancion no puede resolver su apelacion, otro moderador si', function () {
+test('un moderador no puede resolver una apelacion, es competencia exclusiva del administrador', function () {
     [$sancionador, $sancionado, $sancion] = sancionadoPorUnModerador();
     $apelacion = apelar($sancionado, $sancion);
 
+    // Ni el que sancionó ni otro moderador pueden resolverla
     resolverApelacion($sancionador, $apelacion, true)->assertForbidden();
+    resolverApelacion(moderador(), $apelacion, true)->assertForbidden();
     expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Pendiente);
 
-    resolverApelacion(moderador(), $apelacion, true)->assertRedirect();
+    // Solo el administrador la resuelve
+    resolverApelacion(administrador(), $apelacion, true)->assertRedirect();
     expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Aprobada);
 });
 
@@ -131,17 +134,6 @@ test('el administrador puede resolver la apelacion aunque el mismo haya aplicado
     expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Rechazada)
         ->and($paso->actor_rol)->toBe('administrador')
         ->and($paso->datos['mismo_que_sanciono'])->toBeTrue();
-});
-
-test('una sancion de la auditoria automatica (sin autor) la puede resolver cualquier moderador', function () {
-    $sancionado = investigador();
-    $sancion = app(ReputationService::class)->aplicarSancion($sancionado, 'rafaga_reportes', GravedadSancion::Leve);
-    expect($sancion->aplicada_por)->toBeNull();
-    $apelacion = apelar($sancionado, $sancion);
-
-    resolverApelacion(moderador(), $apelacion, true)->assertRedirect();
-
-    expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Aprobada);
 });
 
 test('nadie resuelve la apelacion que el mismo presento', function () {
@@ -170,7 +162,7 @@ test('la nota de resolucion es obligatoria', function () {
     [, $sancionado, $sancion] = sancionadoPorUnModerador();
     $apelacion = apelar($sancionado, $sancion);
 
-    resolverApelacion(moderador(), $apelacion, true, '')->assertSessionHasErrors('nota');
+    resolverApelacion(administrador(), $apelacion, true, '')->assertSessionHasErrors('nota');
     expect($apelacion->fresh()->estado)->toBe(EstadoApelacion::Pendiente);
 });
 
@@ -200,7 +192,7 @@ test('se puede apelar hasta el ultimo minuto del plazo y ni un minuto despues', 
 test('cada paso queda registrado con quien lo hizo, su rol, la ip y una huella encadenada', function () {
     [$sancionador, $sancionado, $sancion] = sancionadoPorUnModerador();
     $apelacion = apelar($sancionado, $sancion, 'Mi motivo.');
-    $resolutor = moderador(['name' => 'Moderadora Revisora']);
+    $resolutor = administrador(['name' => 'Administradora Revisora']);
     resolverApelacion($resolutor, $apelacion, true, 'Aceptada.');
 
     $pasos = ApelacionEvento::where('apelacion_id', $apelacion->id)->orderBy('id')->get();
@@ -217,8 +209,8 @@ test('cada paso queda registrado con quien lo hizo, su rol, la ip y una huella e
         ->and($presentada->huella)->toHaveLength(64)
         ->and($resuelta->tipo)->toBe('aprobada')
         ->and($resuelta->actor_id)->toBe($resolutor->id)
-        ->and($resuelta->actor_nombre)->toBe('Moderadora Revisora')
-        ->and($resuelta->actor_rol)->toBe('moderador')
+        ->and($resuelta->actor_nombre)->toBe('Administradora Revisora')
+        ->and($resuelta->actor_rol)->toBe('administrador')
         ->and($resuelta->huella_anterior)->toBe($presentada->huella)
         ->and(app(TrazaApelaciones::class)->verificar($apelacion))->toBeTrue();
 });
@@ -226,7 +218,7 @@ test('cada paso queda registrado con quien lo hizo, su rol, la ip y una huella e
 test('si alguien altera o borra un paso registrado la cadena de huellas lo detecta', function () {
     [, $sancionado, $sancion] = sancionadoPorUnModerador();
     $apelacion = apelar($sancionado, $sancion);
-    resolverApelacion(moderador(), $apelacion, false, 'Nota original.');
+    resolverApelacion(administrador(), $apelacion, false, 'Nota original.');
     $traza = app(TrazaApelaciones::class);
     expect($traza->verificar($apelacion))->toBeTrue();
 
@@ -252,7 +244,7 @@ test('si alguien altera o borra un paso registrado la cadena de huellas lo detec
 test('el investigador ve el seguimiento de su apelacion con el rol de quien decidio, sin nombres ni ip', function () {
     [, $sancionado, $sancion] = sancionadoPorUnModerador();
     $apelacion = apelar($sancionado, $sancion);
-    resolverApelacion(moderador(['name' => 'Nombre Secreto']), $apelacion, false, 'Se mantiene la sancion.');
+    resolverApelacion(administrador(['name' => 'Nombre Secreto']), $apelacion, false, 'Se mantiene la sancion.');
 
     $respuesta = $this->actingAs($sancionado)->get(route('reputacion.apelacion', $apelacion));
 
@@ -263,7 +255,7 @@ test('el investigador ve el seguimiento de su apelacion con el rol de quien deci
         ->where('apelacion.sancion.aplicada_por_rol', 'moderador')
         ->where('apelacion.cadena_valida', true)
         ->has('apelacion.eventos', 2)
-        ->where('apelacion.eventos.1.actor_rol', 'moderador'));
+        ->where('apelacion.eventos.1.actor_rol', 'administrador'));
 
     $texto = json_encode($respuesta->inertiaProps());
     expect($texto)->not->toContain('Nombre Secreto')->not->toContain('"ip"');
@@ -279,50 +271,46 @@ test('un investigador no puede ver el seguimiento de la apelacion de otro', func
 test('el panel de resolucion muestra quien sanciono, quien decidio, la ip y si la cadena es valida', function () {
     [$sancionador, $sancionado, $sancion] = sancionadoPorUnModerador();
     $apelacion = apelar($sancionado, $sancion);
-    $resolutor = moderador(['name' => 'Moderador Decisor']);
+    $resolutor = administrador(['name' => 'Administrador Decisor']);
     resolverApelacion($resolutor, $apelacion, true, 'Aceptada.');
 
     $this->actingAs(administrador())->get(route('apelaciones.show', $apelacion))
         ->assertOk()->assertInertia(fn ($page) => $page
         ->component('moderacion/apelaciones/Show')
         ->where('apelacion.sancion.aplicada_por.id', $sancionador->id)
-        ->where('apelacion.resuelta_por.name', 'Moderador Decisor')
+        ->where('apelacion.resuelta_por.name', 'Administrador Decisor')
         ->where('apelacion.cadena_valida', true)
         ->where('apelacion.eventos.0.actor.id', $sancionado->id)
-        ->where('apelacion.eventos.1.actor_rol', 'moderador')
+        ->where('apelacion.eventos.1.actor_rol', 'administrador')
         ->has('apelacion.eventos.1.ip')
         ->has('apelacion.eventos.1.huella'));
 });
 
-test('el listado avisa al moderador que aplico la sancion de que no puede resolverla y pone las pendientes primero', function () {
-    [$sancionador, $sancionado, $sancion] = sancionadoPorUnModerador();
+test('el listado pone las pendientes primero para el administrador', function () {
+    [, $sancionado, $sancion] = sancionadoPorUnModerador();
     $pendiente = apelar($sancionado, $sancion);
 
     // Otra apelación ya resuelta, más reciente: aun así va después de la pendiente.
     $otro = investigador();
     $otraSancion = app(ReputationService::class)->aplicarSancion($otro, 'rafaga_reportes', GravedadSancion::Leve);
     $resuelta = apelar($otro, $otraSancion);
-    resolverApelacion(moderador(), $resuelta, true);
+    resolverApelacion(administrador(), $resuelta, true);
 
-    $this->actingAs($sancionador)->get(route('apelaciones.index'))
+    $this->actingAs(administrador())->get(route('apelaciones.index'))
         ->assertOk()->assertInertia(fn ($page) => $page
         ->component('moderacion/apelaciones/Index')
         ->where('apelaciones.data.0.id', $pendiente->id)
-        ->where('apelaciones.data.0.puede_resolver', false)
-        ->where('apelaciones.data.0.motivo_bloqueo', 'Tú aplicaste esta sanción: la resuelve otro moderador o el administrador.')
+        ->where('apelaciones.data.0.puede_resolver', true)
         ->where('apelaciones.data.1.id', $resuelta->id));
 
-    $this->actingAs(moderador())->get(route('apelaciones.index'))
-        ->assertInertia(fn ($page) => $page->where('apelaciones.data.0.puede_resolver', true)->where('apelaciones.data.0.motivo_bloqueo', null));
-
-    $this->actingAs($sancionador)->get(route('apelaciones.index', ['estado' => 'aprobada']))
+    $this->actingAs(administrador())->get(route('apelaciones.index', ['estado' => 'aprobada']))
         ->assertInertia(fn ($page) => $page->has('apelaciones.data', 1)->where('apelaciones.data.0.id', $resuelta->id));
 });
 
-test('solo moderadores y administradores entran al panel de resolucion', function () {
+test('solo administradores entran al panel de resolucion de apelaciones', function () {
     $this->actingAs(investigador())->get(route('apelaciones.index'))->assertForbidden();
     $this->actingAs(propietarioDeEmpresa())->get(route('apelaciones.index'))->assertForbidden();
-    $this->actingAs(moderador())->get(route('apelaciones.index'))->assertOk();
+    $this->actingAs(moderador())->get(route('apelaciones.index'))->assertForbidden();
     $this->actingAs(administrador())->get(route('apelaciones.index'))->assertOk();
     $this->actingAs(administrador())->get('/admin/apelaciones')->assertRedirect('/moderacion/apelaciones');
 });
@@ -333,7 +321,7 @@ test('la pagina de sanciones solo ofrece apelar mientras se pueda', function () 
         ->assertInertia(fn ($page) => $page->where('sanciones.data.0.puede_apelar', true));
 
     $apelacion = apelar($sancionado, $sancion);
-    resolverApelacion(moderador(), $apelacion, false);
+    resolverApelacion(administrador(), $apelacion, false);
 
     $this->actingAs($sancionado)->get(route('reputacion.sanciones'))
         ->assertInertia(fn ($page) => $page->where('sanciones.data.0.puede_apelar', false));
@@ -343,10 +331,10 @@ test('el saldo del historial coincide con la reputacion mostrada tras aprobar y 
     $servicio = app(ReputationService::class);
 
     [, $a, $sancionA] = sancionadoPorUnModerador('grave');
-    resolverApelacion(moderador(), apelar($a, $sancionA), true);
+    resolverApelacion(administrador(), apelar($a, $sancionA), true);
     expect($servicio->saldo($a))->toBe($a->fresh()->reputation_score)->toBe(0);
 
     [, $b, $sancionB] = sancionadoPorUnModerador('grave');
-    resolverApelacion(moderador(), apelar($b, $sancionB), false);
+    resolverApelacion(administrador(), apelar($b, $sancionB), false);
     expect($servicio->saldo($b))->toBe($b->fresh()->reputation_score)->toBeLessThan(0);
 });

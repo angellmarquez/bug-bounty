@@ -176,7 +176,7 @@ test('al resolver la apelacion se avisa al apelante y a quien aplico la sancion,
     $this->actingAs($autor)->post(route('reputacion.apelar', $sancion), ['motivo' => 'Injusto.']);
     $apelacion = $sancion->apelaciones()->firstOrFail();
 
-    $this->actingAs(moderador())->post(route('apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => 'Procede.'])->assertRedirect();
+    $this->actingAs(administrador())->post(route('apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => 'Procede.'])->assertRedirect();
 
     expect(titulos($autor))->toContain('Tu apelación fue aprobada')
         ->and(titulos($autor))->not->toContain('Se revocó tu sanción')

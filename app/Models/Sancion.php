@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoApelacion;
 use App\Enums\EstadoSancion;
 use App\Enums\GravedadSancion;
 use Database\Factories\SancionFactory;
@@ -136,6 +137,8 @@ class Sancion extends Model
     {
         return $query->vigentes()
             ->where('suspension_desde', '<=', now())
-            ->where('suspension_hasta', '>', now());
+            ->where('suspension_hasta', '>', now())
+            // Pausa cautelar: durante una apelación pendiente no se mantiene la suspensión activa
+            ->whereDoesntHave('apelaciones', fn (Builder $q) => $q->where('estado', EstadoApelacion::Pendiente));
     }
 }

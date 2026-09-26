@@ -208,6 +208,22 @@ class Notificador
         });
     }
 
+    public function apelacionRetrasada(Apelacion $apelacion, int $horas): void
+    {
+        $this->seguro(function () use ($apelacion, $horas): void {
+            $apelacion->loadMissing('usuario');
+            $this->enviar(
+                $this->administradores(),
+                new AvisoPlataforma(
+                    'apelacion',
+                    'Apelación urgente sin resolver',
+                    "La apelación de {$apelacion->usuario->name} lleva {$horas} horas en espera de revisión. Resuélvela en el panel para garantizar una resolución oportuna.",
+                    "/moderacion/apelaciones/{$apelacion->id}",
+                ),
+            );
+        });
+    }
+
     /**
      * @param  array{nombre: string, minimo: int}  $antes
      * @param  array{nombre: string, minimo: int}  $despues

@@ -161,6 +161,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | SLA de resolución de apelaciones (automatización de protección al usuario)
+    |--------------------------------------------------------------------------
+    |
+    | - sla_alerta_horas: Horas tras las cuales se envía alerta de urgencia al
+    |   administrador si la apelación sigue pendiente.
+    | - plazo_maximo_resolucion_dias: Días tras los cuales, ante la inacción del
+    |   equipo, se protege al usuario contra suspensiones indebidas.
+    |
+    */
+    'sla_alerta_horas' => (int) env('REPUTACION_SLA_ALERTA_HORAS', 48),
+    'plazo_maximo_resolucion_dias' => (int) env('REPUTACION_MAX_RESOLUCION_DIAS', 5),
+
+    /*
+    |--------------------------------------------------------------------------
     | Detección de trampas (CheatDetectionService)
     |--------------------------------------------------------------------------
     */

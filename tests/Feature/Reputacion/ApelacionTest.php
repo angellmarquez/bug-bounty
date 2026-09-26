@@ -169,6 +169,17 @@ test('el admin puede resolver una apelación por HTTP y el motivo obligatorio se
         ->assertSessionHas('error');
 });
 
+test('un moderador no puede resolver una apelación', function () {
+    $investigador = investigador();
+    $servicio = app(ReputationService::class);
+    $sancion = $servicio->aplicarSancion($investigador, 'rafaga_reportes', GravedadSancion::Leve);
+    $apelacion = $servicio->crearApelacion($sancion, $investigador, 'No hubo ráfaga.');
+
+    $this->actingAs(moderador())
+        ->post(route('apelaciones.resolver', $apelacion), ['aprobada' => true, 'nota' => 'Quiero resolver.'])
+        ->assertForbidden();
+});
+
 test('la ruta /admin redirige al panel de empresas en lugar de dar 404', function () {
     $this->actingAs(administrador())
         ->get('/admin')
