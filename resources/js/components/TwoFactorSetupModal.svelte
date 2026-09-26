@@ -45,27 +45,27 @@
     const modalConfig: TwoFactorConfigContent = $derived.by(() => {
         if (twoFactorEnabled) {
             return {
-                title: 'Two-factor authentication enabled',
+                title: 'Verificación en dos pasos activada',
                 description:
-                    'Two-factor authentication is now enabled. Scan the QR code or enter the setup key in your authenticator app.',
-                buttonText: 'Close',
+                    'Ya está activada. Escanea el código QR o introduce la clave en tu aplicación de autenticación.',
+                buttonText: 'Cerrar',
             };
         }
 
         if (showVerificationStep) {
             return {
-                title: 'Verify authentication code',
+                title: 'Confirma el código',
                 description:
-                    'Enter the 6-digit code from your authenticator app',
-                buttonText: 'Continue',
+                    'Escribe el código de 6 dígitos de tu aplicación de autenticación',
+                buttonText: 'Continuar',
             };
         }
 
         return {
-            title: 'Enable two-factor authentication',
+            title: 'Activar verificación en dos pasos',
             description:
-                'To finish enabling two-factor authentication, scan the QR code or enter the setup key in your authenticator app',
-            buttonText: 'Continue',
+                'Para terminar, escanea el código QR o introduce la clave en tu aplicación de autenticación',
+            buttonText: 'Continuar',
         };
     });
 
@@ -185,7 +185,7 @@
                                     >
                                         <img
                                             src={qrCodeDataUrl}
-                                            alt="Two-factor authentication QR code"
+                                            alt="Código QR de verificación en dos pasos"
                                             class="size-full"
                                         />
                                     </div>
@@ -207,7 +207,7 @@
                             class="absolute inset-0 top-1/2 h-px w-full bg-border"
                         ></div>
                         <span class="relative bg-card px-2 py-1"
-                            >or, enter the code manually</span
+                            >o escribe la clave a mano</span
                         >
                     </div>
 
@@ -239,7 +239,7 @@
                                     class="relative block h-auto border-l border-border px-3 hover:bg-muted"
                                 >
                                     {#if copied}
-                                        <Check class="w-4 text-green-500" />
+                                        <Check class="w-4 text-exito" />
                                     {:else}
                                         <Copy class="w-4" />
                                     {/if}
@@ -293,7 +293,7 @@
                                         (showVerificationStep = false)}
                                     disabled={processing}
                                 >
-                                    Back
+                                    Volver
                                 </Button>
                                 <Button
                                     type="submit"

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
     import Terminal from '@lucide/svelte/icons/terminal';
     import Copy from '@lucide/svelte/icons/copy';
     import Check from '@lucide/svelte/icons/check';
@@ -155,7 +156,7 @@
                         onclick={copiarComando}
                     >
                         {#if copiado}
-                            <Check class="h-3.5 w-3.5 text-emerald-500" />
+                            <Check class="h-3.5 w-3.5 text-exito" />
                             <span>Copiado</span>
                         {:else}
                             <Copy class="h-3.5 w-3.5" />
@@ -163,9 +164,9 @@
                         {/if}
                     </Button>
                 </div>
-                <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-md bg-neutral-950 p-2.5 font-mono text-xs text-emerald-400 dark:bg-black">{comandoCurl}</pre>
-                <p class="text-[11px] text-muted-foreground">
-                    ⚠️ <strong>Uso seguro:</strong> Ejecutar únicamente en un entorno de pruebas o laboratorio autorizado para verificar el hallazgo de forma aislada.
+                <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-md bg-muted p-2.5 font-mono text-xs text-exito dark:bg-black">{comandoCurl}</pre>
+                <p class="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                    <TriangleAlert class="mt-px size-3.5 shrink-0 text-chart-4" aria-hidden="true" /><span><strong>Uso seguro:</strong> Ejecutar únicamente en un entorno de pruebas o laboratorio autorizado para verificar el hallazgo de forma aislada.</span>
                 </p>
             </section>
         {/if}

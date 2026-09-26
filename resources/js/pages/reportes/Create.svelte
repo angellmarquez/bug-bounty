@@ -168,7 +168,7 @@
     </div>
 
     {#if suspension}
-        <div class="rounded-md border border-rose-500/40 bg-rose-500/10 p-3 text-sm" role="alert" data-test="aviso-suspension">
+        <div class="rounded-md border border-peligro/40 bg-peligro/10 p-3 text-sm" role="alert" data-test="aviso-suspension">
             <p class="font-medium">
                 Tu cuenta está suspendida{suspension.hasta ? ` hasta el ${new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(suspension.hasta))}` : ''}.
             </p>
@@ -192,7 +192,7 @@
                 <AlertError errors={[formErrors.pgp]} title="No se pudo guardar el reporte" />
             {/if}
             {#if formErrors.limite}
-                <div data-test="aviso-limite" class="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm" role="alert">
+                <div data-test="aviso-limite" class="rounded-md border border-aviso/40 bg-aviso/10 p-3 text-sm" role="alert">
                     <p class="font-medium">No se pudo enviar el informe</p>
                     <p class="text-muted-foreground">{formErrors.limite}</p>
                     <p class="mt-1 text-muted-foreground">Puedes guardarlo como borrador y enviarlo más tarde.</p>

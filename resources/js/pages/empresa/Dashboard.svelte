@@ -110,7 +110,6 @@
             <p><span class="text-muted-foreground">Razón social:</span> {empresa.razon_social}</p>
             <p><span class="text-muted-foreground">Identificador fiscal:</span> {empresa.identificador_fiscal}</p>
             <p><span class="text-muted-foreground">Correo:</span> {empresa.email}</p>
-            <p><span class="text-muted-foreground">Rol:</span> {empresa.rol_interno}</p>
             {#if empresa.motivo_estado}
                 <p class="border-t border-border pt-3"><span class="text-muted-foreground">Motivo:</span> {empresa.motivo_estado}</p>
             {/if}

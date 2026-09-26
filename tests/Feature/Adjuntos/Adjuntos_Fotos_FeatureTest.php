@@ -333,3 +333,17 @@ test('apelar sin fotos sigue funcionando igual', function () {
     expect($apelacion->evidencia)->toBeNull()
         ->and($apelacion->adjuntos()->count())->toBe(0);
 });
+
+test('en el triaje ciego el moderador no ve el nombre original de la foto', function () {
+    $autor = investigador();
+    $reporte = reporteDe($autor, null, ['estado' => 'enviado']);
+    app(AdjuntoService::class)->guardar($reporte, [fotoPng('captura-de-juan-perez.png')], $autor);
+
+    $moderador = moderadorDe($reporte);
+    $fotos = $this->actingAs($moderador)->get(route('reportes.show', $reporte))->assertOk()->inertiaProps()['fotos'];
+    expect($fotos[0]['nombre'])->toBe('Evidencia 1.png');
+
+    // El autor sigue viendo su nombre.
+    $propias = $this->actingAs($autor)->get(route('reportes.show', $reporte))->inertiaProps()['fotos'];
+    expect($propias[0]['nombre'])->toBe('captura-de-juan-perez.png');
+});

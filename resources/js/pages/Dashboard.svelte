@@ -31,8 +31,8 @@
     } from '@/components/ui/card';
     import ChevronRight from '@lucide/svelte/icons/chevron-right';
     import Bug from '@lucide/svelte/icons/bug';
+    import Trophy from '@lucide/svelte/icons/trophy';
     import EmptyState from '@/components/EmptyState.svelte';
-    import RolesUsuario from '@/components/RolesUsuario.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import type { DashboardRoleStats, DashboardStats } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
@@ -99,11 +99,17 @@
     const statCards = $derived.by(() => {
         if (isAdmin) return [];
 
+        const descripcionTotal = rolEmpresa
+            ? 'Informes recibidos'
+            : userRoles.includes('investigador')
+              ? 'Informes enviados'
+              : 'Informes en tus programas';
+
         return [
             {
                 title: 'Total Reportes',
                 value: stats.reportes_total,
-                description: 'Reportes presentados',
+                description: descripcionTotal,
                 href: reportesIndex(),
             },
             {
@@ -120,7 +126,8 @@
             },
             {
                 title: 'Salón de la Fama',
-                value: '🏆 Ranking',
+                value: 'Ranking',
+                icon: Trophy,
                 description: 'Líderes de la comunidad',
                 href: '/hall-of-fame',
             },
@@ -136,8 +143,6 @@
         description="Panel de control de la plataforma de divulgación coordinada"
     />
 
-    <RolesUsuario />
-
     <EstadoCuentaCard />
 
     {#if statCards.length > 0}
@@ -147,7 +152,10 @@
                 <Card class="h-full transition-colors hover:border-primary">
                     <CardHeader class="pb-2">
                         <CardDescription>{card.description}</CardDescription>
-                        <CardTitle class="text-2xl font-bold">
+                        <CardTitle class="flex items-center gap-2 text-2xl font-bold">
+                            {#if card.icon}
+                                <card.icon class="size-6 text-chart-4" aria-hidden="true" />
+                            {/if}
                             {card.value}
                         </CardTitle>
                     </CardHeader>
@@ -197,16 +205,6 @@
                     {/snippet}
                 </Button>
             </CardContent>
-        </Card>
-    {:else}
-        <Card>
-            <CardHeader>
-                <CardTitle>Vista de Investigador</CardTitle>
-                <CardDescription>
-                    Elige un programa, presenta tus hallazgos con su formulario
-                    y sigue el estado de cada informe desde aquí.
-                </CardDescription>
-            </CardHeader>
         </Card>
     {/if}
 

@@ -84,12 +84,22 @@
     } = $props();
 
     let emailHacker = $state('');
+    let errorInvitacion = $state('');
+    let invitando = $state(false);
 
     function invitarHacker() {
+        errorInvitacion = '';
+        invitando = true;
         router.post(`/programas/${programa.id}/invitaciones`, { email: emailHacker }, {
             preserveScroll: true,
             onSuccess: () => {
                 emailHacker = '';
+            },
+            onError: (errores) => {
+                errorInvitacion = errores.email ?? 'No se pudo enviar la invitación.';
+            },
+            onFinish: () => {
+                invitando = false;
             },
         });
     }
@@ -97,6 +107,13 @@
     function retirarHacker(userId: number, nombre: string) {
         if (!confirm(`¿Remover a ${nombre} de este programa privado?`)) return;
         router.delete(`/programas/${programa.id}/invitaciones/${userId}`, { preserveScroll: true });
+    }
+
+    // Texto del botón de cada transición: un verbo, no el nombre interno del estado.
+    function accionDeEstado(estado: string): string {
+        if (estado === 'activo') return programa.estado === 'en_pausa' ? 'Reanudar programa' : 'Publicar programa';
+
+        return ({ en_pausa: 'Pausar programa', archivado: 'Archivar programa', borrador: 'Volver a borrador' } as Record<string, string>)[estado] ?? estado;
     }
 
     function cambiarEstado(estado: string) {
@@ -180,12 +197,6 @@
             />
             <ProgramaStateBadge estado={programa.estado} />
         </div>
-        {#if puedeReportar}
-            <Button href={urlReportar}>
-                <Bug class="mr-2 h-4 w-4" />
-                Reportar un bug
-            </Button>
-        {/if}
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
@@ -312,8 +323,11 @@
                                 placeholder="Correo del investigador registrado..."
                                 required
                             />
-                            <Button type="submit">Invitar</Button>
+                            <Button type="submit" disabled={invitando}>Invitar</Button>
                         </form>
+                        {#if errorInvitacion}
+                            <p class="text-sm text-destructive" role="alert" data-test="error-invitacion">{errorInvitacion}</p>
+                        {/if}
                         {#if hackersInvitados.length === 0}
                             <p class="text-sm text-muted-foreground">Aún no has invitado a ningún investigador a este programa.</p>
                         {:else}
@@ -353,7 +367,7 @@
                     </CardContent>
                 </Card>
             {:else if suspension}
-                <Card class="border-rose-500/40">
+                <Card class="border-peligro/40">
                     <CardHeader>
                         <CardTitle>Tu cuenta está suspendida</CardTitle>
                         <CardDescription>
@@ -362,7 +376,7 @@
                     </CardHeader>
                 </Card>
             {:else if moderaEstePrograma}
-                <Card class="border-violet-500/40">
+                <Card class="border-especial/40">
                     <CardHeader>
                         <CardTitle>Moderas este programa</CardTitle>
                         <CardDescription>
@@ -372,7 +386,7 @@
                     </CardHeader>
                 </Card>
             {:else if esDeMiEmpresa}
-                <div data-test="aviso-mi-empresa"><Card class="border-sky-500/40">
+                <div data-test="aviso-mi-empresa"><Card class="border-info/40">
                     <CardHeader>
                         <CardTitle>Este programa es de tu empresa</CardTitle>
                         <CardDescription>
@@ -470,7 +484,7 @@
                                 disabled={estado === 'activo' && sinObjetivos}
                                 onclick={() => cambiarEstado(estado)}
                             >
-                                {estado === 'activo' ? 'Publicar programa' : `Cambiar a ${estado}`}
+                                {accionDeEstado(estado)}
                             </Button>
                         {/if}
                     {/each}

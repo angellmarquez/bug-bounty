@@ -20,6 +20,7 @@
 
 <Form method="post" action="/login" resetOnSuccess={['password']} class="flex flex-col gap-6">
     {#snippet children({ errors, processing })}
+        <input type="hidden" name="portal" value="empresa" />
         <div class="grid gap-6">
             <div class="grid gap-2">
                 <Label for="email">Correo del responsable</Label>

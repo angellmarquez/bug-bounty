@@ -165,7 +165,7 @@
     </div>
 
     {#if reporte.estado === 'needs_info'}
-        <div role="status" class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
+        <div role="status" class="rounded-lg border border-aviso/40 bg-aviso/10 p-4 text-sm text-aviso">
             <p class="font-semibold">Información adicional solicitada</p>
             <p class="mt-1 text-xs">
                 El equipo de moderación ha solicitado detalles o evidencias adicionales para continuar el triaje. Por favor edita el reporte y pulsa «Reenviar información».

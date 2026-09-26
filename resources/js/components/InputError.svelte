@@ -10,6 +10,6 @@
 
 {#if message}
     <div class={className}>
-        <p class="text-sm text-red-600 dark:text-red-500">{message}</p>
+        <p class="text-sm text-peligro">{message}</p>
     </div>
 {/if}

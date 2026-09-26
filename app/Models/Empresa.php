@@ -33,7 +33,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  * @property-read Collection<int, User> $usuarios
  * @property-read User|null $aprobador
- * @property-read Collection<int, EmpresaInvitacion> $invitaciones
  * @property-read ClavePgpEmpresa|null $clavePgp
  */
 #[Fillable(['razon_social', 'nombre_comercial', 'identificador_fiscal', 'slug', 'email', 'telefono', 'sitio_web', 'estado', 'motivo_estado', 'aprobado_por', 'aprobado_en'])]
@@ -82,12 +81,6 @@ class Empresa extends Model
     public function programas(): HasMany
     {
         return $this->hasMany(Programa::class);
-    }
-
-    /** @return HasMany<EmpresaInvitacion, $this> */
-    public function invitaciones(): HasMany
-    {
-        return $this->hasMany(EmpresaInvitacion::class);
     }
 
     /**

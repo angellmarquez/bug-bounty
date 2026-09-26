@@ -1,4 +1,6 @@
 <script lang="ts">
+    import Zap from '@lucide/svelte/icons/zap';
+    import Globe from '@lucide/svelte/icons/globe';
     import Plus from '@lucide/svelte/icons/plus';
     import Trash2 from '@lucide/svelte/icons/trash-2';
     import { Button } from '@/components/ui/button';
@@ -249,10 +251,10 @@
     <div class="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border p-2.5 bg-muted/20">
         <span class="text-xs font-medium text-muted-foreground">Plantillas rápidas:</span>
         <Button type="button" variant="secondary" size="sm" class="h-7 text-xs" onclick={cargarPlantillaWeb}>
-            🌐 Web Estándar (OWASP)
+            <Globe class="mr-1 size-3.5" /> Web Estándar (OWASP)
         </Button>
         <Button type="button" variant="secondary" size="sm" class="h-7 text-xs" onclick={cargarPlantillaApi}>
-            ⚡ API REST / Backend
+            <Zap class="mr-1 size-3.5" /> API REST / Backend
         </Button>
         {#if campos.length > 0}
             <Button type="button" variant="ghost" size="sm" class="h-7 text-xs text-muted-foreground ml-auto" onclick={() => (campos = [])}>

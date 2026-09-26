@@ -137,11 +137,6 @@
                 href: '/reputacion',
                 icon: Award,
             });
-            items.push({
-                title: 'Mis apelaciones',
-                href: '/reputacion/apelaciones',
-                icon: MessageSquare,
-            });
         }
 
 

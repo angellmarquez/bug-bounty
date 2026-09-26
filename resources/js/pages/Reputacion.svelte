@@ -150,7 +150,7 @@
             <Link
                 href={pestana.href}
                 class="-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors {seccion === pestana.id
-                    ? 'border-primary text-foreground'
+ ? 'border-primary text-foreground'
                     : 'border-transparent text-muted-foreground hover:text-foreground'}"
                 aria-current={seccion === pestana.id ? 'page' : undefined}
             >
@@ -243,7 +243,7 @@
                             </div>
                             <span
                                 class="text-sm font-semibold {entrada.puntos >= 0
-                                    ? 'text-emerald-600 dark:text-emerald-400'
+ ? 'text-exito '
                                     : 'text-destructive'}"
                             >
                                 {entrada.puntos > 0 ? '+' : ''}{entrada.puntos} pts

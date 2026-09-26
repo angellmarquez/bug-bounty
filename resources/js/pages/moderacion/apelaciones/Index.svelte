@@ -153,7 +153,7 @@
                             {#if apelacion.puede_resolver}
                                 <ResolverApelacionForm apelacionId={apelacion.id} />
                             {:else}
-                                <p class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs" data-test="bloqueo-resolver">
+                                <p class="rounded-md border border-aviso/40 bg-aviso/10 px-3 py-2 text-xs" data-test="bloqueo-resolver">
                                     {apelacion.motivo_bloqueo}
                                 </p>
                             {/if}

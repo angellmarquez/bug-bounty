@@ -56,7 +56,7 @@ export default async function globalSetup(): Promise<void> {
                 baseURL: `http://127.0.0.1:${puerto}`,
             });
             const page = await contexto.newPage();
-            await page.goto('/login');
+            await page.goto(rol === 'empresa' ? '/empresa/login' : '/login');
             await page
                 .getByLabel(/correo|email/i)
                 .first()

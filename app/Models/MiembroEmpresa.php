@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
  *
  * @property int $empresa_id
  * @property int $usuario_id
- * @property string $rol_interno `propietario` o `publicador`
+ * @property string $rol_interno `propietario`
  * @property string $estado
  * @property string|null $invitado_en
  * @property string|null $aceptado_en

@@ -12,7 +12,7 @@
 </script>
 
 <script lang="ts">
-    import { Link, router } from '@inertiajs/svelte';
+    import { Link, page, router } from '@inertiajs/svelte';
     import Search from '@lucide/svelte/icons/search';
     import Bug from '@lucide/svelte/icons/bug';
     import AppHead from '@/components/AppHead.svelte';
@@ -256,12 +256,13 @@
                                 {/if}
                             </div>
                             {#if reporte.programa}
-                                <p class="text-xs text-muted-foreground">
-                                    Programa: {reporte.programa.nombre}
+                                <p class="truncate text-xs text-muted-foreground">
+                                    {reporte.programa.nombre}
                                 </p>
                             {/if}
                             <div class="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>{reporte.investigador?.name ?? 'Desconocido'}</span>
+                                <!-- En tus propios informes no hace falta repetir tu nombre. -->
+                                <span>{reporte.investigador_id === page.props.auth?.user?.id ? '' : (reporte.investigador?.name ?? 'Autor anónimo')}</span>
                                 <span>{formatearFecha(reporte.enviado_en ?? reporte.created_at)}</span>
                             </div>
                         </CardContent>

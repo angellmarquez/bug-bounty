@@ -47,11 +47,11 @@
 <Card class="w-full">
     <CardHeader>
         <CardTitle class="flex gap-3">
-            <LockKeyhole class="size-4" />2FA recovery codes
+            <LockKeyhole class="size-4" />Códigos de recuperación
         </CardTitle>
         <CardDescription>
-            Recovery codes let you regain access if you lose your 2FA device.
-            Store them in a secure password manager.
+            Te permiten entrar si pierdes el teléfono. Guárdalos en un gestor
+            de contraseñas.
         </CardDescription>
     </CardHeader>
     <CardContent>
@@ -64,7 +64,7 @@
                 {:else}
                     <Eye class="size-4" />
                 {/if}
-                {isRecoveryCodesVisible ? 'Hide' : 'View'} recovery codes
+                {isRecoveryCodesVisible ? 'Ocultar' : 'Ver'} códigos de recuperación
             </Button>
 
             {#if isRecoveryCodesVisible && twoFactorAuth.state.recoveryCodesList.length}
@@ -79,7 +79,7 @@
                             type="submit"
                             disabled={processing}
                         >
-                            <RefreshCw class="size-4" /> Regenerate codes
+                            <RefreshCw class="size-4" /> Generar códigos nuevos
                         </Button>
                     {/snippet}
                 </Form>
@@ -115,9 +115,8 @@
                         {/if}
                     </div>
                     <p class="text-xs text-muted-foreground select-none">
-                        Each recovery code can be used once to access your
-                        account and will be removed after use. If you need more,
-                        click <span class="font-bold">Regenerate codes</span> above.
+                        Cada código sirve una sola vez y se elimina al usarlo. Si
+                        necesitas más, pulsa <span class="font-bold">Generar códigos nuevos</span>.
                     </p>
                 </div>
             {/if}

@@ -19,8 +19,10 @@
     class="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-16 text-center"
 >
     {#if icon}
+        <!-- En Svelte 5 un componente dinámico debe ir en mayúscula: `<icon>` sería una etiqueta HTML vacía. -->
+        {@const Icono = icon}
         <div class="mb-4 rounded-full bg-muted p-4">
-            <icon class="size-8 text-muted-foreground"></icon>
+            <Icono class="size-8 text-muted-foreground" />
         </div>
     {/if}
     <h3 class="mb-1 text-lg font-semibold">{title}</h3>
