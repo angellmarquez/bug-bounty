@@ -376,6 +376,76 @@ class Notificador
         });
     }
 
+    public function hackerInvitadoAPrograma(Programa $programa, User $investigador, User $invitador): void
+    {
+        $this->seguro(function () use ($programa, $investigador, $invitador): void {
+            $programa->loadMissing('empresa');
+            $empresa = $programa->empresa;
+            $empresaNombre = $empresa !== null
+                ? ($empresa->nombre_comercial ?? $empresa->razon_social)
+                : 'la empresa';
+
+            $this->enviar(
+                [$investigador],
+                new AvisoPlataforma(
+                    'invitacion',
+                    'Te invitaron a un programa privado de bug bounty',
+                    "{$invitador->name} ({$empresaNombre}) te invitó a participar en el programa privado «{$programa->nombre}».",
+                    '/invitaciones',
+                ),
+                $invitador,
+            );
+        });
+    }
+
+    public function invitacionProgramaRespondida(Programa $programa, User $investigador, bool $aceptada): void
+    {
+        $this->seguro(function () use ($programa, $investigador, $aceptada): void {
+            $programa->loadMissing('empresa');
+            $destinatarios = $this->propietarios($programa->empresa);
+            if ($destinatarios->isEmpty() && $programa->creado_por) {
+                $creador = User::query()->find($programa->creado_por);
+                if ($creador) {
+                    $destinatarios = collect([$creador]);
+                }
+            }
+
+            $resultado = $aceptada ? 'aceptó' : 'rechazó';
+
+            $this->enviar(
+                $destinatarios,
+                new AvisoPlataforma(
+                    'invitacion',
+                    "Invitación {$resultado} al programa",
+                    "{$investigador->name} {$resultado} la invitación al programa privado «{$programa->nombre}».",
+                    "/programas/{$programa->id}",
+                ),
+                $investigador,
+            );
+        });
+    }
+
+    public function invitacionProgramaCancelada(Programa $programa, User $investigador): void
+    {
+        $this->seguro(function () use ($programa, $investigador): void {
+            $programa->loadMissing('empresa');
+            $empresa = $programa->empresa;
+            $empresaNombre = $empresa !== null
+                ? ($empresa->nombre_comercial ?? $empresa->razon_social)
+                : 'La empresa';
+
+            $this->enviar(
+                [$investigador],
+                new AvisoPlataforma(
+                    'invitacion',
+                    'Acceso a programa privado retirado',
+                    "{$empresaNombre} retiró tu invitación al programa «{$programa->nombre}».",
+                    '/invitaciones',
+                ),
+            );
+        });
+    }
+
     public function miembroRetirado(User $miembro, Empresa $empresa): void
     {
         $this->seguro(function () use ($miembro, $empresa): void {

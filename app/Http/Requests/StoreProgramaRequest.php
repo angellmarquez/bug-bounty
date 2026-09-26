@@ -16,6 +16,13 @@ class StoreProgramaRequest extends FormRequest
         return Gate::allows('abac', [AccionesAbac::ProgramaCrear]);
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'es_publico' => $this->has('es_publico') ? $this->boolean('es_publico') : true,
+        ]);
+    }
+
     /**
      * @return array<string, array<int, string|ValidationRule>>
      */
