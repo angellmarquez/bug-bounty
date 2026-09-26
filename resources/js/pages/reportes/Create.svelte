@@ -67,6 +67,7 @@
     // Una suspensión vigente impide enviar informes: se avisa antes de que rellene todo el formulario.
     const suspension = $derived((page.props.cuenta as CuentaEstado | null | undefined)?.suspension ?? null);
 
+    // svelte-ignore state_referenced_locally
     let formulario = $state({
         programa_id: programaInicial?.id ? String(programaInicial.id) : '',
         titulo: '',
@@ -78,6 +79,7 @@
         poc: {} as Record<string, unknown>,
     });
 
+    // svelte-ignore state_referenced_locally
     const schemaInicial = schemaEfectivo(
         programas.find((p) => String(p.id) === formulario.programa_id)?.poc_schema,
     );

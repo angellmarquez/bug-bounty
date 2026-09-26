@@ -62,6 +62,7 @@
     const esEnviado = $derived(reporte.estado === 'enviado');
     const maxPaso = $derived(esEnviado ? 3 : 4);
 
+    // svelte-ignore state_referenced_locally
     let formulario = $state({
         titulo: reporte.titulo,
         descripcion: reporte.descripcion,

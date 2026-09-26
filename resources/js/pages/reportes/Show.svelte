@@ -143,7 +143,7 @@
         <div class="flex items-center gap-4">
             <BotonVolver href={destinoVolver.href} etiqueta={destinoVolver.etiqueta} />
             <PageHeader
-                title="{reporte.numero_reporte}"
+                title={reporte.numero_reporte}
                 description={reporte.titulo}
             />
         </div>
