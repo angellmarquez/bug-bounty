@@ -66,7 +66,8 @@ export default async function globalSetup(): Promise<void> {
                 .first()
                 .fill('password');
             await page.locator('form button[type="submit"]').first().click();
-            await page.waitForURL((url) => !url.pathname.startsWith('/login'), {
+            // /empresa/login no empieza por /login: se espera a salir de cualquier pantalla de acceso.
+            await page.waitForURL((url) => !url.pathname.includes('/login'), {
                 timeout: 20_000,
             });
             await contexto.storageState({ path: rutaEstado(rol) });

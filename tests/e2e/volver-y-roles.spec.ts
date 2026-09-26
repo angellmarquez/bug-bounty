@@ -74,7 +74,7 @@ test.describe('marca de moderador', () => {
             await expect(
                 page
                     .locator(
-                        '[data-test="roles-usuario"] [data-rol="moderador"]',
+                        '[data-test="estado-cuenta-badges"] [data-rol="moderador"]',
                     )
                     .first(),
             ).toBeVisible();
@@ -104,7 +104,7 @@ test.describe('marca de moderador', () => {
         await expect(
             page
                 .locator(
-                    '[data-test="roles-usuario"] [data-rol="investigador"]',
+                    '[data-test="estado-cuenta-badges"] [data-rol="investigador"]',
                 )
                 .first(),
         ).toBeVisible();
@@ -149,7 +149,7 @@ test('si una página falla, el menú y la cabecera siguen funcionando y se puede
     await page.waitForURL((url) => url.pathname === '/dashboard');
     await expect(page.locator('[data-test="error-de-pagina"]')).toHaveCount(0);
     await expect(
-        page.locator('[data-test="roles-usuario"]').first(),
+        page.locator('[data-test="estado-cuenta-badges"]').first(),
     ).toBeVisible();
 
     // El fallo simulado sí se registra en consola, pero no rompe la aplicación.
