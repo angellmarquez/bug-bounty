@@ -286,13 +286,7 @@ class Programa extends Model
             });
         }
 
-        // Un publicador gestiona los programas de su empresa.
-        $empresaId = $user->idEmpresaActiva();
-
-        if ($empresaId !== null) {
-            return $query->where('empresa_id', $empresaId);
-        }
-
-        return $query->where('creado_por', $user->id);
+        // Ni investigadores ni moderadores gestionan programas.
+        return $query->whereRaw('1 = 0');
     }
 }

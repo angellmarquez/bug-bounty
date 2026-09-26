@@ -4,7 +4,6 @@
         AvatarFallback,
         AvatarImage,
     } from '@/components/ui/avatar';
-    import RolesUsuario from '@/components/RolesUsuario.svelte';
     import { getInitials } from '@/lib/initials';
     import type { User } from '@/types';
 
@@ -32,6 +31,5 @@
     <span class="truncate font-medium">{user.name}</span>
     {#if showEmail}
         <span class="truncate text-xs text-muted-foreground">{user.email}</span>
-        <RolesUsuario class="mt-1" />
     {/if}
 </div>

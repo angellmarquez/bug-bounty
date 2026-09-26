@@ -55,6 +55,7 @@ class EmpresaAuthController extends Controller
             'empresa_email' => ['required', 'email:rfc,strict', 'max:255'],
             'telefono' => ['nullable', 'string', 'max:30', 'regex:/^\+?[0-9 ()\-]{6,30}$/'],
             'sitio_web' => ['nullable', 'url:http,https', 'max:255'],
+            'terminos' => ['accepted'],
         ], [
             ...$this->profileMessages(),
             'razon_social.regex' => 'La razón social solo puede tener letras, números, espacios y . , & \' - ( ).',
@@ -62,6 +63,7 @@ class EmpresaAuthController extends Controller
             'identificador_fiscal.regex' => 'El identificador fiscal solo puede tener letras, números, puntos, guiones y barras.',
             'telefono.regex' => 'El teléfono solo puede tener números, espacios, paréntesis, guiones y un + inicial.',
             'sitio_web.url' => 'El sitio web debe ser una dirección http:// o https:// válida.',
+            'terminos.accepted' => 'Para registrar la empresa debes aceptar los Términos de Servicio, la Política de Privacidad y la Política de Divulgación.',
         ])->validate();
 
         $user = DB::transaction(function () use ($validated): User {
@@ -79,6 +81,8 @@ class EmpresaAuthController extends Controller
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => $validated['password'],
+                'terminos_aceptados_en' => now(),
+                'terminos_version' => config('legal.version'),
             ]);
 
             $rolEmpresa = Rol::firstOrCreate(

@@ -30,7 +30,7 @@
         {/if}
 
         {#if cuenta.suspension}
-            <span class="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-800 dark:text-rose-300">
+            <span class="inline-flex items-center gap-1 rounded-md border border-peligro/40 bg-peligro/15 px-2 py-0.5 text-xs font-semibold text-peligro">
                 <Ban class="size-3" aria-hidden="true" />
                 Suspendido
             </span>

@@ -205,7 +205,7 @@ class ProgramaController extends Controller
         $validated['nivel_acceso'] ??= 'bajo';
         $validated['poc_schema'] = $this->normalizarPocSchema($validated['poc_schema'] ?? null);
 
-        // El programa siempre se crea para la empresa del publicador/propietario que lo pide:
+        // El programa siempre se crea para la empresa del propietario que lo pide:
         // nadie elige la empresa por otro (ver ABAC: crear/editar/publicar es cosa de la empresa dueña).
         unset($validated['empresa_id']);
 
@@ -438,6 +438,7 @@ class ProgramaController extends Controller
 
         $roles = $user->roles->pluck('slug')->toArray();
         $isAdmin = in_array('administrador', $roles);
+        abort_unless($isAdmin || in_array('empresa', $roles), 403, 'Solo las empresas gestionan programas.');
 
         $query = Programa::query()->with(['creador', 'objetivos'])
             ->gestionablesPor($user);

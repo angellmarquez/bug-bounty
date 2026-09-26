@@ -1,4 +1,6 @@
 <script lang="ts">
+    // Logo de Huella: una huella dactilar cuyas crestas son "líneas de código"
+    // (trazos cortados como tokens). Usa currentColor para seguir al tema.
     let {
         class: className = '',
         ...rest
@@ -10,14 +12,18 @@
 
 <svg
     xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 40 42"
+    viewBox="0 0 32 32"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.2"
+    stroke-linecap="round"
     class={className}
+    aria-hidden="true"
     {...rest}
 >
-    <path
-        fill="currentColor"
-        fill-rule="evenodd"
-        clip-rule="evenodd"
-        d="M17.2 5.633 8.6.855 0 5.633v26.51l16.2 9 16.2-9v-8.442l7.6-4.223V9.856l-8.6-4.777-8.6 4.777V18.3l-5.6 3.111V5.633ZM38 18.301l-5.6 3.11v-6.157l5.6-3.11V18.3Zm-1.06-7.856-5.54 3.078-5.54-3.079 5.54-3.078 5.54 3.079ZM24.8 18.3v-6.157l5.6 3.111v6.158L24.8 18.3Zm-1 1.732 5.54 3.078-13.14 7.302-5.54-3.078 13.14-7.3v-.002Zm-16.2 7.89 7.6 4.222V38.3L2 30.966V7.92l5.6 3.111v16.892ZM8.6 9.3 3.06 6.222 8.6 3.143l5.54 3.08L8.6 9.3Zm21.8 15.51-13.2 7.334V38.3l13.2-7.334v-6.156ZM9.6 11.034l5.6-3.11v14.6l-5.6 3.11v-14.6Z"
-    />
+    <path d="M6.2 23.4A11 11 0 0 1 5 16 11 11 0 0 1 16 5c4.3 0 8 2.5 9.8 6.1" stroke-dasharray="6 2.6 11 2.6 4 2.6 30" />
+    <path d="M27 16.4c0 3.2-.6 6.3-1.8 9.1" stroke-dasharray="3.5 2.6 20" />
+    <path d="M9.6 26.2A21 21 0 0 1 8 16a8 8 0 0 1 16 0c0 2.8-.3 5.5-.9 7.9" stroke-dasharray="3 2.6 9 2.6 7 2.6 6 2.6 30" />
+    <path d="M13 28.2A30 30 0 0 1 11 16a5 5 0 0 1 10 0c0 4.3-.6 8.1-1.8 11.4" stroke-dasharray="8 2.6 3 2.6 10 2.6 30" />
+    <path d="M16 16c0 5-.8 9.4-2.3 12.9" stroke-dasharray="5 2.6 20" />
 </svg>

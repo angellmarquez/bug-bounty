@@ -109,7 +109,7 @@
                 href="/hall-of-fame?periodo=historico"
             >
                 <Trophy class="mr-1.5 size-3.5" />
-                Histórico (All-time)
+                Histórico
             </Button>
             <Button
                 variant={periodo === 'anual' ? 'default' : 'outline'}
@@ -150,12 +150,12 @@
         <div class="grid gap-4 md:grid-cols-3 md:items-end">
             <!-- 2do Lugar (Plata) -->
             {#if segundo}
-                <Card class="relative border-slate-400/40 bg-gradient-to-t from-slate-900/30 to-transparent order-2 md:order-1">
-                    <div class="absolute -top-3 left-4 flex size-7 items-center justify-center rounded-full bg-slate-300 font-bold text-slate-900 shadow">
-                        🥈
+                <Card class="relative border-border/40 bg-gradient-to-t from-muted/30 to-transparent order-2 md:order-1">
+                    <div class="absolute -top-3 left-4 flex size-7 items-center justify-center rounded-full bg-muted-foreground font-bold text-background shadow">
+                        <Medal class="size-4" aria-label="Segundo puesto" />
                     </div>
                     <CardHeader class="pt-6 text-center">
-                        <div class="mx-auto flex size-12 items-center justify-center rounded-full border border-slate-400/50 bg-slate-800 text-sm font-bold text-slate-200">
+                        <div class="mx-auto flex size-12 items-center justify-center rounded-full border border-border/50 bg-muted text-sm font-bold text-foreground">
                             {iniciales(segundo.name)}
                         </div>
                         <CardTitle class="mt-2 text-lg">{segundo.name}</CardTitle>
@@ -164,7 +164,7 @@
                         </div>
                     </CardHeader>
                     <CardContent class="text-center space-y-2">
-                        <div class="text-2xl font-black text-slate-200">{segundo.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
+                        <div class="text-2xl font-black text-foreground">{segundo.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
                         <p class="text-xs text-muted-foreground">{segundo.reportes_resueltos} vulnerabilidades resueltas</p>
                         <div class="flex justify-center gap-1.5 pt-1 text-[11px]">
                             {#if segundo.severidades.critica > 0}
@@ -180,13 +180,13 @@
 
             <!-- 1er Lugar (Oro) -->
             {#if primero}
-                <Card class="relative border-amber-400/60 bg-gradient-to-t from-amber-950/20 to-transparent shadow-lg shadow-amber-500/5 order-1 md:order-2 md:-translate-y-2">
-                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-400 px-3 py-0.5 text-xs font-bold text-amber-950 shadow-md">
+                <Card class="relative border-aviso/60 bg-gradient-to-t from-aviso/20 to-transparent shadow-lg shadow-aviso/10 order-1 md:order-2 md:-translate-y-2">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full border border-aviso/60 bg-aviso px-3 py-0.5 text-xs font-bold text-background shadow-md">
                         <Crown class="size-3.5 fill-current" />
                         CAMPEÓN
                     </div>
                     <CardHeader class="pt-7 text-center">
-                        <div class="mx-auto flex size-16 items-center justify-center rounded-full border-2 border-amber-400 bg-amber-950/50 text-base font-black text-amber-300 shadow">
+                        <div class="mx-auto flex size-16 items-center justify-center rounded-full border-2 border-aviso bg-aviso/15 text-base font-black text-aviso shadow">
                             {iniciales(primero.name)}
                         </div>
                         <CardTitle class="mt-2 text-xl font-bold">{primero.name}</CardTitle>
@@ -195,7 +195,7 @@
                         </div>
                     </CardHeader>
                     <CardContent class="text-center space-y-2">
-                        <div class="text-3xl font-black text-amber-400">{primero.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
+                        <div class="text-3xl font-black text-aviso">{primero.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
                         <p class="text-xs text-muted-foreground">{primero.reportes_resueltos} vulnerabilidades resueltas</p>
                         <div class="flex justify-center gap-1.5 pt-1 text-[11px]">
                             {#if primero.severidades.critica > 0}
@@ -214,12 +214,12 @@
 
             <!-- 3er Lugar (Bronce) -->
             {#if tercero}
-                <Card class="relative border-orange-700/40 bg-gradient-to-t from-orange-950/20 to-transparent order-3">
-                    <div class="absolute -top-3 left-4 flex size-7 items-center justify-center rounded-full bg-amber-700 font-bold text-amber-100 shadow">
-                        🥉
+                <Card class="relative border-aviso/40 bg-gradient-to-t from-aviso/20 to-transparent order-3">
+                    <div class="absolute -top-3 left-4 flex size-7 items-center justify-center rounded-full bg-aviso font-bold text-background shadow">
+                        <Medal class="size-4" aria-label="Tercer puesto" />
                     </div>
                     <CardHeader class="pt-6 text-center">
-                        <div class="mx-auto flex size-12 items-center justify-center rounded-full border border-amber-700/50 bg-amber-950 text-sm font-bold text-amber-200">
+                        <div class="mx-auto flex size-12 items-center justify-center rounded-full border border-aviso/50 bg-aviso/15 text-sm font-bold text-aviso">
                             {iniciales(tercero.name)}
                         </div>
                         <CardTitle class="mt-2 text-lg">{tercero.name}</CardTitle>
@@ -228,7 +228,7 @@
                         </div>
                     </CardHeader>
                     <CardContent class="text-center space-y-2">
-                        <div class="text-2xl font-black text-amber-600">{tercero.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
+                        <div class="text-2xl font-black text-aviso">{tercero.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
                         <p class="text-xs text-muted-foreground">{tercero.reportes_resueltos} vulnerabilidades resueltas</p>
                         <div class="flex justify-center gap-1.5 pt-1 text-[11px]">
                             {#if tercero.severidades.critica > 0}

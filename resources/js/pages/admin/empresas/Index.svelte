@@ -56,7 +56,7 @@
     <PageHeader title="Empresas" description={`${empresasData.total} empresa${empresasData.total === 1 ? '' : 's'} registrada${empresasData.total === 1 ? '' : 's'}`} />
 
     <Card>
-        <CardContent class="pt-6">
+        <CardContent>
             <div class="relative max-w-xl">
                 <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input bind:value={busqueda} onkeydown={(event) => event.key === 'Enter' && buscar()} placeholder="Buscar por empresa o identificador fiscal" class="pl-9" />

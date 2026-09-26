@@ -12,7 +12,7 @@
 </script>
 
 <script lang="ts">
-    import { Link, router } from '@inertiajs/svelte';
+    import { Link, page, router } from '@inertiajs/svelte';
     import Search from '@lucide/svelte/icons/search';
     import Bug from '@lucide/svelte/icons/bug';
     import AppHead from '@/components/AppHead.svelte';
@@ -145,7 +145,7 @@
     />
 
     <Card>
-        <CardContent class="pt-6">
+        <CardContent>
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div class="relative flex-1">
                     <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -163,7 +163,7 @@
                     onValueChange={(v) => aplicarFiltro('estado', v)}
                     items={ESTADOS_FILTRO}
                 >
-                    <SelectTrigger class="w-full sm:w-[180px]">
+                    <SelectTrigger class="w-full sm:w-auto sm:min-w-[180px]">
                         <SelectValue placeholder="Estado" />
                     </SelectTrigger>
                     <SelectContent>
@@ -180,7 +180,7 @@
                     onValueChange={(v) => aplicarFiltro('severidad', v)}
                     items={SEVERIDADES_FILTRO}
                 >
-                    <SelectTrigger class="w-full sm:w-[180px]">
+                    <SelectTrigger class="w-full sm:w-auto sm:min-w-[180px]">
                         <SelectValue placeholder="Severidad" />
                     </SelectTrigger>
                     <SelectContent>
@@ -198,7 +198,7 @@
                         onValueChange={(v) => aplicarFiltro('programa_id', v)}
                         items={[{ value: 'todos', label: 'Todos los programas' }, ...programas.map((p) => ({ value: String(p.id), label: p.nombre }))]}
                     >
-                        <SelectTrigger class="w-full sm:w-[200px]">
+                        <SelectTrigger class="w-full sm:w-auto sm:min-w-[200px]">
                             <SelectValue placeholder="Programa" />
                         </SelectTrigger>
                         <SelectContent>
@@ -256,12 +256,13 @@
                                 {/if}
                             </div>
                             {#if reporte.programa}
-                                <p class="text-xs text-muted-foreground">
-                                    Programa: {reporte.programa.nombre}
+                                <p class="truncate text-xs text-muted-foreground">
+                                    {reporte.programa.nombre}
                                 </p>
                             {/if}
                             <div class="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>{reporte.investigador?.name ?? 'Desconocido'}</span>
+                                <!-- En tus propios informes no hace falta repetir tu nombre. -->
+                                <span>{reporte.investigador_id === page.props.auth?.user?.id ? '' : (reporte.investigador?.name ?? 'Autor anónimo')}</span>
                                 <span>{formatearFecha(reporte.enviado_en ?? reporte.created_at)}</span>
                             </div>
                         </CardContent>

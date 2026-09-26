@@ -83,7 +83,7 @@
         {#snippet children({ errors, processing })}
             {@const errorObjetivos = Object.entries(errors).find(([clave]) => clave === 'objetivos' || clave.startsWith('objetivos.'))?.[1]}
             <Card>
-                <CardContent class="pt-6 space-y-4">
+                <CardContent class="space-y-4">
                     <div class="space-y-2">
                         <Label for="nombre">Nombre *</Label>
                         <Input
@@ -217,7 +217,7 @@
             </Card>
 
             <Card>
-                <CardContent class="pt-6 space-y-4">
+                <CardContent class="space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 class="text-sm font-semibold">Objetivos *</h3>
@@ -288,7 +288,7 @@
             </Card>
 
             <Card>
-                <CardContent class="pt-6">
+                <CardContent>
                     <PocSchemaEditor schema={programa.poc_schema ?? []} {errors} />
                 </CardContent>
             </Card>

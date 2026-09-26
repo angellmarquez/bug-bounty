@@ -21,6 +21,7 @@ test('un investigador recien registrado ve el programa, reporta y sigue su infor
         'email' => 'nuevo@example.com',
         'password' => 'Clave-Segura-2026',
         'password_confirmation' => 'Clave-Segura-2026',
+        'terminos' => '1',
     ])->assertRedirect();
 
     $this->get(route('programas.index'))

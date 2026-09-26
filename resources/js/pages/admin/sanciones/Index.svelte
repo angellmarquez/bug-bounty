@@ -130,7 +130,7 @@
     />
 
     <Card>
-        <CardContent class="pt-6">
+        <CardContent>
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <Select
                     value={filtros.estado ?? 'todos'}

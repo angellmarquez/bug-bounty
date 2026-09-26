@@ -3,12 +3,16 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
+use App\Models\Auditoria;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Fortify\Fortify;
 
@@ -38,6 +42,33 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureActions(): void
     {
         Fortify::createUsersUsing(CreateNewUser::class);
+
+        // Dos accesos separados: las empresas entran por /empresa/login y el resto
+        // (investigadores, moderadores, administración) por /login. Cada formulario
+        // envía `portal`; una cuenta que llega por el acceso equivocado no entra.
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $email = mb_strtolower(trim((string) $request->input(Fortify::username())));
+            $user = User::query()->whereRaw('lower(email) = ?', [$email])->first();
+
+            if ($user === null || ! Hash::check((string) $request->input('password'), $user->password)) {
+                return null;
+            }
+
+            $esEmpresa = $user->tieneRol('empresa');
+            $portalEmpresa = $request->input('portal') === 'empresa';
+
+            if ($portalEmpresa !== $esEmpresa) {
+                Auditoria::registrar('auth.portal_incorrecto', $user, ['portal' => $portalEmpresa ? 'empresa' : 'plataforma'], $user->id);
+
+                throw ValidationException::withMessages([
+                    Fortify::username() => $esEmpresa
+                        ? 'Esta es una cuenta de empresa: inicia sesión desde el acceso para empresas.'
+                        : 'Esta cuenta no es de empresa: inicia sesión desde el acceso para investigadores.',
+                ]);
+            }
+
+            return $user;
+        });
     }
 
     /**

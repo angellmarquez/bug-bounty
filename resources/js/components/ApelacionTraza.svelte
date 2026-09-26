@@ -16,9 +16,9 @@
     } = $props();
 
     const TIPOS: Record<string, { etiqueta: string; clase: string }> = {
-        presentada: { etiqueta: 'Apelación presentada', clase: 'bg-amber-500' },
-        aprobada: { etiqueta: 'Apelación aprobada', clase: 'bg-emerald-500' },
-        rechazada: { etiqueta: 'Apelación rechazada', clase: 'bg-red-500' },
+        presentada: { etiqueta: 'Apelación presentada', clase: 'bg-aviso' },
+        aprobada: { etiqueta: 'Apelación aprobada', clase: 'bg-exito' },
+        rechazada: { etiqueta: 'Apelación rechazada', clase: 'bg-peligro' },
     };
 
     const ROLES: Record<string, string> = {
@@ -49,16 +49,16 @@
 <div class="space-y-4" data-test="traza">
     <div
         class="flex items-center gap-2 rounded-md border px-3 py-2 text-sm {cadenaValida
-            ? 'border-emerald-500/40 bg-emerald-500/10'
-            : 'border-red-500/40 bg-red-500/10'}"
+ ? 'border-exito/40 bg-exito/10'
+            : 'border-peligro/40 bg-peligro/10'}"
         data-test={cadenaValida ? 'cadena-valida' : 'cadena-alterada'}
         role={cadenaValida ? undefined : 'alert'}
     >
         {#if cadenaValida}
-            <ShieldCheck class="h-4 w-4 text-emerald-600" />
+            <ShieldCheck class="h-4 w-4 text-exito" />
             <span>Registro íntegro: las huellas de cada paso coinciden, nada fue alterado.</span>
         {:else}
-            <ShieldAlert class="h-4 w-4 text-red-600" />
+            <ShieldAlert class="h-4 w-4 text-peligro" />
             <span>Atención: las huellas no coinciden, este registro fue modificado.</span>
         {/if}
     </div>
@@ -66,7 +66,7 @@
     <ol class="relative space-y-5 border-l border-border pl-6">
         {#each eventos as paso (paso.id)}
             <li class="relative" data-test="paso-traza">
-                <span class="absolute -left-[31px] top-1 h-3 w-3 rounded-full {TIPOS[paso.tipo]?.clase ?? 'bg-slate-400'}"></span>
+                <span class="absolute -left-[31px] top-1 h-3 w-3 rounded-full {TIPOS[paso.tipo]?.clase ?? 'bg-muted'}"></span>
                 <p class="text-sm font-medium">{TIPOS[paso.tipo]?.etiqueta ?? paso.tipo}</p>
                 <p class="text-xs text-muted-foreground">
                     <span data-test="paso-actor">{quien(paso)}</span> · {fecha(paso.created_at)}
@@ -75,7 +75,7 @@
                     <p class="mt-1 whitespace-pre-wrap rounded-md bg-muted/50 px-3 py-2 text-sm">{paso.nota}</p>
                 {/if}
                 {#if completa && paso.datos?.mismo_que_sanciono}
-                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                    <p class="mt-1 text-xs text-aviso">
                         Quien resolvió es quien aplicó la sanción (administrador).
                     </p>
                 {/if}

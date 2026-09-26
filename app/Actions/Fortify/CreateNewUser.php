@@ -29,13 +29,19 @@ class CreateNewUser implements CreatesNewUsers
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
-        ], $this->profileMessages())->validate();
+            'terminos' => ['accepted'],
+        ], [
+            ...$this->profileMessages(),
+            'terminos.accepted' => 'Para crear la cuenta debes aceptar los Términos de Servicio y la Política de Privacidad.',
+        ])->validate();
 
         return DB::transaction(function () use ($input) {
             $user = User::create([
                 'name' => $input['name'],
                 'email' => $input['email'],
                 'password' => $input['password'],
+                'terminos_aceptados_en' => now(),
+                'terminos_version' => config('legal.version'),
             ]);
 
             $rolInvestigador = Rol::firstOrCreate(

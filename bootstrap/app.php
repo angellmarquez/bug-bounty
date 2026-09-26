@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // proxy, así que confiar en todos ("*") es seguro acá.
         $middleware->trustProxies(at: '*');
 
-        $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->encryptCookies(except: ['appearance', 'tema', 'sidebar_state']);
 
         $middleware->alias([
             'abac' => AbacMiddleware::class,

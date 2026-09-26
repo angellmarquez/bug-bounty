@@ -72,12 +72,10 @@ test('un 403 escrito con abort() muestra su mensaje en espanol al usuario', func
             ->where('mensaje', 'Tu empresa todavía no tiene acceso operativo.'));
 });
 
-test('un publicador que abre el area del propietario ve el 403 de la aplicacion', function () {
-    $publicador = publicadorDeEmpresa(Empresa::factory()->aprobada()->create());
-
-    $this->actingAs($publicador)->get('/empresa/reportes')
+test('un investigador que abre la gestion de programas ve el 403 de la aplicacion', function () {
+    $this->actingAs(investigador())->get('/gestion/programas')
         ->assertForbidden()
-        ->assertInertia(fn ($page) => $page->component('Error')->where('status', 403)->where('mensaje', 'Solo el propietario de la empresa ve los informes que recibe.'));
+        ->assertInertia(fn ($page) => $page->component('Error')->where('status', 403)->where('mensaje', 'Solo las empresas gestionan programas.'));
 });
 
 test('un 403 generico de abort() no enseña el texto en ingles', function () {

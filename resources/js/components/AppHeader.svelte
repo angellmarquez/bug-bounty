@@ -67,7 +67,7 @@
     const url = currentUrlState();
 
     const activeItemStyles =
-        'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
+        'text-muted-foreground  ';
 
     const mainNavItems = $derived.by(() => {
         const items: NavItem[] = [
@@ -163,7 +163,7 @@
                         <SheetTitle class="sr-only">Navigation menu</SheetTitle>
                         <SheetHeader class="flex justify-start text-left">
                             <AppLogoIcon
-                                class="size-6 fill-current text-black dark:text-white"
+                                class="size-6 text-black dark:text-white"
                             />
                         </SheetHeader>
                         <div
@@ -174,7 +174,7 @@
                                     <Link
                                         href={toUrl(item.href)}
                                         class="flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent {url.whenCurrentUrl(
-                                            item.href,
+ item.href,
                                             url.currentUrl,
                                             activeItemStyles,
                                             '',
@@ -223,7 +223,7 @@
                             >
                                 <Link
                                     class="{navigationMenuTriggerStyle()} {url.whenCurrentUrl(
-                                        item.href,
+ item.href,
                                         url.currentUrl,
                                         activeItemStyles,
                                         '',
@@ -310,7 +310,7 @@
                                         />
                                     {/if}
                                     <AvatarFallback
-                                        class="rounded-lg bg-neutral-200 font-semibold text-black dark:bg-neutral-700 dark:text-white"
+                                        class="rounded-lg bg-muted font-semibold text-black dark:text-white"
                                     >
                                         {getInitials(auth.user?.name ?? '')}
                                     </AvatarFallback>
@@ -331,7 +331,7 @@
     {#if breadcrumbs.length > 1}
         <div class="flex w-full border-b border-sidebar-border/70">
             <div
-                class="mx-auto flex h-12 w-full items-center justify-start px-4 text-neutral-500 md:max-w-7xl"
+                class="mx-auto flex h-12 w-full items-center justify-start px-4 text-muted-foreground md:max-w-7xl"
             >
                 <Breadcrumbs {breadcrumbs} />
             </div>

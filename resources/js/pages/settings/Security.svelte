@@ -4,7 +4,7 @@
     export const layout = {
         breadcrumbs: [
             {
-                title: 'Security settings',
+                title: 'Seguridad',
                 href: edit(),
             },
         ],
@@ -24,9 +24,9 @@
     const twoFactorEnabled = $derived(Boolean(page.props.twoFactorEnabled));
 </script>
 
-<AppHead title="Security settings" />
+<AppHead title="Seguridad" />
 
-<h1 class="sr-only">Security settings</h1>
+<h1 class="sr-only">Seguridad</h1>
 
 <ManageTwoFactor
     {canManageTwoFactor}

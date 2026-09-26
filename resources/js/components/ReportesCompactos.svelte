@@ -81,6 +81,7 @@
                 <div class="flex flex-wrap gap-1 md:justify-end">
                     <Button
                         size="sm"
+                        class="whitespace-nowrap"
                         variant={destacar(reporte) ? 'default' : 'outline'}
                         href={`/reportes/${reporte.id}`}
                     >

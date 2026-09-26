@@ -6,7 +6,6 @@ use App\Enums\TipoEventoReporte;
 use App\Models\Apelacion;
 use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
-use App\Models\EmpresaInvitacion;
 use App\Models\EventoReporte;
 use App\Models\Programa;
 use App\Models\Reporte;
@@ -332,49 +331,8 @@ class Notificador
     }
 
     // ------------------------------------------------------------------
-    // Invitaciones a una empresa
+    // Invitaciones a programas privados
     // ------------------------------------------------------------------
-
-    public function invitacionRecibida(EmpresaInvitacion $invitacion): void
-    {
-        $this->seguro(function () use ($invitacion): void {
-            $invitacion->loadMissing(['empresa', 'invitadoPor', 'usuario']);
-            $nombre = $invitacion->empresa->nombre_comercial ?? $invitacion->empresa->razon_social;
-
-            $this->enviar(
-                [$invitacion->usuario],
-                new AvisoPlataforma(
-                    'invitacion',
-                    'Te invitaron a formar parte de una empresa',
-                    "{$invitacion->invitadoPor->name} te invita a publicar programas de {$nombre}. Míralo y decide si aceptas.",
-                    '/invitaciones',
-                ),
-            );
-        });
-    }
-
-    public function invitacionRespondida(EmpresaInvitacion $invitacion, bool $aceptada): void
-    {
-        $this->seguro(function () use ($invitacion, $aceptada): void {
-            $invitacion->loadMissing(['empresa', 'usuario']);
-            $resultado = $aceptada ? 'aceptó' : 'rechazó';
-
-            $this->enviar(
-                $this->propietarios($invitacion->empresa),
-                new AvisoPlataforma('invitacion', "{$invitacion->usuario->name} {$resultado} tu invitación", $aceptada ? 'Ya puede publicar programas de tu empresa.' : 'La invitación quedó cerrada.', '/empresa'),
-            );
-        });
-    }
-
-    public function invitacionCancelada(EmpresaInvitacion $invitacion): void
-    {
-        $this->seguro(function () use ($invitacion): void {
-            $invitacion->loadMissing(['empresa', 'usuario']);
-            $nombre = $invitacion->empresa->nombre_comercial ?? $invitacion->empresa->razon_social;
-
-            $this->enviar([$invitacion->usuario], new AvisoPlataforma('invitacion', 'Se canceló una invitación', "{$nombre} retiró su invitación.", '/invitaciones'));
-        });
-    }
 
     public function hackerInvitadoAPrograma(Programa $programa, User $investigador, User $invitador): void
     {
@@ -443,15 +401,6 @@ class Notificador
                     '/invitaciones',
                 ),
             );
-        });
-    }
-
-    public function miembroRetirado(User $miembro, Empresa $empresa): void
-    {
-        $this->seguro(function () use ($miembro, $empresa): void {
-            $nombre = $empresa->nombre_comercial ?? $empresa->razon_social;
-
-            $this->enviar([$miembro], new AvisoPlataforma('invitacion', 'Ya no formas parte de una empresa', "{$nombre} te retiró. Ya puedes reportar a sus programas.", '/dashboard'));
         });
     }
 

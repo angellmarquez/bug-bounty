@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\AparienciaController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Auth\Middleware\RequirePassword;
@@ -20,4 +21,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('security.edit');
 
     Route::inertia('settings/appearance', 'settings/Appearance')->name('appearance.edit');
+    Route::put('settings/appearance', [AparienciaController::class, 'update'])->name('appearance.update');
 });

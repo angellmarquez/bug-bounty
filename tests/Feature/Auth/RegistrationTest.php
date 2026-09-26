@@ -20,6 +20,7 @@ test('new users can register', function () {
         'email' => 'test@example.com',
         'password' => 'Clave-Segura-2026',
         'password_confirmation' => 'Clave-Segura-2026',
+        'terminos' => '1',
     ]);
 
     $this->assertAuthenticated();
@@ -32,6 +33,7 @@ test('new users are assigned investigador role on registration', function () {
         'email' => 'investigador@test.com',
         'password' => 'Clave-Segura-2026',
         'password_confirmation' => 'Clave-Segura-2026',
+        'terminos' => '1',
     ]);
 
     $user = User::where('email', 'investigador@test.com')->first();
@@ -47,6 +49,7 @@ test('investigador role is created if it does not exist', function () {
         'email' => 'nuevo@test.com',
         'password' => 'Clave-Segura-2026',
         'password_confirmation' => 'Clave-Segura-2026',
+        'terminos' => '1',
     ]);
 
     $rol = Rol::where('slug', 'investigador')->first();
@@ -60,6 +63,7 @@ test('registered user has exactly one role after registration', function () {
         'email' => 'unrol@test.com',
         'password' => 'Clave-Segura-2026',
         'password_confirmation' => 'Clave-Segura-2026',
+        'terminos' => '1',
     ]);
 
     $user = User::where('email', 'unrol@test.com')->first();

@@ -621,9 +621,16 @@ class ReporteController extends Controller
     private function fotosDe(Reporte $reporte): array
     {
         $adjuntos = app(AdjuntoService::class);
+        // Triaje ciego: el nombre del archivo puede delatar al autor ("captura-juan.png").
+        $anonimo = $reporte->ocultaAutorA(request()->user());
 
         return $reporte->adjuntos()->get()
-            ->map(fn (Adjunto $a): array => $adjuntos->resumen($a, route('reportes.fotos.ver', [$reporte, $a])))
+            ->values()
+            ->map(function (Adjunto $a, int $i) use ($adjuntos, $reporte, $anonimo): array {
+                $resumen = $adjuntos->resumen($a, route('reportes.fotos.ver', [$reporte, $a]));
+
+                return $anonimo ? [...$resumen, 'nombre' => 'Evidencia '.($i + 1).'.'.$a->extension()] : $resumen;
+            })
             ->all();
     }
 

@@ -56,7 +56,7 @@ export default async function globalSetup(): Promise<void> {
                 baseURL: `http://127.0.0.1:${puerto}`,
             });
             const page = await contexto.newPage();
-            await page.goto('/login');
+            await page.goto(rol === 'empresa' ? '/empresa/login' : '/login');
             await page
                 .getByLabel(/correo|email/i)
                 .first()
@@ -66,7 +66,8 @@ export default async function globalSetup(): Promise<void> {
                 .first()
                 .fill('password');
             await page.locator('form button[type="submit"]').first().click();
-            await page.waitForURL((url) => !url.pathname.startsWith('/login'), {
+            // /empresa/login no empieza por /login: se espera a salir de cualquier pantalla de acceso.
+            await page.waitForURL((url) => !url.pathname.includes('/login'), {
                 timeout: 20_000,
             });
             await contexto.storageState({ path: rutaEstado(rol) });
@@ -84,6 +85,8 @@ async function esperarServidor(url: string): Promise<void> {
     while (Date.now() < limite) {
         try {
             const respuesta = await fetch(url);
+            // Se consume el cuerpo: dejarlo sin leer hace fallar al cliente HTTP de Node al cerrar el socket.
+            await respuesta.arrayBuffer();
             if (respuesta.status < 500) return;
         } catch {
             // el servidor todavía no responde

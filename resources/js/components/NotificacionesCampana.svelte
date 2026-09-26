@@ -53,7 +53,7 @@
             <Bell class="h-5 w-5" />
             {#if resumen.no_leidas > 0}
                 <span
-                    class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white"
+                    class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-peligro px-1 text-[10px] font-semibold leading-none text-white"
                     data-test="campana-contador"
                 >
                     {resumen.no_leidas > 99 ? '99+' : resumen.no_leidas}

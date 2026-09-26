@@ -4,7 +4,7 @@
     export const layout = {
         breadcrumbs: [
             {
-                title: 'Appearance settings',
+                title: 'Apariencia',
                 href: editAppearance(),
             },
         ],
@@ -12,20 +12,20 @@
 </script>
 
 <script lang="ts">
-    import AppearanceTabs from '@/components/AppearanceTabs.svelte';
     import AppHead from '@/components/AppHead.svelte';
     import Heading from '@/components/Heading.svelte';
+    import TemaSelector from '@/components/TemaSelector.svelte';
 </script>
 
-<AppHead title="Appearance settings" />
+<AppHead title="Apariencia" />
 
-<h1 class="sr-only">Appearance settings</h1>
+<h1 class="sr-only">Apariencia</h1>
 
 <div class="space-y-6">
     <Heading
         variant="small"
-        title="Appearance settings"
-        description="Update the appearance settings for your account"
+        title="Tema visual"
+        description="Elige cómo se ve Huella. Se guarda en tu cuenta y se aplica en todos tus dispositivos."
     />
-    <AppearanceTabs />
+    <TemaSelector />
 </div>

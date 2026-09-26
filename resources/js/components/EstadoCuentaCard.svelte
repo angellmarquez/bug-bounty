@@ -26,8 +26,8 @@
         </CardHeader>
         <CardContent class="space-y-4 text-sm">
             {#if cuenta.suspension}
-                <div class="flex gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 p-3" role="alert">
-                    <Ban class="mt-0.5 size-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden="true" />
+                <div class="flex gap-2 rounded-md border border-peligro/40 bg-peligro/10 p-3" role="alert">
+                    <Ban class="mt-0.5 size-4 shrink-0 text-peligro" aria-hidden="true" />
                     <div class="space-y-1">
                         <p class="font-medium">Cuenta suspendida hasta el {fecha(cuenta.suspension.hasta)}</p>
                         <p class="text-muted-foreground">
@@ -70,7 +70,7 @@
             {#if cuenta.moderador}
                 <div class="space-y-1">
                     <div class="flex items-center gap-2 font-medium">
-                        <ShieldCheck class="size-4 text-violet-600 dark:text-violet-400" aria-hidden="true" />
+                        <ShieldCheck class="size-4 text-especial" aria-hidden="true" />
                         Moderador
                     </div>
                     {#if cuenta.moderador.programas.length > 0}
@@ -100,12 +100,6 @@
                         <span class="text-muted-foreground">Estado de la solicitud</span>
                         <span class="font-medium">{estado.etiqueta}</span>
                     </div>
-                    {#if cuenta.empresa.rol_interno}
-                        <div class="flex items-center justify-between gap-2">
-                            <span class="text-muted-foreground">Tu rol en la empresa</span>
-                            <span class="font-medium capitalize">{cuenta.empresa.rol_interno}</span>
-                        </div>
-                    {/if}
                     {#if cuenta.empresa.motivo}
                         <p class="text-xs text-muted-foreground">Motivo: {cuenta.empresa.motivo}</p>
                     {/if}

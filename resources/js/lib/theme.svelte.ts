@@ -2,32 +2,70 @@ import type { Appearance, ResolvedAppearance } from '@/types';
 
 export type { Appearance, ResolvedAppearance };
 
+/**
+ * Temas visuales de Huella. Terminal y Neón son oscuros; Corporativo es claro;
+ * Automático sigue al sistema (Terminal si es oscuro, Corporativo si es claro).
+ */
+export type Tema = 'terminal' | 'corporativo' | 'neon' | 'auto';
+export type TemaResuelto = Exclude<Tema, 'auto'>;
+
+export const TEMAS: readonly Tema[] = [
+    'terminal',
+    'corporativo',
+    'neon',
+    'auto',
+];
+export const TEMA_POR_DEFECTO: Tema = 'terminal';
+
 export type ThemeState = {
     appearance: {
         value: Appearance;
     };
+    tema: {
+        value: Tema;
+    };
     resolvedAppearance: () => ResolvedAppearance;
     updateAppearance: (value: Appearance) => void;
+    updateTema: (value: Tema) => void;
 };
 
-const appearance = $state<{ value: Appearance }>({ value: 'system' });
+const tema = $state<{ value: Tema }>({ value: TEMA_POR_DEFECTO });
+// El modo claro/oscuro se deriva del tema; se mantiene por compatibilidad con los componentes que lo leen.
+const appearance = $state<{ value: Appearance }>({ value: 'dark' });
 
 let themeChangeMediaQuery: MediaQueryList | null = null;
 
 const prefersDark = (): boolean => {
     if (typeof window === 'undefined') {
-        return false;
+        return true;
     }
 
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
 };
 
-const isDarkMode = (value: Appearance): boolean => {
-    return value === 'dark' || (value === 'system' && prefersDark());
-};
+export function esTema(valor: unknown): valor is Tema {
+    return (
+        typeof valor === 'string' &&
+        (TEMAS as readonly string[]).includes(valor)
+    );
+}
+
+export function resolverTema(valor: Tema): TemaResuelto {
+    if (valor === 'auto') {
+        return prefersDark() ? 'terminal' : 'corporativo';
+    }
+
+    return valor;
+}
+
+function aparienciaDe(valor: Tema): Appearance {
+    if (valor === 'auto') return 'system';
+
+    return valor === 'corporativo' ? 'light' : 'dark';
+}
 
 const getResolvedAppearance = (): ResolvedAppearance => {
-    return isDarkMode(appearance.value) ? 'dark' : 'light';
+    return resolverTema(tema.value) === 'corporativo' ? 'light' : 'dark';
 };
 
 const setCookie = (name: string, value: string, days = 365): void => {
@@ -39,30 +77,66 @@ const setCookie = (name: string, value: string, days = 365): void => {
     document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
 };
 
-const applyTheme = (value: Appearance): void => {
+const aplicarTema = (valor: Tema): void => {
     if (typeof document === 'undefined') {
         return;
     }
 
-    const isDark = isDarkMode(value);
-    document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    const resuelto = resolverTema(valor);
+    const oscuro = resuelto !== 'corporativo';
+    const raiz = document.documentElement;
+
+    raiz.dataset.tema = resuelto;
+    raiz.classList.toggle('dark', oscuro);
+    raiz.style.colorScheme = oscuro ? 'dark' : 'light';
 };
 
-const getStoredAppearance = (): Appearance => {
-    if (typeof window === 'undefined') {
-        return 'dark';
+function leerStorage(clave: string): string | null {
+    try {
+        return localStorage.getItem(clave);
+    } catch {
+        return null;
+    }
+}
+
+function escribirStorage(clave: string, valor: string): void {
+    try {
+        localStorage.setItem(clave, valor);
+    } catch {
+        // Navegación privada o almacenamiento bloqueado: la cookie basta.
+    }
+}
+
+/**
+ * Tema a usar al cargar: el que resolvió el servidor (el de la cuenta o la cookie) y,
+ * si no llegó, el del navegador. Si solo había la apariencia antigua, se traduce.
+ */
+const temaGuardado = (): Tema => {
+    const delServidor =
+        typeof document !== 'undefined'
+            ? document.documentElement.dataset.temaElegido
+            : undefined;
+
+    if (esTema(delServidor)) {
+        return delServidor;
     }
 
-    const stored = localStorage.getItem('appearance');
+    const guardado = leerStorage('tema');
 
-    return stored === 'light' || stored === 'dark' || stored === 'system'
-        ? stored
-        : 'dark';
+    if (esTema(guardado)) {
+        return guardado;
+    }
+
+    const antigua = leerStorage('appearance');
+
+    if (antigua === 'light') return 'corporativo';
+    if (antigua === 'system') return 'auto';
+
+    return TEMA_POR_DEFECTO;
 };
 
 const handleSystemThemeChange = (): void => {
-    applyTheme(appearance.value);
+    aplicarTema(tema.value);
 };
 
 const detachThemeChangeListener = (): void => {
@@ -82,13 +156,7 @@ export function initializeTheme(): () => void {
         return () => {};
     }
 
-    if (!localStorage.getItem('appearance')) {
-        localStorage.setItem('appearance', 'dark');
-        setCookie('appearance', 'dark');
-    }
-
-    appearance.value = getStoredAppearance();
-    applyTheme(appearance.value);
+    updateTema(temaGuardado());
 
     detachThemeChangeListener();
     themeChangeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -97,21 +165,38 @@ export function initializeTheme(): () => void {
     return detachThemeChangeListener;
 }
 
-export function updateAppearance(value: Appearance): void {
-    appearance.value = value;
+/** Aplica el tema y lo recuerda en este navegador (la cookie evita el parpadeo al cargar). */
+export function updateTema(valor: Tema): void {
+    tema.value = valor;
+    appearance.value = aparienciaDe(valor);
 
     if (typeof window !== 'undefined') {
-        localStorage.setItem('appearance', value);
+        escribirStorage('tema', valor);
+        escribirStorage('appearance', appearance.value);
     }
 
-    setCookie('appearance', value);
-    applyTheme(value);
+    setCookie('tema', valor);
+    setCookie('appearance', appearance.value);
+    aplicarTema(valor);
+}
+
+/** Compatibilidad: cambiar solo claro/oscuro elige el tema equivalente. */
+export function updateAppearance(value: Appearance): void {
+    updateTema(
+        value === 'light'
+            ? 'corporativo'
+            : value === 'system'
+              ? 'auto'
+              : 'terminal',
+    );
 }
 
 export function themeState(): ThemeState {
     return {
         appearance,
+        tema,
         resolvedAppearance: getResolvedAppearance,
         updateAppearance,
+        updateTema,
     };
 }

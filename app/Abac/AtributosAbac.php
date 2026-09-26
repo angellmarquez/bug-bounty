@@ -54,7 +54,7 @@ class AtributosAbac
             // Un moderador solo actúa sobre los programas que se le asignaron.
             'programas_moderados' => in_array('moderador', $roles, true) ? $usuario->idsProgramasModerados() : [],
             'suspendido' => $usuario->suspensionActiva() !== null,
-            // La empresa a la que pertenece (una sola) y su papel en ella: propietario o publicador.
+            // La empresa a la que pertenece (una sola) y su papel en ella: propietario (los investigadores no pertenecen a empresas).
             'empresa_id' => $empresa?->id,
             'rol_empresa' => $empresa?->pivot->rol_interno,
         ];

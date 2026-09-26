@@ -41,6 +41,11 @@ $crear = function (string $nombre, string $email, array $slugs, int $reputacion 
     ]);
     $usuario->roles()->sync(collect($slugs)->map(fn ($slug) => $roles[$slug]->id)->all());
 
+    // Los puntos se asientan en el ledger: así el saldo coincide en el panel y en Mi reputación.
+    if ($reputacion !== 0) {
+        app(ReputationService::class)->asentar($usuario->id, $reputacion, 'saldo_inicial_e2e');
+    }
+
     return $usuario;
 };
 

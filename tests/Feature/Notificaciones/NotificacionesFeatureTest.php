@@ -229,6 +229,7 @@ test('registrar una empresa avisa a los administradores', function () {
         'email' => 'ana@acme.test',
         'password' => 'Password123!Password',
         'password_confirmation' => 'Password123!Password',
+        'terminos' => '1',
     ])->assertRedirect(route('empresa.dashboard'));
 
     $aviso = avisos($admin)[0];
