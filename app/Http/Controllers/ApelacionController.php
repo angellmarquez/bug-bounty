@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
 use App\Enums\EstadoApelacion;
+use App\Models\Adjunto;
 use App\Models\Apelacion;
 use App\Models\User;
+use App\Services\Adjuntos\AdjuntoService;
+use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Reputacion\ReputationService;
 use App\Services\Reputacion\TrazaApelaciones;
 use Illuminate\Http\RedirectResponse;
@@ -14,6 +17,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use InvalidArgumentException;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Apelaciones vistas desde quien las resuelve: cualquier moderador o un administrador,
@@ -51,7 +55,7 @@ class ApelacionController extends Controller
         // Se evalúa con la apelación concreta: así ABAC aplica "juez y parte" también al ver el detalle.
         Gate::authorize('abac', [AccionesAbac::ApelacionResolver, $apelacion]);
 
-        $apelacion->load(['sancion.aplicadaPor', 'sancion.reporte', 'usuario', 'resueltaPor', 'eventos']);
+        $apelacion->load(['sancion.aplicadaPor', 'sancion.reporte', 'usuario', 'resueltaPor', 'eventos', 'adjuntos']);
 
         return Inertia::render('moderacion/apelaciones/Show', [
             'apelacion' => [
@@ -70,8 +74,30 @@ class ApelacionController extends Controller
                     'created_at' => $evento->created_at?->toISOString(),
                 ])->all(),
                 'cadena_valida' => app(TrazaApelaciones::class)->verificar($apelacion),
+                'fotos' => $apelacion->adjuntos->map(fn (Adjunto $a): array => app(AdjuntoService::class)->resumen($a, route('apelaciones.fotos.ver', [$apelacion, $a])))->all(),
             ],
         ]);
+    }
+
+    /**
+     * Foto de evidencia de una apelación: la ve quien la presentó o quien puede resolverla.
+     */
+    public function verFoto(Request $request, Apelacion $apelacion, Adjunto $adjunto, AdjuntoService $adjuntos): Response
+    {
+        abort_unless(
+            $adjunto->adjuntable_type === $apelacion->getMorphClass() && (int) $adjunto->adjuntable_id === (int) $apelacion->id,
+            404,
+        );
+
+        $esAutor = (int) $apelacion->usuario_id === (int) $request->user()->id;
+        abort_unless($esAutor || Gate::allows('abac', [AccionesAbac::ApelacionResolver, $apelacion]), 403, 'No tienes acceso a esta evidencia.');
+
+        try {
+            return $adjuntos->responder($adjunto);
+        } catch (PgpException $e) {
+            report($e);
+            abort(503, 'La foto no se puede descifrar en este momento.');
+        }
     }
 
     public function resolver(Request $request, Apelacion $apelacion, ReputationService $reputacion): RedirectResponse

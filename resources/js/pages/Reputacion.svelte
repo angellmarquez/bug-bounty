@@ -16,6 +16,8 @@
     import AppHead from '@/components/AppHead.svelte';
     import ApelacionesList from '@/components/ApelacionesList.svelte';
     import EmptyState from '@/components/EmptyState.svelte';
+    import FotosSelector from '@/components/FotosSelector.svelte';
+    import { errorDeFotos } from '@/lib/fotos';
     import PageHeader from '@/components/PageHeader.svelte';
     import RangoBadge from '@/components/RangoBadge.svelte';
     import ReputacionChart from '@/components/ReputacionChart.svelte';
@@ -95,8 +97,11 @@
 
     const dialogoAbierto = $derived(apelando !== null);
 
+    let fotosApelacion = $state<File[]>([]);
+
     function abrirApelacion(sancionId: number) {
         motivoApelacion = '';
+        fotosApelacion = [];
         errorApelacion = '';
         apelando = sancionId;
     }
@@ -116,12 +121,13 @@
         enviando = true;
         router.post(
             `/reputacion/sanciones/${apelando}/apelar`,
-            { motivo: motivoApelacion },
+            { motivo: motivoApelacion, fotos: [...fotosApelacion] },
             {
+                forceFormData: true,
                 preserveScroll: true,
                 onSuccess: cerrarApelacion,
                 onError: (errores) => {
-                    errorApelacion = errores.motivo ?? 'No se pudo enviar la apelación.';
+                    errorApelacion = errores.motivo ?? (errorDeFotos(errores) || 'No se pudo enviar la apelación.');
                 },
                 onFinish: () => {
                     enviando = false;
@@ -282,6 +288,11 @@
                 {#if errorApelacion}
                     <p class="text-sm text-destructive" role="alert">{errorApelacion}</p>
                 {/if}
+            </div>
+
+            <div class="space-y-2">
+                <Label for="fotos-apelacion">Fotos de evidencia (opcional)</Label>
+                <FotosSelector bind:archivos={fotosApelacion} id="fotos-apelacion" />
             </div>
 
             <DialogFooter>

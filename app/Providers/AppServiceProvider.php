@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Adjunto;
 use App\Models\Apelacion;
 use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
@@ -86,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
             'Apelacion' => Apelacion::class,
             'Empresa' => Empresa::class,
             'ClavePgp' => ClavePgpPlataforma::class,
+            'Adjunto' => Adjunto::class,
         ]);
 
         // Freno HTTP al guardar/enviar informes: frena scripts que disparan cientos de peticiones.

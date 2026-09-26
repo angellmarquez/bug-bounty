@@ -12,6 +12,7 @@
     import PageHeader from '@/components/PageHeader.svelte';
     import ApelacionTraza from '@/components/ApelacionTraza.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
+    import GaleriaFotos from '@/components/GaleriaFotos.svelte';
     import ResolverApelacionForm from '@/components/ResolverApelacionForm.svelte';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
     import {
@@ -22,12 +23,12 @@
         gravedadSancionColor,
         gravedadSancionLabel,
     } from '@/lib/status-colors';
-    import type { ApelacionParaResolver, PasoApelacion } from '@/types/domain';
+    import type { ApelacionParaResolver, FotoAdjunta, PasoApelacion } from '@/types/domain';
 
     let {
         apelacion,
     }: {
-        apelacion: ApelacionParaResolver & { eventos: PasoApelacion[]; cadena_valida: boolean };
+        apelacion: ApelacionParaResolver & { eventos: PasoApelacion[]; cadena_valida: boolean; fotos: FotoAdjunta[] };
     } = $props();
 
     function fecha(iso: string | null): string {
@@ -92,6 +93,12 @@
                 </CardHeader>
                 <CardContent class="space-y-3 text-sm">
                     <p class="whitespace-pre-wrap">{apelacion.motivo}</p>
+                    {#if apelacion.fotos.length > 0}
+                        <div class="space-y-2" data-test="fotos-apelacion">
+                            <p class="text-xs text-muted-foreground">Fotos de evidencia</p>
+                            <GaleriaFotos fotos={apelacion.fotos} />
+                        </div>
+                    {/if}
                     {#if apelacion.estado === 'pendiente'}
                         {#if apelacion.puede_resolver}
                             <ResolverApelacionForm apelacionId={apelacion.id} />

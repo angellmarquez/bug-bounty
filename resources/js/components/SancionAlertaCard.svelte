@@ -5,6 +5,8 @@
     import ShieldAlert from '@lucide/svelte/icons/shield-alert';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    import FotosSelector from '@/components/FotosSelector.svelte';
+    import { errorDeFotos } from '@/lib/fotos';
     import {
         estadoSancionColor,
         estadoSancionLabel,
@@ -16,6 +18,7 @@
     let { sancion }: { sancion: SancionDashboard | null } = $props();
 
     let motivo = $state('');
+    let fotos = $state<File[]>([]);
     let enviando = $state(false);
     let error = $state('');
 
@@ -41,14 +44,16 @@
         enviando = true;
         router.post(
             `/reputacion/sanciones/${sancion.id}/apelar`,
-            { motivo: texto },
+            { motivo: texto, fotos: [...fotos] },
             {
+                forceFormData: true,
                 preserveScroll: true,
                 onSuccess: () => {
                     motivo = '';
+                    fotos = [];
                 },
                 onError: (errores) => {
-                    error = errores.motivo ?? 'No se pudo enviar la apelación.';
+                    error = errores.motivo ?? (errorDeFotos(errores) || 'No se pudo enviar la apelación.');
                 },
                 onFinish: () => {
                     enviando = false;
@@ -147,6 +152,7 @@
                             rows={3}
                             class="w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                         ></textarea>
+                        <FotosSelector bind:archivos={fotos} id="fotos-apelacion-dashboard" />
                         {#if error}
                             <p class="text-xs text-destructive">{error}</p>
                         {/if}

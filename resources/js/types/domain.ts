@@ -396,3 +396,23 @@ export type HallOfFameRankingItem = {
         baja: number;
     };
 };
+
+/** Foto de evidencia (informe o apelación). Se guarda cifrada; `url` la sirve descifrada tras ABAC. */
+export type FotoAdjunta = {
+    id: number;
+    nombre: string;
+    mime: string;
+    tamano: number;
+    ancho: number;
+    alto: number;
+    sha256: string;
+    url: string;
+    created_at: string | null;
+};
+
+export type LimitesFotos = {
+    max: number;
+    max_kb: number;
+    max_total_kb: number;
+    mimes: string[];
+};

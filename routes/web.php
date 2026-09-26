@@ -43,6 +43,10 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('reportes/{reporte}/editar', [ReporteController::class, 'edit'])->name('reportes.edit');
     Route::put('reportes/{reporte}', [ReporteController::class, 'update'])->name('reportes.update');
     Route::post('reportes/{reporte}/enviar', [ReporteController::class, 'enviar'])->name('reportes.enviar')->middleware('throttle:reportes');
+    // Fotos de evidencia: se guardan cifradas y solo se sirven descifradas por aquí (nunca por URL pública).
+    Route::post('reportes/{reporte}/fotos', [ReporteController::class, 'subirFotos'])->name('reportes.fotos.subir')->middleware('throttle:reportes');
+    Route::get('reportes/{reporte}/fotos/{adjunto}', [ReporteController::class, 'verFoto'])->name('reportes.fotos.ver');
+    Route::delete('reportes/{reporte}/fotos/{adjunto}', [ReporteController::class, 'eliminarFoto'])->name('reportes.fotos.eliminar')->middleware('throttle:interacciones');
 
     // Acciones de triaje (Slice 5.4)
     Route::post('reportes/{reporte}/revisar', [ReporteController::class, 'revisar'])->name('reportes.revisar');
@@ -111,6 +115,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('reputacion/sanciones', [ReputacionController::class, 'sanciones'])->name('reputacion.sanciones');
     Route::get('reputacion/apelaciones', [ReputacionController::class, 'apelaciones'])->name('reputacion.apelaciones');
     Route::get('reputacion/apelaciones/{apelacion}', [ReputacionController::class, 'apelacion'])->name('reputacion.apelacion');
+    Route::get('apelaciones/{apelacion}/fotos/{adjunto}', [ApelacionController::class, 'verFoto'])->name('apelaciones.fotos.ver');
     Route::post('reputacion/sanciones/{sancion}/apelar', [ReputacionController::class, 'apelar'])->name('reputacion.apelar');
 });
 

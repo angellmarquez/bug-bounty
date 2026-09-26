@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-    import { Form } from '@inertiajs/svelte';
+    import { Form, router } from '@inertiajs/svelte';
     import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ArrowRight from '@lucide/svelte/icons/arrow-right';
     import Save from '@lucide/svelte/icons/save';
@@ -25,6 +25,8 @@
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
+    import FotosSelector from '@/components/FotosSelector.svelte';
+    import GaleriaFotos from '@/components/GaleriaFotos.svelte';
     import AlertError from '@/components/AlertError.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
@@ -45,16 +47,47 @@
         SelectValue,
     } from '@/components/ui/select';
     import { edit, update } from '@/routes/reportes';
-    import type { PocSchemaField, Reporte } from '@/types/domain';
+    import type { FotoAdjunta, PocSchemaField, Reporte } from '@/types/domain';
     import type { Severidad } from '@/types/enums';
     import { schemaEfectivo, validarPoc } from '@/lib/poc-schema';
     import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
+    import { errorDeFotos } from '@/lib/fotos';
 
     let {
         reporte,
+        fotos = [],
     }: {
         reporte: Reporte & { programa: { id: number; nombre: string; slug: string; poc_schema: PocSchemaField[] | null } };
+        fotos?: FotoAdjunta[];
     } = $props();
+
+    // Las fotos se gestionan aparte del formulario del informe: se suben o quitan al momento.
+    let fotosNuevas = $state<File[]>([]);
+    let subiendoFotos = $state(false);
+    let eliminandoFoto = $state<number | null>(null);
+    let erroresFotos = $state<Record<string, string>>({});
+
+    function subirFotos() {
+        if (fotosNuevas.length === 0) return;
+        subiendoFotos = true;
+        erroresFotos = {};
+        router.post(`/reportes/${reporte.id}/fotos`, { fotos: [...fotosNuevas] }, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => (fotosNuevas = []),
+            onError: (errores) => (erroresFotos = errores),
+            onFinish: () => (subiendoFotos = false),
+        });
+    }
+
+    function eliminarFoto(foto: FotoAdjunta) {
+        if (!confirm(`¿Quitar la foto «${foto.nombre}» del informe?`)) return;
+        eliminandoFoto = foto.id;
+        router.delete(`/reportes/${reporte.id}/fotos/${foto.id}`, {
+            preserveScroll: true,
+            onFinish: () => (eliminandoFoto = null),
+        });
+    }
 
     let pasoActual = $state(1);
     let erroresPaso = $state<Record<string, string>>({});
@@ -309,4 +342,20 @@
             </div>
         {/snippet}
     </Form>
+
+    <div data-test="fotos-informe"><Card>
+        <CardHeader>
+            <CardTitle>Fotos de evidencia</CardTitle>
+        </CardHeader>
+        <CardContent class="space-y-4">
+            <GaleriaFotos {fotos} onEliminar={eliminarFoto} eliminando={eliminandoFoto} />
+            <FotosSelector bind:archivos={fotosNuevas} yaAdjuntas={fotos.length} error={errorDeFotos(erroresFotos)} id="fotos-nuevas" />
+            <div class="flex justify-end">
+                <Button type="button" disabled={subiendoFotos || fotosNuevas.length === 0} onclick={subirFotos}>
+                    {#if subiendoFotos}<Spinner />{/if}
+                    Subir {fotosNuevas.length > 0 ? fotosNuevas.length : ''} foto{fotosNuevas.length === 1 ? '' : 's'}
+                </Button>
+            </div>
+        </CardContent>
+    </Card></div>
 </div>

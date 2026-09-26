@@ -6,6 +6,7 @@ use App\Abac\AccionesAbac;
 use App\Enums\Severidad;
 use App\Models\Programa;
 use App\Rules\PocCumpleSchema;
+use App\Services\Adjuntos\AdjuntoService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -68,6 +69,7 @@ class StoreReporteRequest extends FormRequest
                 new PocCumpleSchema($schema, exigirRequeridos: $enviar),
             ],
             'enviar' => ['sometimes', 'boolean'],
+            ...AdjuntoService::reglas(),
         ];
     }
 
@@ -85,6 +87,7 @@ class StoreReporteRequest extends FormRequest
             'puntuacion_cvss.min' => 'La puntuación CVSS debe ser entre 0 y 10.',
             'puntuacion_cvss.max' => 'La puntuación CVSS debe ser entre 0 y 10.',
             'poc.required' => 'La prueba de concepto es obligatoria para enviar el reporte.',
+            ...AdjuntoService::mensajes(),
         ];
     }
 }
