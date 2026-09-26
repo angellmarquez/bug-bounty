@@ -129,6 +129,12 @@
                 description: 'Resueltos',
                 href: '/reportes?estado=cerrado',
             },
+            {
+                title: 'Salón de la Fama',
+                value: '🏆 Ranking',
+                description: 'Líderes de la comunidad',
+                href: '/hall-of-fame',
+            },
         ];
     });
 </script>

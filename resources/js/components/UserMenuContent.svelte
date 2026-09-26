@@ -2,6 +2,7 @@
     import { Link, router } from '@inertiajs/svelte';
     import LogOut from '@lucide/svelte/icons/log-out';
     import Settings from '@lucide/svelte/icons/settings';
+    import Trophy from '@lucide/svelte/icons/trophy';
     import {
         DropdownMenuGroup,
         DropdownMenuItem,
@@ -37,6 +38,19 @@
 </DropdownMenuLabel>
 <DropdownMenuSeparator />
 <DropdownMenuGroup>
+    <DropdownMenuItem asChild>
+        {#snippet children(props)}
+            <Link
+                class={props.class}
+                href="/hall-of-fame"
+                prefetch
+                onclick={props.onClick}
+            >
+                <Trophy class="mr-2 h-4 w-4" />
+                Salón de la Fama
+            </Link>
+        {/snippet}
+    </DropdownMenuItem>
     <DropdownMenuItem asChild>
         {#snippet children(props)}
             <Link

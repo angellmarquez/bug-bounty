@@ -50,6 +50,39 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Puntos automáticos ponderados por Severidad
+    |--------------------------------------------------------------------------
+    |
+    | Automatización justa: las recompensas se calculan en base al impacto
+    | técnico del fallo (CVSS / severidad) sin discrecionalidad humana de
+    | moderadores o empresas.
+    |
+    */
+    'puntos_por_severidad' => [
+        'critica' => [
+            'reporte_validado' => 100,
+            'reporte_resuelto' => 200,
+        ],
+        'alta' => [
+            'reporte_validado' => 50,
+            'reporte_resuelto' => 100,
+        ],
+        'media' => [
+            'reporte_validado' => 25,
+            'reporte_resuelto' => 50,
+        ],
+        'baja' => [
+            'reporte_validado' => 10,
+            'reporte_resuelto' => 20,
+        ],
+        'ninguna' => [
+            'reporte_validado' => 5,
+            'reporte_resuelto' => 10,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Rangos de reputación
     |--------------------------------------------------------------------------
     |

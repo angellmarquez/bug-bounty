@@ -25,4 +25,3 @@ test('moderator dashboard includes moderation metrics', function () {
     expect($props['roleStats']['moderador']['tipo'])->toBe('moderador')
         ->and($props['roleStats']['moderador'])->toHaveKeys(['pendientes_revision', 'validados', 'rechazados', 'sanciones_aplicadas']);
 });
-

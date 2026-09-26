@@ -48,6 +48,7 @@
     import type { BreadcrumbItem, NavItem } from '@/types';
     import Bug from '@lucide/svelte/icons/bug';
     import Shield from '@lucide/svelte/icons/shield';
+    import Trophy from '@lucide/svelte/icons/trophy';
 
     let {
         breadcrumbs = [],
@@ -74,6 +75,11 @@
                 title: 'Dashboard',
                 href: dashboard(),
                 icon: LayoutGrid,
+            },
+            {
+                title: 'Salón de la Fama',
+                href: '/hall-of-fame',
+                icon: Trophy,
             },
         ];
 
