@@ -348,15 +348,21 @@ class ReporteController extends Controller
         }
 
         return Inertia::render('reportes/Create', [
-            'programas' => $programas->map(fn ($p) => [
-                'id' => $p->id,
-                'nombre' => $p->empresa ? "{$p->nombre} ({$p->empresa->nombre})" : $p->nombre,
-                'slug' => $p->slug,
-                'poc_schema' => $p->poc_schema,
-            ]),
+            'programas' => $programas->map(function ($p) {
+                $nombreEmpresa = $p->empresa ? ($p->empresa->nombre_comercial ?? $p->empresa->razon_social) : null;
+
+                return [
+                    'id' => $p->id,
+                    'nombre' => $nombreEmpresa ? "{$p->nombre} ({$nombreEmpresa})" : $p->nombre,
+                    'slug' => $p->slug,
+                    'poc_schema' => $p->poc_schema,
+                ];
+            }),
             'programaInicial' => $programaInicial ? [
                 'id' => $programaInicial->id,
-                'nombre' => $programaInicial->empresa ? "{$programaInicial->nombre} ({$programaInicial->empresa->nombre})" : $programaInicial->nombre,
+                'nombre' => $programaInicial->empresa
+                    ? "{$programaInicial->nombre} (".($programaInicial->empresa->nombre_comercial ?? $programaInicial->empresa->razon_social).')'
+                    : $programaInicial->nombre,
                 'slug' => $programaInicial->slug,
                 'poc_schema' => $programaInicial->poc_schema,
             ] : null,
