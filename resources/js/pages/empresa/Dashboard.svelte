@@ -64,7 +64,7 @@
     }
 
     function resolverPrograma(programaId: number, nombre: string) {
-        if (!confirm(`¿Poner el programa "${nombre}" como resuelto? Dejará de recibir informes y se eliminará el programa.`)) return;
+        if (!confirm(`¿Poner el programa "${nombre}" como resuelto? Dejará de recibir nuevos informes de vulnerabilidad.`)) return;
         router.post(`/programas/${programaId}/resolver`, {}, { preserveScroll: true });
     }
 

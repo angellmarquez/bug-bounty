@@ -34,10 +34,9 @@
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
-    import { index as reportesRoute, show as reportesShow } from '@/routes/reportes';
-    import { index as programasIndex } from '@/routes/programas';
+    import { index as reportesRoute, create as reportesCreate, show as reportesShow } from '@/routes/reportes';
     import { Button } from '@/components/ui/button';
-    import Shield from '@lucide/svelte/icons/shield';
+    import Plus from '@lucide/svelte/icons/plus';
     import type { Reporte } from '@/types/domain';
     import { etiquetaPaginacion } from '@/lib/paginacion';
 
@@ -142,7 +141,18 @@
     <PageHeader
         title="Reportes"
         description="{totalReportes} reporte{totalReportes !== 1 ? 's' : ''} en total"
-    />
+    >
+        {#if puedeCrear}
+            <Button asChild>
+                {#snippet children(props)}
+                    <Link href={reportesCreate()} {...props}>
+                        <Plus class="mr-2 h-4 w-4" />
+                        Crear Reporte
+                    </Link>
+                {/snippet}
+            </Button>
+        {/if}
+    </PageHeader>
 
     <Card>
         <CardContent class="pt-6">
@@ -219,13 +229,8 @@
         <EmptyState
             icon={Bug}
             title="No se encontraron reportes"
-            description="Para reportar una vulnerabilidad, selecciona primero un programa de empresa y revisa su alcance."
-        >
-            <Button href={programasIndex()}>
-                <Shield class="mr-2 h-4 w-4" />
-                Explorar Programas
-            </Button>
-        </EmptyState>
+            description="No hay reportes que coincidan con los filtros seleccionados."
+        />
     {:else}
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {#each reportesData.data as reporte (reporte.id)}

@@ -29,9 +29,10 @@
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
-    import EstadoProgreso from '@/components/EstadoProgreso.svelte';
+    import ChevronRight from '@lucide/svelte/icons/chevron-right';
+    import Bug from '@lucide/svelte/icons/bug';
+    import EmptyState from '@/components/EmptyState.svelte';
     import RolesUsuario from '@/components/RolesUsuario.svelte';
-    import ReportesTimeline from '@/components/ReportesTimeline.svelte';
     import StateBadge from '@/components/StateBadge.svelte';
     import type { DashboardRoleStats, DashboardStats } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
@@ -68,22 +69,10 @@
         }[]) ?? [],
     );
 
-    // Vista rápida: los últimos informes ya enviados (los borradores no cuentan).
-    const ultimosEnviados = $derived(
-        misReportes.filter((reporte) => reporte.estado !== 'borrador').slice(0, 10),
+    // Vista limpia: hasta 5 informes recientes (evita saturar la pantalla con decenas de reportes).
+    const reportesRecientes = $derived(
+        misReportes.slice(0, 5),
     );
-
-    // Los informes agrupados por programa, para seguir el avance de cada uno.
-    const informesPorPrograma = $derived.by(() => {
-        const grupos = new Map<string, { nombre: string; informes: typeof misReportes }>();
-        for (const reporte of misReportes) {
-            const nombre = reporte.programa?.nombre ?? 'Sin programa';
-            const grupo = grupos.get(nombre) ?? { nombre, informes: [] };
-            grupo.informes.push(reporte);
-            grupos.set(nombre, grupo);
-        }
-        return [...grupos.values()];
-    });
 
     function formatearMovimiento(fecha: string | null | undefined): string {
         if (!fecha) return '';
@@ -105,35 +94,29 @@
         return 'Buenas noches';
     });
 
-    const isEmpresa = $derived(userRoles.includes('empresa'));
-
     // El admin no participa en el día a día de los reportes: sin tarjetas de
     // volumen/estado de reportes en su panel (eso es de investigador/moderador/empresa).
     const statCards = $derived.by(() => {
         if (isAdmin) return [];
 
-        const rutaTotal = isEmpresa ? '/empresa/reportes' : reportesIndex();
-        const rutaAbiertos = isEmpresa ? '/empresa/reportes?filtro=en_reparacion' : '/reportes?estado=en_revision';
-        const rutaCerrados = isEmpresa ? '/empresa/reportes?filtro=resueltos' : '/reportes?estado=cerrado';
-
         return [
             {
                 title: 'Total Reportes',
                 value: stats.reportes_total,
-                description: isEmpresa ? 'Reportes recibidos' : 'Reportes presentados',
-                href: rutaTotal,
+                description: 'Reportes presentados',
+                href: reportesIndex(),
             },
             {
                 title: 'Reportes Abiertos',
                 value: stats.reportes_abiertos,
-                description: isEmpresa ? 'En revisión o reparación' : 'En ciclo de triaje',
-                href: rutaAbiertos,
+                description: 'En ciclo de triaje',
+                href: '/reportes?estado=en_revision',
             },
             {
                 title: 'Reportes Cerrados',
                 value: stats.reportes_cerrados,
                 description: 'Resueltos',
-                href: rutaCerrados,
+                href: '/reportes?estado=cerrado',
             },
             {
                 title: 'Salón de la Fama',
@@ -228,63 +211,64 @@
     {/if}
 
     {#if userRoles.includes('investigador')}
-        {#if ultimosEnviados.length > 0}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Últimos informes enviados</CardTitle>
-                    <CardDescription>
-                        Vista rápida: cada punto es uno de tus últimos informes y su color indica en qué
-                        estado se encuentra. Pasa el cursor o haz clic para ver el detalle.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ReportesTimeline reportes={ultimosEnviados} />
-                </CardContent>
-            </Card>
-        {/if}
-
         <Card>
-            <CardHeader>
-                <CardTitle>Estado de mis informes por programa</CardTitle>
-                <CardDescription>
-                    El avance de cada informe: enviado, revisión del moderador, validación, reparación y cierre.
-                    Cada decisión del moderador aparece aquí.
-                </CardDescription>
+            <CardHeader class="flex flex-row items-center justify-between pb-3">
+                <div class="space-y-1">
+                    <CardTitle class="text-base font-semibold">Actividad reciente de reportes</CardTitle>
+                    <CardDescription>
+                        Tus últimos hallazgos presentados y su estado actual en la plataforma.
+                    </CardDescription>
+                </div>
+                {#if misReportes.length > 0}
+                    <Button variant="outline" size="sm" href={reportesIndex()}>
+                        Ver todos ({stats.reportes_total})
+                        <ChevronRight class="ml-1 h-3.5 w-3.5" />
+                    </Button>
+                {/if}
             </CardHeader>
-            <CardContent class="space-y-6">
+            <CardContent>
                 {#if misReportes.length === 0}
-                    <div class="flex flex-col items-start gap-3">
-                        <p class="text-sm text-muted-foreground">
-                            Todavía no has enviado informes. Elige un programa y reporta tu primer hallazgo.
-                        </p>
+                    <EmptyState
+                        icon={Bug}
+                        title="Todavía no has enviado informes"
+                        description="Elige un programa de una empresa y reporta tu primer hallazgo de seguridad."
+                    >
                         <Button href="/programas">Explorar programas</Button>
-                    </div>
+                    </EmptyState>
                 {:else}
-                    {#each informesPorPrograma as grupo (grupo.nombre)}
-                        <div class="space-y-3">
-                            <h3 class="text-sm font-semibold">{grupo.nombre}</h3>
-                            {#each grupo.informes as informe (informe.id)}
-                                <div class="space-y-3 rounded-md border p-3">
-                                    <div class="flex flex-wrap items-center justify-between gap-2">
-                                        <Link href={`/reportes/${informe.id}`} class="text-sm font-medium hover:underline">
-                                            {informe.numero_reporte} · {informe.titulo}
+                    <div class="divide-y rounded-md border">
+                        {#each reportesRecientes as informe (informe.id)}
+                            <div class="flex flex-col gap-2 p-3.5 sm:flex-row sm:items-center sm:justify-between transition-colors hover:bg-muted/40">
+                                <div class="min-w-0 space-y-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono text-xs text-muted-foreground">{informe.numero_reporte}</span>
+                                        <Link href={`/reportes/${informe.id}`} class="truncate text-sm font-medium hover:underline text-foreground">
+                                            {informe.titulo}
                                         </Link>
-                                        <StateBadge estado={informe.estado} />
                                     </div>
-                                    <EstadoProgreso estado={informe.estado} />
-                                    {#if informe.ultimo_evento}
-                                        <p class="text-xs text-muted-foreground">
-                                            Último movimiento ({formatearMovimiento(informe.ultimo_evento.fecha)}):
-                                            {informe.ultimo_evento.nota ?? informe.ultimo_evento.tipo}
-                                        </p>
-                                    {/if}
-                                    <Link href={`/reportes/${informe.id}`} class="text-xs text-primary hover:underline">
-                                        Ver línea de tiempo completa
-                                    </Link>
+                                    <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                        {#if informe.programa?.nombre}
+                                            <span class="rounded bg-muted px-1.5 py-0.5 font-medium">{informe.programa.nombre}</span>
+                                        {/if}
+                                        {#if informe.ultimo_evento}
+                                            <span>
+                                                Último movimiento: {informe.ultimo_evento.nota ?? informe.ultimo_evento.tipo} ({formatearMovimiento(informe.ultimo_evento.fecha)})
+                                            </span>
+                                        {:else}
+                                            <span>Presentado el {formatearMovimiento(informe.fecha)}</span>
+                                        {/if}
+                                    </div>
                                 </div>
-                            {/each}
-                        </div>
-                    {/each}
+                                <div class="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                                    <StateBadge estado={informe.estado} />
+                                    <Button variant="ghost" size="icon" href={`/reportes/${informe.id}`} class="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                        <ChevronRight class="h-4 w-4" />
+                                        <span class="sr-only">Ver reporte</span>
+                                    </Button>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
                 {/if}
             </CardContent>
         </Card>
