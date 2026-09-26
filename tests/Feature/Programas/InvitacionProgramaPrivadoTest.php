@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Programa;
+use App\Models\Reporte;
 use Illuminate\Support\Facades\DB;
 
 test('la empresa puede crear un programa privado con es_publico en 0', function () {
@@ -155,4 +156,37 @@ test('el hacker puede rechazar una invitacion a un programa privado', function (
     // No puede ver el programa
     $this->actingAs($hacker)->get(route('programas.show', $programa))
         ->assertForbidden();
+});
+
+test('hacker con invitacion aceptada puede enviar reporte en programa privado mientras que no invitado es rechazado', function () {
+    $propietario = propietarioDeEmpresa();
+    $programa = programaDeEmpresa($propietario, [
+        'nombre' => 'Programa Privado Vulnerable',
+        'estado' => 'activo',
+        'es_publico' => false,
+    ]);
+    $hackerInvitado = investigador(['email' => 'hacker.invitado@test.local']);
+    $hackerNoInvitado = investigador(['email' => 'hacker.ajeno@test.local']);
+
+    // Un hacker no invitado intenta enviar un reporte -> 403 Forbidden
+    $this->actingAs($hackerNoInvitado)->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'Vulnerabilidad no autorizada',
+        'descripcion' => 'Intento de reporte en programa privado.',
+    ])->assertForbidden();
+
+    // La empresa invita al hacker y este acepta
+    $programa->hackersInvitados()->attach($hackerInvitado->id, [
+        'invitado_por' => $propietario->id,
+        'estado' => 'aceptada',
+    ]);
+
+    // Ahora el hacker invitado sí puede crear el reporte
+    $this->actingAs($hackerInvitado)->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'RCE en API de pagos',
+        'descripcion' => 'Se descubrió ejecución remota de comandos en el endpoint privado.',
+    ])->assertRedirect();
+
+    expect(Reporte::where('titulo', 'RCE en API de pagos')->where('programa_id', $programa->id)->exists())->toBeTrue();
 });
