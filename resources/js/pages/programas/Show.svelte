@@ -397,7 +397,7 @@
                 </Card></div>
             {:else if enPausa && !puedeGestionar}
                 <Card>
-                    <CardContent class="pt-6 text-sm text-muted-foreground">
+                    <CardContent class="text-sm text-muted-foreground">
                         Este programa está en pausa: por ahora no acepta nuevos reportes.
                     </CardContent>
                 </Card>

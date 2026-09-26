@@ -137,7 +137,7 @@
     />
 
     <Card>
-        <CardContent class="pt-6">
+        <CardContent>
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div class="relative flex-1">
                     <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

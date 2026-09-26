@@ -1,12 +1,15 @@
 <script module lang="ts">
     export const layout = {
-        title: 'Registrar empresa',
-        description: 'Crea una cuenta empresarial para solicitar acceso a la plataforma',
+        title: 'Registra tu empresa',
+        description: 'Verificamos cada solicitud antes de activarla. Te avisaremos por correo.',
+        portal: 'empresa',
+        modo: 'registro',
     };
 </script>
 
 <script lang="ts">
     import { Form } from '@inertiajs/svelte';
+    import AceptarTerminos from '@/components/AceptarTerminos.svelte';
     import AppHead from '@/components/AppHead.svelte';
     import InputError from '@/components/InputError.svelte';
     import PasswordInput from '@/components/PasswordInput.svelte';
@@ -79,15 +82,17 @@
                 <InputError message={errors.password_confirmation} />
             </div>
 
-            <Button type="submit" class="mt-2 w-full" disabled={processing}>
+            <AceptarTerminos error={errors.terminos} empresa />
+
+            <Button type="submit" class="mt-1 w-full" disabled={processing} data-test="register-empresa-button">
                 {#if processing}<Spinner />{/if}
                 Enviar solicitud
             </Button>
         </div>
 
-        <div class="text-center text-sm text-muted-foreground">
-            ¿Ya tienes una cuenta?
-            <TextLink href="/empresa/login">Iniciar sesión</TextLink>
-        </div>
+        <p class="text-center text-sm text-muted-foreground">
+            ¿Tu empresa ya tiene cuenta?
+            <TextLink href="/empresa/login">Inicia sesión</TextLink>
+        </p>
     {/snippet}
 </Form>

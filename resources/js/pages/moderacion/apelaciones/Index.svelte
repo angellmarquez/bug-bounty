@@ -75,7 +75,7 @@
     />
 
     <Card>
-        <CardContent class="pt-6">
+        <CardContent>
             <Select value={filtros.estado ?? 'todos'} onValueChange={aplicarFiltro} items={ESTADOS_FILTRO}>
                 <SelectTrigger class="w-full sm:w-[220px]">
                     <SelectValue placeholder="Estado" />

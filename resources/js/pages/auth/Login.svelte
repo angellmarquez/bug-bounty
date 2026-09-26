@@ -1,7 +1,9 @@
 <script module lang="ts">
     export const layout = {
-        title: 'Log in to your account',
-        description: 'Enter your email and password below to log in',
+        title: 'Bienvenido de nuevo',
+        description: 'Entra con tu cuenta de investigador.',
+        portal: 'investigador',
+        modo: 'login',
     };
 </script>
 
@@ -26,74 +28,43 @@
     } = $props();
 </script>
 
-<AppHead title="Log in" />
+<AppHead title="Acceso investigadores" />
 
 {#if status}
-    <div class="mb-4 text-center text-sm font-medium text-exito">
+    <div class="mb-4 rounded-md border border-exito/40 bg-exito/10 px-3 py-2 text-sm font-medium text-exito">
         {status}
     </div>
 {/if}
 
-<Form
-    {...store.form()}
-    resetOnSuccess={['password']}
-    class="flex flex-col gap-6"
->
+<Form {...store.form()} resetOnSuccess={['password']} class="flex flex-col gap-6">
     {#snippet children({ errors, processing })}
-        <div class="grid gap-6">
+        <div class="grid gap-5">
             <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    required
-                    autocomplete="email"
-                    placeholder="email@example.com"
-                />
+                <Label for="email">Correo electrónico</Label>
+                <Input id="email" type="email" name="email" required autocomplete="email" placeholder="tu@correo.com" />
                 <InputError message={errors.email} />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password">Password</Label>
-                <PasswordInput
-                    id="password"
-                    name="password"
-                    required
-                    autocomplete="current-password"
-                    placeholder="Password"
-                />
+                <Label for="password">Contraseña</Label>
+                <PasswordInput id="password" name="password" required autocomplete="current-password" placeholder="Tu contraseña" />
                 <InputError message={errors.password} />
             </div>
 
-            <div class="flex items-center justify-between">
-                <Label for="remember" class="flex items-center space-x-3">
-                    <Checkbox id="remember" name="remember" />
-                    <span>Remember me</span>
-                </Label>
-            </div>
+            <Label for="remember" class="flex items-center gap-3 font-normal">
+                <Checkbox id="remember" name="remember" />
+                <span>Mantener la sesión iniciada</span>
+            </Label>
 
-            <Button
-                type="submit"
-                class="mt-4 w-full"
-                disabled={processing}
-                data-test="login-button"
-            >
+            <Button type="submit" class="mt-2 w-full" disabled={processing} data-test="login-button">
                 {#if processing}<Spinner />{/if}
-                Log in
+                Iniciar sesión
             </Button>
         </div>
 
-        <div class="text-center text-sm text-muted-foreground">
-            Don't have an account?
-            <TextLink href={register()}>Sign up</TextLink>
-        </div>
-
-        <div class="text-center text-sm text-muted-foreground">
-            ¿Accedes como empresa?
-            <TextLink href="/empresa/login" class="underline underline-offset-4">
-                Login empresarial
-            </TextLink>
-        </div>
+        <p class="text-center text-sm text-muted-foreground">
+            ¿Aún no tienes cuenta?
+            <TextLink href={register()}>Crea tu cuenta de investigador</TextLink>
+        </p>
     {/snippet}
 </Form>

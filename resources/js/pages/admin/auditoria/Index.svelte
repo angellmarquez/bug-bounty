@@ -167,7 +167,7 @@
     />
 
     <Card>
-        <CardContent class="pt-6">
+        <CardContent>
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                 <div class="relative flex-1">
                     <Input
@@ -251,7 +251,7 @@
                 {@const resto = entrada.detalle && !esConfig ? restoDelDetalle(entrada.detalle) : []}
                 {@const tieneMasDetalle = esConfig ? cambios.length > 0 : resto.length > 0}
                 <Card>
-                    <CardContent class="pt-6">
+                    <CardContent>
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div class="flex items-start gap-3">
                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full {CATEGORIAS[categoria].clase}">

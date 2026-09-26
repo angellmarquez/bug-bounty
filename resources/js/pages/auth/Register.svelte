@@ -1,12 +1,15 @@
 <script module lang="ts">
     export const layout = {
-        title: 'Create an account',
-        description: 'Enter your details below to create your account',
+        title: 'Crea tu cuenta de investigador',
+        description: 'Gratis y en un minuto. Tus informes se cifran desde el primer envío.',
+        portal: 'investigador',
+        modo: 'registro',
     };
 </script>
 
 <script lang="ts">
     import { Form } from '@inertiajs/svelte';
+    import AceptarTerminos from '@/components/AceptarTerminos.svelte';
     import AppHead from '@/components/AppHead.svelte';
     import InputError from '@/components/InputError.svelte';
     import PasswordInput from '@/components/PasswordInput.svelte';
@@ -22,24 +25,20 @@
     let { passwordRules }: { passwordRules: string } = $props();
 </script>
 
-<AppHead title="Register" />
+<AppHead title="Crear cuenta de investigador" />
 
-<Form
-    {...store.form()}
-    resetOnSuccess={['password', 'password_confirmation']}
-    class="flex flex-col gap-6"
->
+<Form {...store.form()} resetOnSuccess={['password', 'password_confirmation']} class="flex flex-col gap-6">
     {#snippet children({ errors, processing })}
-        <div class="grid gap-6">
+        <div class="grid gap-5">
             <div class="grid gap-2">
-                <Label for="name">Name</Label>
+                <Label for="name">Nombre</Label>
                 <Input
                     id="name"
                     type="text"
                     required
                     autocomplete="name"
                     name="name"
-                    placeholder="Full name"
+                    placeholder="Nombre y apellido"
                     minlength={2}
                     maxlength={100}
                     pattern={PATRON_NOMBRE}
@@ -49,67 +48,34 @@
             </div>
 
             <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    required
-                    autocomplete="email"
-                    name="email"
-                    placeholder="email@example.com"
-                />
+                <Label for="email">Correo electrónico</Label>
+                <Input id="email" type="email" required autocomplete="email" name="email" placeholder="tu@correo.com" />
                 <InputError message={errors.email} />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password">Password</Label>
-                <PasswordInput
-                    id="password"
-                    required
-                    autocomplete="new-password"
-                    name="password"
-                    placeholder="Password"
-                    passwordrules={passwordRules}
-                />
+                <Label for="password">Contraseña</Label>
+                <PasswordInput id="password" required autocomplete="new-password" name="password" placeholder="Mínimo 8 caracteres" passwordrules={passwordRules} />
                 <InputError message={errors.password} />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password_confirmation">Confirm password</Label>
-                <PasswordInput
-                    id="password_confirmation"
-                    required
-                    autocomplete="new-password"
-                    name="password_confirmation"
-                    placeholder="Confirm password"
-                    passwordrules={passwordRules}
-                />
+                <Label for="password_confirmation">Confirmar contraseña</Label>
+                <PasswordInput id="password_confirmation" required autocomplete="new-password" name="password_confirmation" placeholder="Repite la contraseña" passwordrules={passwordRules} />
                 <InputError message={errors.password_confirmation} />
             </div>
 
-            <Button
-                type="submit"
-                class="mt-2 w-full"
-                disabled={processing}
-                data-test="register-user-button"
-            >
+            <AceptarTerminos error={errors.terminos} />
+
+            <Button type="submit" class="mt-1 w-full" disabled={processing} data-test="register-user-button">
                 {#if processing}<Spinner />{/if}
-                Create account
+                Crear cuenta
             </Button>
         </div>
 
-        <div class="text-center text-sm text-muted-foreground">
-            Already have an account?
-            <TextLink href={login()} class="underline underline-offset-4">
-                Log in
-            </TextLink>
-        </div>
-
-        <div class="text-center text-sm text-muted-foreground">
-            ¿Representas a una empresa?
-            <TextLink href="/empresa/registro" class="underline underline-offset-4">
-                Registrar empresa
-            </TextLink>
-        </div>
+        <p class="text-center text-sm text-muted-foreground">
+            ¿Ya tienes cuenta?
+            <TextLink href={login()}>Inicia sesión</TextLink>
+        </p>
     {/snippet}
 </Form>

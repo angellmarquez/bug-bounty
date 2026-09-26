@@ -102,7 +102,7 @@
         <div class="flex-1 space-y-6">
             {#each schema as field (field.name)}
                 <Card>
-                    <CardContent class="pt-6">
+                    <CardContent>
                         <div class="space-y-2">
                             <div class="flex items-center gap-2">
                                 <Label for={field.name} class="text-sm font-medium">

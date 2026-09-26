@@ -253,7 +253,7 @@
             {:else if pasoActual === 2}
                 {#if esEnviado}
                     <Card>
-                        <CardContent class="pt-6">
+                        <CardContent>
                             <p class="text-sm text-muted-foreground">CVSS: {reporte.vector_cvss ?? 'No calculado'} ({reporte.puntuacion_cvss ?? 'N/A'})</p>
                         </CardContent>
                     </Card>

@@ -14,6 +14,7 @@ test('company registration creates a pending company and owner membership', func
         'email' => 'ana@acme.test',
         'password' => 'Password123!Password',
         'password_confirmation' => 'Password123!Password',
+        'terminos' => '1',
     ]);
 
     $response->assertRedirect(route('empresa.dashboard'));

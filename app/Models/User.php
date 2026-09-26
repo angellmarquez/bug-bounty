@@ -30,6 +30,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property int $reputation_score
  * @property bool $is_active
  * @property string|null $tema
+ * @property Carbon|null $terminos_aceptados_en
+ * @property string|null $terminos_version
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Rol> $roles
@@ -45,7 +47,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read Collection<int, Programa> $programasModerados
  * @property-read int|null $programas_activos_count
  */
-#[Fillable(['name', 'email', 'password', 'is_active', 'tema'])]
+#[Fillable(['name', 'email', 'password', 'is_active', 'tema', 'terminos_aceptados_en', 'terminos_version'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -65,6 +67,7 @@ class User extends Authenticatable implements PasskeyUser
             'two_factor_confirmed_at' => 'datetime',
             'reputation_score' => 'integer',
             'is_active' => 'boolean',
+            'terminos_aceptados_en' => 'datetime',
         ];
     }
 

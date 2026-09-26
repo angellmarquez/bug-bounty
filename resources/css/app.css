@@ -348,6 +348,24 @@
     }
 }
 
+/* Aparición al entrar en pantalla (lib/animaciones.ts). */
+.aparecer-oculto {
+    opacity: 0;
+    transform: translateY(14px);
+}
+.aparecer {
+    transition:
+        opacity 500ms ease var(--aparecer-retraso, 0ms),
+        transform 500ms cubic-bezier(0.22, 1, 0.36, 1)
+            var(--aparecer-retraso, 0ms);
+}
+@media print {
+    .aparecer-oculto {
+        opacity: 1;
+        transform: none;
+    }
+}
+
 /* Quien pide menos movimiento en su sistema no ve animaciones. */
 @media (prefers-reduced-motion: reduce) {
     *,

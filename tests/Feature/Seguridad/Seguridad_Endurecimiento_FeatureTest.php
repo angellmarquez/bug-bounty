@@ -24,6 +24,7 @@ function datosDeRegistro(array $cambios = []): array
         'email' => 'maria@example.com',
         'password' => CLAVE_VALIDA,
         'password_confirmation' => CLAVE_VALIDA,
+        'terminos' => '1',
         ...$cambios,
     ];
 }
@@ -155,6 +156,7 @@ test('el registro de empresa valida cada campo con su formato', function (string
         'email' => 'ana@acme.test',
         'password' => CLAVE_VALIDA,
         'password_confirmation' => CLAVE_VALIDA,
+        'terminos' => '1',
         $campo => $valor,
     ])->assertSessionHasErrors($campo);
 

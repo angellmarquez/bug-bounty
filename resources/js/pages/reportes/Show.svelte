@@ -220,7 +220,7 @@
     {/if}
 
     <div class="grid gap-6 lg:grid-cols-3">
-        <div class="space-y-6 lg:col-span-2">
+        <div class="min-w-0 space-y-6 lg:col-span-2">
             <Card>
                 <CardHeader>
                     <CardTitle>Informe del investigador</CardTitle>
@@ -323,27 +323,27 @@
             {/if}
         </div>
 
-        <div class="space-y-6">
+        <div class="min-w-0 space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle>Detalles</CardTitle>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-muted-foreground">Estado</span>
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-sm text-muted-foreground">Estado</span>
                         <StateBadge estado={reporte.estado} />
                     </div>
 
                     {#if reporte.severidad}
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">Severidad</span>
+                        <div class="flex items-start justify-between gap-3">
+                            <span class="shrink-0 text-sm text-muted-foreground">Severidad</span>
                             <SeverityBadge severidad={reporte.severidad} />
                         </div>
                     {/if}
 
                     {#if reporte.programa}
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">Programa</span>
+                        <div class="flex items-start justify-between gap-3">
+                            <span class="shrink-0 text-sm text-muted-foreground">Programa</span>
                             <Link
                                 href={programasShow(reporte.programa.id)}
                                 class="inline-flex items-center gap-1 text-sm text-primary hover:underline"
@@ -354,44 +354,44 @@
                         </div>
                     {/if}
 
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-muted-foreground">Investigador</span>
-                        <span class="text-sm">{reporte.investigador?.name ?? 'Desconocido'}</span>
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-sm text-muted-foreground">Investigador</span>
+                        <span class="min-w-0 text-right text-sm">{reporte.investigador?.name ?? 'Desconocido'}</span>
                     </div>
 
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-muted-foreground">Asignado a</span>
-                        <span class="text-sm">{reporte.asignadoA?.name ?? 'Sin asignar'}</span>
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-sm text-muted-foreground">Asignado a</span>
+                        <span class="min-w-0 text-right text-sm">{reporte.asignadoA?.name ?? 'Sin asignar'}</span>
                     </div>
 
                     {#if reporte.vector_cvss}
                         <div class="space-y-1">
-                            <span class="text-sm text-muted-foreground">CVSS</span>
+                            <span class="shrink-0 text-sm text-muted-foreground">CVSS</span>
                             <div class="flex items-center gap-2">
                                 {#if reporte.puntuacion_cvss}
                                     <span class="text-lg font-bold text-primary">{reporte.puntuacion_cvss}</span>
                                 {/if}
-                                <code class="flex-1 truncate rounded bg-muted px-2 py-1 text-xs">{reporte.vector_cvss}</code>
+                                <code class="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 text-xs" title={reporte.vector_cvss}>{reporte.vector_cvss}</code>
                             </div>
                         </div>
                     {/if}
 
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-muted-foreground">Creado</span>
-                        <span class="text-sm">{formatearFecha(reporte.created_at)}</span>
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-sm text-muted-foreground">Creado</span>
+                        <span class="min-w-0 text-right text-sm">{formatearFecha(reporte.created_at)}</span>
                     </div>
 
                     {#if reporte.enviado_en}
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">Enviado</span>
-                            <span class="text-sm">{formatearFecha(reporte.enviado_en)}</span>
+                        <div class="flex items-start justify-between gap-3">
+                            <span class="shrink-0 text-sm text-muted-foreground">Enviado</span>
+                            <span class="min-w-0 text-right text-sm">{formatearFecha(reporte.enviado_en)}</span>
                         </div>
                     {/if}
 
                     {#if reporte.cerrado_en}
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">Cerrado</span>
-                            <span class="text-sm">{formatearFecha(reporte.cerrado_en)}</span>
+                        <div class="flex items-start justify-between gap-3">
+                            <span class="shrink-0 text-sm text-muted-foreground">Cerrado</span>
+                            <span class="min-w-0 text-right text-sm">{formatearFecha(reporte.cerrado_en)}</span>
                         </div>
                     {/if}
                 </CardContent>

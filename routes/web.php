@@ -5,6 +5,7 @@ use App\Http\Controllers\ApelacionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\InicioController;
 use App\Http\Controllers\InvitacionController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\ModeracionController;
@@ -14,7 +15,12 @@ use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ReputacionController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'Welcome')->name('home');
+Route::get('/', InicioController::class)->name('home');
+
+// Documentos legales (borrador pendiente de revisión: ver config/legal.php).
+Route::inertia('terminos', 'legal/Terminos', ['legal' => config('legal')])->name('legal.terminos');
+Route::inertia('privacidad', 'legal/Privacidad', ['legal' => config('legal')])->name('legal.privacidad');
+Route::inertia('politica-de-divulgacion', 'legal/Divulgacion', ['legal' => config('legal')])->name('legal.divulgacion');
 Route::get('hall-of-fame', LeaderboardController::class)->name('hall-of-fame');
 
 Route::get('empresa/login', [EmpresaAuthController::class, 'login'])->name('empresa.login');

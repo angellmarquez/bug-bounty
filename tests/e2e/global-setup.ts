@@ -84,6 +84,8 @@ async function esperarServidor(url: string): Promise<void> {
     while (Date.now() < limite) {
         try {
             const respuesta = await fetch(url);
+            // Se consume el cuerpo: dejarlo sin leer hace fallar al cliente HTTP de Node al cerrar el socket.
+            await respuesta.arrayBuffer();
             if (respuesta.status < 500) return;
         } catch {
             // el servidor todavía no responde

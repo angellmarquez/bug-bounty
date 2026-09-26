@@ -16,6 +16,16 @@
     import Plus from '@lucide/svelte/icons/plus';
     import Settings from '@lucide/svelte/icons/settings';
     import CheckCircle from '@lucide/svelte/icons/check-circle';
+    import Archive from '@lucide/svelte/icons/archive';
+    import Ellipsis from '@lucide/svelte/icons/ellipsis';
+    import Trash2 from '@lucide/svelte/icons/trash-2';
+    import {
+        DropdownMenu,
+        DropdownMenuContent,
+        DropdownMenuItem,
+        DropdownMenuSeparator,
+        DropdownMenuTrigger,
+    } from '@/components/ui/dropdown-menu';
     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
     import { toast } from 'svelte-sonner';
     import ReportesCompactos from '@/components/ReportesCompactos.svelte';
@@ -188,24 +198,46 @@
                                 {:else if programa.estado === 'en_pausa'}
                                     <Button size="sm" onclick={() => cambiarEstadoPrograma(programa.id, 'activo')}>Reactivar</Button>
                                 {/if}
-                                {#if programa.estado === 'activo' || programa.estado === 'en_pausa'}
-                                    <Button size="sm" variant="outline" onclick={() => cambiarEstadoPrograma(programa.id, 'archivado')}>Archivar</Button>
-                                    <Button
-                                        size="sm"
-                                        class="bg-chart-1 text-primary-foreground hover:bg-chart-1/90"
-                                        onclick={() => resolverPrograma(programa.id, programa.nombre)}
-                                    >
-                                        <CheckCircle class="mr-1 h-3.5 w-3.5" />
-                                        Poner como resuelto
-                                    </Button>
-                                {/if}
                                 <Button size="sm" variant="outline" href={`/gestion/programas/${programa.id}/editar`}>
                                     <Settings class="mr-1 h-3 w-3" />
                                     Editar
                                 </Button>
-                                <Button size="sm" variant="destructive" onclick={() => eliminarPrograma(programa.id, programa.nombre)}>
-                                    Eliminar
-                                </Button>
+                                <!-- Acciones menos frecuentes (y la destructiva) en un menú, para no competir con las principales. -->
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        {#snippet children(props)}
+                                            <Button size="sm" variant="ghost" aria-label="Más acciones de {programa.nombre}" {...props}>
+                                                <Ellipsis class="h-4 w-4" />
+                                            </Button>
+                                        {/snippet}
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="w-52">
+                                        {#if programa.estado === 'activo' || programa.estado === 'en_pausa'}
+                                            <DropdownMenuItem asChild>
+                                                {#snippet children(props)}
+                                                    <button type="button" class={props.class} onclick={() => { props.onClick?.(); resolverPrograma(programa.id, programa.nombre); }}>
+                                                        <CheckCircle class="mr-2 h-4 w-4 text-exito" /> Poner como resuelto
+                                                    </button>
+                                                {/snippet}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem asChild>
+                                                {#snippet children(props)}
+                                                    <button type="button" class={props.class} onclick={() => { props.onClick?.(); cambiarEstadoPrograma(programa.id, 'archivado'); }}>
+                                                        <Archive class="mr-2 h-4 w-4" /> Archivar
+                                                    </button>
+                                                {/snippet}
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                        {/if}
+                                        <DropdownMenuItem asChild>
+                                            {#snippet children(props)}
+                                                <button type="button" class="{props.class} text-destructive hover:text-destructive" onclick={() => { props.onClick?.(); eliminarPrograma(programa.id, programa.nombre); }}>
+                                                    <Trash2 class="mr-2 h-4 w-4" /> Eliminar programa
+                                                </button>
+                                            {/snippet}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
                     {/each}
