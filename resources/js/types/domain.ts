@@ -323,29 +323,52 @@ export type DashboardStats = {
     reputacion: number;
 };
 
-export type DashboardRoleStats =
-    | {
-          tipo: 'empresa';
-          estado: string | undefined;
-          programas_total: number;
-          programas_activos: number;
-          reportes_recibidos: number;
-      }
-    | {
-          tipo: 'moderador';
-          pendientes_revision: number;
-          por_revisar: number;
-          validados: number;
-          rechazados: number;
-          sanciones_aplicadas: number;
-      }
-    | {
-          tipo: 'administrador';
-          por_revisar: number;
-          pendientes_revision: number;
-          empresas_pendientes: number;
-          empresas_aprobadas: number;
-          moderadores: number;
-          sanciones_activas: number;
-      }
-    | Record<string, never>;
+export type DashboardRoleStatsEmpresa = {
+    tipo: 'empresa';
+    estado: string | undefined;
+    programas_total: number;
+    programas_activos: number;
+    reportes_recibidos: number;
+};
+
+export type DashboardRoleStatsModerador = {
+    tipo: 'moderador';
+    pendientes_revision: number;
+    por_revisar: number;
+    validados: number;
+    rechazados: number;
+    sanciones_aplicadas: number;
+};
+
+export type DashboardRoleStatsAdmin = {
+    tipo: 'administrador';
+    empresas_pendientes: number;
+    empresas_aprobadas: number;
+    moderadores: number;
+    sanciones_activas: number;
+};
+
+/** Mapa acumulativo: un usuario con múltiples roles recibe todas sus métricas sin colisión. */
+export type DashboardRoleStats = {
+    empresa?: DashboardRoleStatsEmpresa;
+    moderador?: DashboardRoleStatsModerador;
+    administrador?: DashboardRoleStatsAdmin;
+};
+
+
+export type SancionDashboard = {
+    id: number;
+    motivo: string;
+    gravedad: GravedadSancion;
+    puntos: number;
+    estado: EstadoSancion;
+    suspension_desde: string | null;
+    suspension_hasta: string | null;
+    plazo_apelacion: string | null;
+    en_plazo: boolean;
+    puede_apelar: boolean;
+    comentario_moderador?: string | null;
+    moderador?: { id: number; name: string } | null;
+    reporte?: { id: number; numero_reporte: string; titulo: string } | null;
+    apelacion?: { id: number; motivo: string; estado: string } | null;
+};

@@ -65,6 +65,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::put('programas/{programa}', [ProgramaController::class, 'update'])->name('programas.update');
     Route::delete('programas/{programa}', [ProgramaController::class, 'destroy'])->name('programas.destroy');
     Route::post('programas/{programa}/cambiar-estado', [ProgramaController::class, 'cambiarEstado'])->name('programas.cambiar-estado');
+    Route::post('programas/{programa}/resolver', [ProgramaController::class, 'resolver'])->name('programas.resolver');
     Route::post('programas/{programa}/invitaciones', [ProgramaController::class, 'invitarHacker'])->name('programas.invitaciones.crear');
     Route::delete('programas/{programa}/invitaciones/{user}', [ProgramaController::class, 'cancelarInvitacionHacker'])->name('programas.invitaciones.cancelar');
     Route::post('invitaciones/programas/{programa}/aceptar', [InvitacionController::class, 'aceptarPrograma'])->name('invitaciones.programas.aceptar');

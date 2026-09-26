@@ -97,6 +97,7 @@ export function estadoProgramaColor(estado: EstadoPrograma): string {
         activo: pill('emerald'),
         en_pausa: pill('amber'),
         archivado: pill('zinc'),
+        resuelto: pill('purple'),
     };
     return map[estado] ?? pill('slate');
 }
@@ -207,6 +208,7 @@ export function estadoProgramaLabel(estado: EstadoPrograma): string {
         activo: 'Activo',
         en_pausa: 'En pausa',
         archivado: 'Archivado',
+        resuelto: 'Resuelto',
     };
     return map[estado] ?? estado;
 }

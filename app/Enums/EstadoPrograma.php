@@ -8,4 +8,5 @@ enum EstadoPrograma: string
     case Activo = 'activo';
     case EnPausa = 'en_pausa';
     case Archivado = 'archivado';
+    case Resuelto = 'resuelto';
 }

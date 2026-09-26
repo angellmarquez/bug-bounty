@@ -17,6 +17,7 @@ export const EstadoPrograma = {
     Activo: 'activo',
     EnPausa: 'en_pausa',
     Archivado: 'archivado',
+    Resuelto: 'resuelto',
 } as const;
 export type EstadoPrograma =
     (typeof EstadoPrograma)[keyof typeof EstadoPrograma];

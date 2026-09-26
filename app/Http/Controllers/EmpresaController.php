@@ -103,11 +103,11 @@ class EmpresaController extends Controller
         $programaId = $request->filled('programa_id') ? (int) $request->input('programa_id') : null;
 
         $recibidos = fn () => Reporte::query()
-            ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
+            ->whereIn('programa_id', $empresa->programas()->withTrashed()->select('programas.id'))
             ->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA);
 
         $reportes = $recibidos()
-            ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
+            ->with(['programa' => fn ($q) => $q->withTrashed()->select('id', 'nombre'), 'investigador:id,name,reputation_score'])
             ->when($programaId !== null, fn ($query) => $query->where('programa_id', $programaId))
             ->when($request->filled('busqueda'), function ($query) use ($request) {
                 $busqueda = (string) $request->input('busqueda');
@@ -124,7 +124,7 @@ class EmpresaController extends Controller
 
         return Inertia::render('empresa/Reportes', [
             'empresa' => ['id' => $empresa->id, 'nombre' => $empresa->nombre_comercial ?? $empresa->razon_social, 'esAdmin' => $esAdmin],
-            'programas' => $empresa->programas()->orderBy('nombre')->get(['id', 'nombre']),
+            'programas' => $empresa->programas()->withTrashed()->orderBy('nombre')->get(['id', 'nombre']),
             'filtros' => [
                 'filtro' => $filtro,
                 'programa_id' => $programaId,
@@ -150,9 +150,9 @@ class EmpresaController extends Controller
     private function reportesRecientes(Empresa $empresa): array
     {
         return Reporte::query()
-            ->whereIn('programa_id', $empresa->programas()->select('programas.id'))
+            ->whereIn('programa_id', $empresa->programas()->withTrashed()->select('programas.id'))
             ->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA)
-            ->with(['programa:id,nombre', 'investigador:id,name,reputation_score'])
+            ->with(['programa' => fn ($q) => $q->withTrashed()->select('id', 'nombre'), 'investigador:id,name,reputation_score'])
             ->latest('id')
             ->limit(8)
             ->get()

@@ -116,7 +116,7 @@ class Reporte extends Model
      */
     public function programa(): BelongsTo
     {
-        return $this->belongsTo(Programa::class);
+        return $this->belongsTo(Programa::class)->withTrashed();
     }
 
     /**

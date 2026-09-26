@@ -190,20 +190,47 @@ test('la empresa puede eliminar un programa sin informes', function () {
     expect(Programa::find($programa->id))->toBeNull();
 });
 
-test('un programa con informes no se puede eliminar, solo archivar', function () {
+test('la empresa puede poner un programa como resuelto y se elimina dejando de recibir informes', function () {
+    $empresa = Empresa::factory()->aprobada()->create();
+    $usuario = miembroDeEmpresa($empresa);
+    $programa = conObjetivo(programaDeEmpresa($usuario, ['estado' => 'activo']));
+    $investigador = investigador();
+    $reporte = reporteDe($investigador, $programa, ['estado' => 'enviado']);
+    $this->actingAs($usuario);
+
+    $this->get(route('programas.show', $programa))
+        ->assertInertia(fn ($page) => $page->where('puedeEliminar', true));
+
+    // Al resolverlo, el programa se elimina y pasa a resuelto
+    $this->post(route('programas.resolver', $programa))
+        ->assertRedirect(route('empresa.dashboard'));
+
+    expect(Programa::find($programa->id))->toBeNull(); // soft-deleted
+    expect(Programa::withTrashed()->find($programa->id)->estado)->toBe(EstadoPrograma::Resuelto);
+
+    // El reporte anterior sigue existiendo e intacto con su relación al programa
+    expect($reporte->fresh()->programa->nombre)->toBe($programa->nombre);
+
+    // Un investigador ya no puede enviar nuevos reportes a este programa
+    $this->actingAs($investigador);
+    $this->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'Intento de reporte en programa resuelto',
+        'descripcion' => 'Descripción',
+    ])->assertNotFound();
+});
+
+test('la empresa puede eliminar un programa aunque tenga informes', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = programaBorradorDe($empresa);
     reporteDe(investigador(), $programa, ['estado' => 'enviado']);
     $this->actingAs(miembroDeEmpresa($empresa));
 
-    $this->get(route('programas.show', $programa))
-        ->assertInertia(fn ($page) => $page->where('puedeEliminar', false));
+    $this->delete(route('programas.destroy', $programa))
+        ->assertRedirect(route('empresa.dashboard'));
 
-    $this->delete(route('programas.destroy', $programa))->assertSessionHasErrors('programa');
-    expect(Programa::find($programa->id))->not->toBeNull();
-
-    $this->post(route('programas.cambiar-estado', $programa), ['estado' => 'archivado'])->assertSessionHasNoErrors();
-    expect($programa->fresh()->estado)->toBe(EstadoPrograma::Archivado);
+    expect(Programa::find($programa->id))->toBeNull();
+    expect(Programa::withTrashed()->find($programa->id)->estado)->toBe(EstadoPrograma::Resuelto);
 });
 
 test('una empresa ajena no puede eliminar el programa', function () {

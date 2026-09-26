@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
+use App\Enums\EstadoPrograma;
 use App\Http\Requests\StoreProgramaRequest;
 use App\Http\Requests\UpdateProgramaRequest;
 use App\Models\Auditoria;
@@ -27,9 +28,10 @@ class ProgramaController extends Controller
 {
     private const TRANSICIONES_VALIDAS = [
         'borrador' => ['activo', 'archivado'],
-        'activo' => ['en_pausa', 'archivado'],
-        'en_pausa' => ['activo', 'archivado'],
-        'archivado' => [],
+        'activo' => ['en_pausa', 'archivado', 'resuelto'],
+        'en_pausa' => ['activo', 'archivado', 'resuelto'],
+        'archivado' => ['resuelto'],
+        'resuelto' => [],
     ];
 
     public function index(Request $request): InertiaResponse
@@ -162,7 +164,7 @@ class ProgramaController extends Controller
             'esDeMiEmpresa' => $programa->empresa_id !== null && $programa->empresa_id === $request->user()->idEmpresaActiva(),
             'puedeGestionar' => $puedeGestionar,
             'puedeCambiarEstado' => $puedeCambiarEstado,
-            'puedeEliminar' => $puedeEliminar && ! $programa->reportes()->exists(),
+            'puedeEliminar' => $puedeEliminar,
             'puedeInvitarHackers' => $puedeInvitarHackers,
             'hackersInvitados' => $hackersInvitados,
             'transicionesPermitidas' => $transicionesPermitidas,
@@ -306,17 +308,23 @@ class ProgramaController extends Controller
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaEliminar, $programa);
 
-        // Los informes dependen del programa (listados, cola de moderación, timeline):
-        // uno que ya recibió informes se archiva, no se elimina.
-        if ($programa->reportes()->exists()) {
-            throw ValidationException::withMessages([
-                'programa' => 'Este programa ya recibió informes y no se puede eliminar. Archívalo para que deje de aceptar nuevos reportes.',
-            ]);
-        }
+        $nombre = $programa->nombre;
+        $reportesCount = $programa->reportes()->count();
 
-        $programa->delete();
+        DB::transaction(function () use ($programa) {
+            $programa->update(['estado' => EstadoPrograma::Resuelto]);
+            $programa->delete();
 
-        Auditoria::registrar('programas.eliminado', $programa, ['nombre' => $programa->nombre]);
+            InvitacionPrograma::query()
+                ->where('programa_id', $programa->id)
+                ->where('estado', 'pendiente')
+                ->update(['estado' => 'cancelada']);
+        });
+
+        Auditoria::registrar('programas.eliminado', $programa, [
+            'nombre' => $nombre,
+            'reportes_asociados' => $reportesCount,
+        ], request()->user()?->id);
 
         $esEmpresa = request()->user()?->roles()->where('slug', 'empresa')->exists() ?? false;
 
@@ -324,23 +332,56 @@ class ProgramaController extends Controller
             ->with('success', 'Programa eliminado exitosamente.');
     }
 
+    public function resolver(Programa $programa): RedirectResponse
+    {
+        $this->authorizeProgramAction(AccionesAbac::ProgramaCambiarEstado, $programa);
+
+        $nombre = $programa->nombre;
+        $reportesCount = $programa->reportes()->count();
+
+        DB::transaction(function () use ($programa) {
+            $programa->update(['estado' => EstadoPrograma::Resuelto]);
+            $programa->delete();
+
+            InvitacionPrograma::query()
+                ->where('programa_id', $programa->id)
+                ->where('estado', 'pendiente')
+                ->update(['estado' => 'cancelada']);
+        });
+
+        Auditoria::registrar('programas.resuelto', $programa, [
+            'nombre' => $nombre,
+            'empresa_id' => $programa->empresa_id,
+            'reportes_asociados' => $reportesCount,
+        ], request()->user()?->id);
+
+        $esEmpresa = request()->user()?->roles()->where('slug', 'empresa')->exists() ?? false;
+
+        return redirect()->route($esEmpresa ? 'empresa.dashboard' : 'programas.index')
+            ->with('success', "Programa \"{$nombre}\" puesto como resuelto. Dejó de recibir informes y ha sido eliminado.");
+    }
+
     public function cambiarEstado(Request $request, Programa $programa): RedirectResponse
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaCambiarEstado, $programa);
 
         $request->validate([
-            'estado' => ['required', 'string', 'in:activo,en_pausa,archivado'],
+            'estado' => ['required', 'string', 'in:activo,en_pausa,archivado,resuelto'],
         ]);
 
         $estadoDestino = $request->input('estado');
         $estadoActual = $programa->estado->value;
-        $permitidos = self::TRANSICIONES_VALIDAS[$estadoActual];
+        $permitidos = self::TRANSICIONES_VALIDAS[$estadoActual] ?? [];
 
         abort_if(
-            ! in_array($estadoDestino, $permitidos),
+            ! in_array($estadoDestino, $permitidos, true),
             422,
             "No se puede transitar de \"{$estadoActual}\" a \"{$estadoDestino}\"."
         );
+
+        if ($estadoDestino === 'resuelto') {
+            return $this->resolver($programa);
+        }
 
         // Sin objetivos no hay alcance definido: los investigadores no sabrían qué investigar.
         if ($estadoDestino === 'activo' && ! $programa->objetivos()->exists()) {

@@ -20,6 +20,7 @@
     import Building2 from '@lucide/svelte/icons/building-2';
     import Settings from '@lucide/svelte/icons/settings';
     import Edit from '@lucide/svelte/icons/edit';
+    import CheckCircle from '@lucide/svelte/icons/check-circle';
     import AppHead from '@/components/AppHead.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
@@ -100,7 +101,13 @@
 
     function cambiarEstado(estado: string) {
         if (estado === 'archivado' && !confirm('¿Archivar este programa? Dejará de aceptar nuevos reportes.')) return;
+        if (estado === 'resuelto' && !confirm('¿Poner este programa como resuelto? Dejará de recibir informes y se eliminará el programa.')) return;
         router.post(`/programas/${programa.id}/cambiar-estado`, { estado });
+    }
+
+    function resolverPrograma() {
+        if (!confirm(`¿Poner el programa "${programa.nombre}" como resuelto? Dejará de recibir informes y se eliminará el programa.`)) return;
+        router.post(`/programas/${programa.id}/resolver`);
     }
 
     function eliminarPrograma() {
@@ -447,14 +454,25 @@
             {#if puedeCambiarEstado && transicionesPermitidas.length > 0}
                 <div class="flex flex-col gap-2 w-full">
                     {#each transicionesPermitidas as estado}
-                        <Button
-                            variant={estado === 'activo' ? 'default' : 'outline'}
-                            class="w-full"
-                            disabled={estado === 'activo' && sinObjetivos}
-                            onclick={() => cambiarEstado(estado)}
-                        >
-                            {estado === 'activo' ? 'Publicar programa' : `Cambiar a ${estado}`}
-                        </Button>
+                        {#if estado === 'resuelto'}
+                            <Button
+                                variant="default"
+                                class="w-full bg-chart-1 text-primary-foreground hover:bg-chart-1/90"
+                                onclick={resolverPrograma}
+                            >
+                                <CheckCircle class="mr-2 h-4 w-4" />
+                                Poner como resuelto
+                            </Button>
+                        {:else}
+                            <Button
+                                variant={estado === 'activo' ? 'default' : 'outline'}
+                                class="w-full"
+                                disabled={estado === 'activo' && sinObjetivos}
+                                onclick={() => cambiarEstado(estado)}
+                            >
+                                {estado === 'activo' ? 'Publicar programa' : `Cambiar a ${estado}`}
+                            </Button>
+                        {/if}
                     {/each}
                     {#if sinObjetivos && transicionesPermitidas.includes('activo')}
                         <p class="text-xs text-chart-4">

@@ -15,6 +15,7 @@
     import SeverityBadge from '@/components/SeverityBadge.svelte';
     import Plus from '@lucide/svelte/icons/plus';
     import Settings from '@lucide/svelte/icons/settings';
+    import CheckCircle from '@lucide/svelte/icons/check-circle';
     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
     import { toast } from 'svelte-sonner';
     import ReportesCompactos from '@/components/ReportesCompactos.svelte';
@@ -60,6 +61,11 @@
         if (estado === 'activo' && !confirm('¿Publicar este programa? Los investigadores podrán verlo y enviar reportes.')) return;
         if (estado === 'archivado' && !confirm('¿Archivar este programa? Dejará de aceptar nuevos reportes.')) return;
         router.post(`/programas/${programaId}/cambiar-estado`, { estado }, { preserveScroll: true });
+    }
+
+    function resolverPrograma(programaId: number, nombre: string) {
+        if (!confirm(`¿Poner el programa "${nombre}" como resuelto? Dejará de recibir informes y se eliminará el programa.`)) return;
+        router.post(`/programas/${programaId}/resolver`, {}, { preserveScroll: true });
     }
 
     function eliminarPrograma(programaId: number, nombre: string) {
@@ -185,16 +191,22 @@
                                 {/if}
                                 {#if programa.estado === 'activo' || programa.estado === 'en_pausa'}
                                     <Button size="sm" variant="outline" onclick={() => cambiarEstadoPrograma(programa.id, 'archivado')}>Archivar</Button>
+                                    <Button
+                                        size="sm"
+                                        class="bg-chart-1 text-primary-foreground hover:bg-chart-1/90"
+                                        onclick={() => resolverPrograma(programa.id, programa.nombre)}
+                                    >
+                                        <CheckCircle class="mr-1 h-3.5 w-3.5" />
+                                        Poner como resuelto
+                                    </Button>
                                 {/if}
                                 <Button size="sm" variant="outline" href={`/gestion/programas/${programa.id}/editar`}>
                                     <Settings class="mr-1 h-3 w-3" />
                                     Editar
                                 </Button>
-                                {#if programa.reportes_todos === 0}
-                                    <Button size="sm" variant="destructive" onclick={() => eliminarPrograma(programa.id, programa.nombre)}>
-                                        Eliminar
-                                    </Button>
-                                {/if}
+                                <Button size="sm" variant="destructive" onclick={() => eliminarPrograma(programa.id, programa.nombre)}>
+                                    Eliminar
+                                </Button>
                             </div>
                         </div>
                     {/each}

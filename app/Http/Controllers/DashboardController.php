@@ -23,9 +23,26 @@ class DashboardController extends Controller
         $isModerador = in_array('moderador', $roles);
         $isEmpresa = in_array('empresa', $roles);
 
+        // Construir la query base según el rol:
+        // - Admin  → todos los reportes del sistema
+        // - Empresa → reportes de sus propios programas (visible por empresa)
+        // - Resto  → solo los reportes donde el usuario es el investigador
         $query = Reporte::query();
 
-        if (! $isAdmin) {
+        if ($isAdmin) {
+            // Admin ve todo, no filtra
+        } elseif ($isEmpresa) {
+            $empresa = $user->empresas()
+                ->where('empresa_usuario.estado', 'activo')
+                ->latest('empresas.created_at')
+                ->first();
+            $empresaId = $empresa ? $empresa->id : 0;
+            $query->whereHas(
+                'programa',
+                fn ($q) => $q->where('empresa_id', $empresaId)
+            )->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA);
+        } else {
+
             $query->where('investigador_id', $user->id);
         }
 
@@ -53,7 +70,9 @@ class DashboardController extends Controller
             'reputacion' => $user->reputation_score,
         ];
 
-        $misReportes = (! $isAdmin)
+        // Mis reportes recientes: solo para no-admin y no-empresa
+        // (empresa ya ve sus reportes en la tarjeta roleStats['empresa'])
+        $misReportes = (! $isAdmin && ! $isEmpresa)
             ? Reporte::where('investigador_id', $user->id)
                 ->with(['programa:id,nombre', 'eventos:id,reporte_id,tipo,nota,created_at'])
                 ->latest('created_at')
@@ -78,6 +97,9 @@ class DashboardController extends Controller
                 })
             : [];
 
+        // roleStats: mapa acumulativo indexado por tipo de rol.
+        // Si un usuario tiene múltiples roles (p.ej. moderador + investigador),
+        // el frontend recibe las métricas de TODOS sus roles sin colisión de if/elseif.
         $roleStats = [];
 
         if ($isEmpresa) {
@@ -86,22 +108,24 @@ class DashboardController extends Controller
                 ->latest('empresas.created_at')
                 ->first();
             $programasEmpresa = $empresa?->programas() ?? Programa::query()->whereKey(0);
-            // Solo cuentan los informes que la empresa puede ver (triados o resueltos), no borradores ni rechazados.
+            // Solo cuentan los informes que la empresa puede ver (triados o resueltos), no borradores ni en revisión.
             $reportesEmpresa = Reporte::query()
-                ->whereIn('programa_id', $programasEmpresa->clone()->select('id'))
+                ->whereIn('programa_id', $programasEmpresa->clone()->withTrashed()->select('id'))
                 ->whereIn('estado', Reporte::ESTADOS_VISIBLES_EMPRESA);
-            $roleStats = [
+            $roleStats['empresa'] = [
                 'tipo' => 'empresa',
                 'estado' => $empresa?->estado->value,
                 'programas_total' => $programasEmpresa->count(),
                 'programas_activos' => (clone $programasEmpresa)->where('estado', 'activo')->count(),
                 'reportes_recibidos' => $reportesEmpresa->count(),
             ];
-        } elseif ($isModerador) {
+        }
+
+        if ($isModerador) {
             $reportesModerador = Reporte::query()
                 ->where('estado', '!=', 'borrador')
                 ->whereIn('programa_id', $user->idsProgramasModerados());
-            $roleStats = [
+            $roleStats['moderador'] = [
                 'tipo' => 'moderador',
                 'pendientes_revision' => (clone $reportesModerador)->whereIn('estado', ['enviado', 'en_revision'])->count(),
                 'por_revisar' => (clone $reportesModerador)->where('estado', 'enviado')->count(),
@@ -109,10 +133,11 @@ class DashboardController extends Controller
                 'rechazados' => (clone $reportesModerador)->where('estado', 'rechazado')->count(),
                 'sanciones_aplicadas' => $user->auditorias()->where('accion', 'sancion.aplicada')->count(),
             ];
-        } elseif ($isAdmin) {
-            // El admin no participa en el día a día de los reportes (eso es de
-            // moderador/empresa): sus métricas son solo las de su función real.
-            $roleStats = [
+        }
+
+        if ($isAdmin) {
+            // El admin supervisa y arbitra: sus métricas son las de su función real.
+            $roleStats['administrador'] = [
                 'tipo' => 'administrador',
                 'empresas_pendientes' => Empresa::where('estado', 'pendiente')->count(),
                 'empresas_aprobadas' => Empresa::where('estado', 'aprobada')->count(),
