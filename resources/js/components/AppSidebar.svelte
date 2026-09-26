@@ -14,6 +14,7 @@
     import MessageSquare from '@lucide/svelte/icons/message-square';
     import Building2 from '@lucide/svelte/icons/building-2';
     import Trophy from '@lucide/svelte/icons/trophy';
+    import Cpu from '@lucide/svelte/icons/cpu';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavMain from '@/components/NavMain.svelte';
@@ -160,6 +161,7 @@
             { title: 'Usuarios', href: '/admin/usuarios', icon: Users },
             { title: 'Moderadores', href: '/admin/moderadores', icon: ShieldCheck },
             { title: 'Sanciones', href: '/admin/sanciones', icon: ShieldAlert },
+            { title: 'Simulador ABAC', href: '/admin/abac/simulador', icon: Cpu },
             { title: 'Auditoría', href: '/admin/auditoria', icon: ClipboardList },
             { title: 'Config. Reputación', href: '/admin/config/reputacion', icon: Settings },
             { title: 'Claves PGP', href: '/admin/pgp', icon: Key },

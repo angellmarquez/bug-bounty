@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -46,6 +47,7 @@ use Illuminate\Support\Carbon;
  * @property-read Reporte|null $duplicadoDe
  * @property-read Collection<int, Reporte> $duplicados
  * @property-read Collection<int, EntradaReputacion> $entradasReputacion
+ * @property-read CertificadoDivulgacion|null $certificado
  */
 #[Fillable(['numero_reporte', 'programa_id', 'investigador_id', 'asignado_a', 'titulo', 'descripcion', 'categoria', 'vector_cvss', 'puntuacion_cvss', 'severidad', 'poc', 'clave_huella', 'estado', 'es_duplicado_de', 'notas_internas', 'enviado_en', 'cerrado_en'])]
 #[Hidden(['notas_internas'])]
@@ -189,6 +191,24 @@ class Reporte extends Model
     public function sanciones(): HasMany
     {
         return $this->hasMany(Sancion::class);
+    }
+
+    /**
+     * Certificado de divulgación responsable emitido para este reporte.
+     *
+     * @return HasOne<CertificadoDivulgacion, $this>
+     */
+    public function certificado(): HasOne
+    {
+        return $this->hasOne(CertificadoDivulgacion::class);
+    }
+
+    /**
+     * Indica si el informe fue aprobado en el flujo (validado, en reparación, pagado o cerrado).
+     */
+    public function estaAprobado(): bool
+    {
+        return in_array($this->estado->value, self::ESTADOS_APROBADOS, true);
     }
 
     /**

@@ -18,6 +18,7 @@
 <script lang="ts">
     import { Link, router } from '@inertiajs/svelte';
     import ExternalLink from '@lucide/svelte/icons/external-link';
+    import Award from '@lucide/svelte/icons/award';
     import UserPlus from '@lucide/svelte/icons/user-plus';
     import CheckCircle from '@lucide/svelte/icons/check-circle';
     import XCircle from '@lucide/svelte/icons/x-circle';
@@ -147,8 +148,14 @@
                 description={reporte.titulo}
             />
         </div>
-        {#if (reporte.estado === 'borrador' || reporte.estado === 'needs_info') && auth?.user?.id === reporte.investigador_id}
-            <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
+            {#if ['validado', 'en_reparacion', 'pagado', 'cerrado'].includes(reporte.estado)}
+                <Button variant="outline" href={`/reportes/${reporte.id}/certificado`} class="border-primary/40 text-primary hover:bg-primary/10">
+                    <Award class="mr-2 h-4 w-4" />
+                    Certificado Oficial
+                </Button>
+            {/if}
+            {#if (reporte.estado === 'borrador' || reporte.estado === 'needs_info') && auth?.user?.id === reporte.investigador_id}
                 <Button variant="outline" href={reportesEdit(reporte.id)}>
                     <Edit class="mr-2 h-4 w-4" />
                     Editar
@@ -157,8 +164,8 @@
                     <Send class="mr-2 h-4 w-4" />
                     {reporte.estado === 'needs_info' ? 'Reenviar información' : 'Enviar'}
                 </Button>
-            </div>
-        {/if}
+            {/if}
+        </div>
     </div>
 
     {#if reporte.estado === 'needs_info'}
