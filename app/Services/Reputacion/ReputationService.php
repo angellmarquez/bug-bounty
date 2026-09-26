@@ -5,6 +5,7 @@ namespace App\Services\Reputacion;
 use App\Enums\EstadoApelacion;
 use App\Enums\EstadoSancion;
 use App\Enums\GravedadSancion;
+use App\Enums\Severidad;
 use App\Enums\TipoEventoReporte;
 use App\Models\Apelacion;
 use App\Models\Auditoria;
@@ -126,6 +127,24 @@ class ReputationService
     }
 
     /**
+     * Calcula los puntos para un evento determinado, ponderando automáticamente
+     * por la severidad técnica del reporte cuando esté presente.
+     */
+    public function calcularPuntosEvento(string $evento, ?Reporte $reporte = null): int
+    {
+        if ($reporte !== null && $reporte->severidad !== null) {
+            $severidadSlug = $reporte->severidad->value;
+
+            $puntosSeveridad = config("reputacion.puntos_por_severidad.{$severidadSlug}.{$evento}");
+            if ($puntosSeveridad !== null) {
+                return (int) $puntosSeveridad;
+            }
+        }
+
+        return (int) config("reputacion.puntos.{$evento}", 0);
+    }
+
+    /**
      * Otorga los puntos configurados para un evento de reputación positiva
      * (p. ej. `reporte_validado`, `reporte_resuelto`).
      *
@@ -133,7 +152,7 @@ class ReputationService
      */
     public function otorgarPuntosEvento(User|int $usuario, string $evento, ?Reporte $reporte = null, array $metadata = []): ?EntradaReputacion
     {
-        $puntos = (int) config("reputacion.puntos.{$evento}");
+        $puntos = $this->calcularPuntosEvento($evento, $reporte);
 
         if ($puntos === 0) {
             return null;

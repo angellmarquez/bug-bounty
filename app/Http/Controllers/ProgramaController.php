@@ -371,7 +371,8 @@ class ProgramaController extends Controller
 
         $estadoDestino = $request->input('estado');
         $estadoActual = $programa->estado->value;
-        $permitidos = self::TRANSICIONES_VALIDAS[$estadoActual] ?? [];
+        $permitidos = self::TRANSICIONES_VALIDAS[$estadoActual];
+
 
         abort_if(
             ! in_array($estadoDestino, $permitidos, true),

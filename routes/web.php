@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\InvitacionController;
+use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\ModeracionController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProgramaController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\ReputacionController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'Welcome')->name('home');
+Route::get('hall-of-fame', LeaderboardController::class)->name('hall-of-fame');
 
 Route::get('empresa/login', [EmpresaAuthController::class, 'login'])->name('empresa.login');
 Route::get('empresa/registro', [EmpresaAuthController::class, 'create'])->name('empresa.register');

@@ -78,6 +78,9 @@ return [
 
         // El administrador no crea, no tría, no repara ni cierra en el día a día: supervisa, arbitra
         // y reparte el trabajo (asignar un informe a un moderador es solo suyo).
+        // NOTA ARQUITECTÓNICA: esta regla es intencional y anula admin-bypass-total para estas
+        // acciones operativas. Deny-Overrides garantiza que el deny gane. Si en el futuro se
+        // necesita SoD por recurso para el admin, cambiar a condición de objeto en lugar de eliminarla.
         [
             'id' => 'denegar-dia-a-dia-de-reportes-al-administrador',
             'prioridad' => 5,
@@ -103,7 +106,11 @@ return [
         // ------------------------------------------------------------------
         // 1. Separación Estricta de Funciones (SoD): Quién NO crea reportes
         // ------------------------------------------------------------------
-        // Moderador / Empresa: DENEGAR SIEMPRE crear o enviar reportes.
+        // Moderador: SoD global — decisión de diseño del sistema: una vez que un
+        // usuario tiene el rol moderador, no puede reportar en ningún programa.
+        // Esto evita que un moderador use su acceso privilegiado para crear reportes
+        // manipulados. Para SoD por recurso (solo bloquear en programas que modera),
+        // cambiar 'objeto' => [] por 'objeto' => ['id' => ['in' => '@sujeto.programas_moderados']].
         [
             'id' => 'denegar-crear-reportes-a-moderador',
             'prioridad' => 5,
@@ -113,6 +120,9 @@ return [
             'entorno' => [],
             'decision' => 'denegar',
         ],
+        // Empresa: denegación global — la empresa es la contraparte pagadora;
+        // nunca puede reportar vulnerabilidades en ningún programa (SoD absoluto).
+
         [
             'id' => 'denegar-crear-reportes-a-empresa',
             'prioridad' => 5,

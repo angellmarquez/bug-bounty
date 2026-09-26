@@ -355,7 +355,6 @@ export type DashboardRoleStats = {
     administrador?: DashboardRoleStatsAdmin;
 };
 
-
 export type SancionDashboard = {
     id: number;
     motivo: string;

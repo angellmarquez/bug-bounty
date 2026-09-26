@@ -44,6 +44,7 @@ test('el resumen de la empresa solo cuenta los informes que puede ver', function
 
     $this->actingAs($propietario)->get(route('dashboard'))
         ->assertInertia(fn ($page) => $page
-            ->where('roleStats.reportes_recibidos', 2)
+            ->where('roleStats.empresa.reportes_recibidos', 2)
             ->missing('roleStats.miembros'));
+
 });

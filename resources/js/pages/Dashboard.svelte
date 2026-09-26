@@ -52,7 +52,11 @@
         (page.props.userRoles as string[]) ?? (user?.roles as string[]) ?? [],
     );
     const roleStats = $derived((page.props.roleStats as DashboardRoleStats) ?? {});
+    const rolEmpresa = $derived(roleStats.empresa);
+    const rolModerador = $derived(roleStats.moderador);
+    const rolAdmin = $derived(roleStats.administrador);
     const misReportes = $derived(
+
         (page.props.misReportes as {
             id: number;
             numero_reporte: string;
@@ -284,9 +288,9 @@
                 </CardDescription>
             </CardHeader>
             <CardContent class="flex flex-wrap items-center gap-4">
-                {#if roleStats.tipo === 'moderador'}
+                {#if rolModerador}
                     <p class="text-sm">
-                        <span class="text-2xl font-bold text-chart-4">{roleStats.por_revisar}</span>
+                        <span class="text-2xl font-bold text-chart-4">{rolModerador.por_revisar}</span>
                         <span class="ml-1 text-muted-foreground">informes por revisar</span>
                     </p>
                 {/if}
@@ -297,34 +301,39 @@
         </Card>
     {/if}
 
-    {#if roleStats.tipo === 'empresa'}
+    {#if rolEmpresa}
         <Card>
             <CardHeader><CardTitle>Resumen empresarial</CardTitle></CardHeader>
             <CardContent class="grid gap-4 sm:grid-cols-3">
-                <div><p class="text-2xl font-bold">{roleStats.programas_total}</p><p class="text-xs text-muted-foreground">Programas totales</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.programas_activos}</p><p class="text-xs text-muted-foreground">Programas activos</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.reportes_recibidos}</p><p class="text-xs text-muted-foreground">Reportes recibidos</p></div>
+                <div><p class="text-2xl font-bold">{rolEmpresa.programas_total}</p><p class="text-xs text-muted-foreground">Programas totales</p></div>
+                <div><p class="text-2xl font-bold">{rolEmpresa.programas_activos}</p><p class="text-xs text-muted-foreground">Programas activos</p></div>
+                <div><p class="text-2xl font-bold">{rolEmpresa.reportes_recibidos}</p><p class="text-xs text-muted-foreground">Reportes recibidos</p></div>
             </CardContent>
         </Card>
-    {:else if roleStats.tipo === 'moderador'}
+    {/if}
+
+    {#if rolModerador}
         <Card>
             <CardHeader><CardTitle>Resumen de moderación</CardTitle></CardHeader>
             <CardContent class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div><p class="text-2xl font-bold">{roleStats.pendientes_revision}</p><p class="text-xs text-muted-foreground">Pendientes de revisión</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.validados}</p><p class="text-xs text-muted-foreground">Validados</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.rechazados}</p><p class="text-xs text-muted-foreground">Rechazados</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.sanciones_aplicadas}</p><p class="text-xs text-muted-foreground">Sanciones aplicadas</p></div>
+                <div><p class="text-2xl font-bold">{rolModerador.pendientes_revision}</p><p class="text-xs text-muted-foreground">Pendientes de revisión</p></div>
+                <div><p class="text-2xl font-bold">{rolModerador.validados}</p><p class="text-xs text-muted-foreground">Validados</p></div>
+                <div><p class="text-2xl font-bold">{rolModerador.rechazados}</p><p class="text-xs text-muted-foreground">Rechazados</p></div>
+                <div><p class="text-2xl font-bold">{rolModerador.sanciones_aplicadas}</p><p class="text-xs text-muted-foreground">Sanciones aplicadas</p></div>
             </CardContent>
         </Card>
-    {:else if roleStats.tipo === 'administrador'}
+    {/if}
+
+    {#if rolAdmin}
         <Card>
             <CardHeader><CardTitle>Resumen administrativo</CardTitle></CardHeader>
             <CardContent class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div><p class="text-2xl font-bold">{roleStats.empresas_pendientes}</p><p class="text-xs text-muted-foreground">Empresas pendientes</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.empresas_aprobadas}</p><p class="text-xs text-muted-foreground">Empresas aprobadas</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.moderadores}</p><p class="text-xs text-muted-foreground">Moderadores</p></div>
-                <div><p class="text-2xl font-bold">{roleStats.sanciones_activas}</p><p class="text-xs text-muted-foreground">Sanciones activas</p></div>
+                <div><p class="text-2xl font-bold">{rolAdmin.empresas_pendientes}</p><p class="text-xs text-muted-foreground">Empresas pendientes</p></div>
+                <div><p class="text-2xl font-bold">{rolAdmin.empresas_aprobadas}</p><p class="text-xs text-muted-foreground">Empresas aprobadas</p></div>
+                <div><p class="text-2xl font-bold">{rolAdmin.moderadores}</p><p class="text-xs text-muted-foreground">Moderadores</p></div>
+                <div><p class="text-2xl font-bold">{rolAdmin.sanciones_activas}</p><p class="text-xs text-muted-foreground">Sanciones activas</p></div>
             </CardContent>
         </Card>
     {/if}
 </div>
+

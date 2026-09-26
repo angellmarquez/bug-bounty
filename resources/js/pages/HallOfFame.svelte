@@ -1,0 +1,314 @@
+<script module lang="ts">
+    export const layout = {
+        breadcrumbs: [
+            {
+                title: 'Salón de la Fama',
+                href: '/hall-of-fame',
+            },
+        ],
+    };
+</script>
+
+<script lang="ts">
+    import { Link, page } from '@inertiajs/svelte';
+    import Trophy from '@lucide/svelte/icons/trophy';
+    import Medal from '@lucide/svelte/icons/medal';
+    import Crown from '@lucide/svelte/icons/crown';
+    import ShieldCheck from '@lucide/svelte/icons/shield-check';
+    import Users from '@lucide/svelte/icons/users';
+    import Sparkles from '@lucide/svelte/icons/sparkles';
+    import AppHead from '@/components/AppHead.svelte';
+    import PageHeader from '@/components/PageHeader.svelte';
+    import RangoBadge from '@/components/RangoBadge.svelte';
+    import { Button } from '@/components/ui/button';
+    import {
+        Card,
+        CardContent,
+        CardDescription,
+        CardHeader,
+        CardTitle,
+    } from '@/components/ui/card';
+
+    type RankingItem = {
+        posicion: number;
+        id: number;
+        name: string;
+        puntos: number;
+        rango: {
+            clave: string;
+            nombre: string;
+            minimo: number;
+        };
+        reportes_resueltos: number;
+        severidades: {
+            critica: number;
+            alta: number;
+            media: number;
+            baja: number;
+        };
+    };
+
+    type GlobalStats = {
+        total_investigadores: number;
+        total_vulnerabilidades_resueltas: number;
+        puntos_totales_repartidos: number;
+    };
+
+    const periodo = $derived((page.props.periodo as string) ?? 'historico');
+    const ranking = $derived((page.props.ranking as RankingItem[]) ?? []);
+    const stats = $derived(
+        (page.props.stats as unknown as GlobalStats) ?? {
+            total_investigadores: 0,
+            total_vulnerabilidades_resueltas: 0,
+            puntos_totales_repartidos: 0,
+        },
+    );
+
+    const primero = $derived(ranking.find((r) => r.posicion === 1));
+    const segundo = $derived(ranking.find((r) => r.posicion === 2));
+    const tercero = $derived(ranking.find((r) => r.posicion === 3));
+    const resto = $derived(ranking.filter((r) => r.posicion > 3));
+
+    function iniciales(nombre: string): string {
+        return nombre
+            .split(' ')
+            .slice(0, 2)
+            .map((p) => p[0])
+            .join('')
+            .toUpperCase();
+    }
+</script>
+
+<AppHead title="Salón de la Fama" />
+
+<div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
+    <PageHeader
+        title="Salón de la Fama"
+        description="Reconocimiento a los investigadores de seguridad más destacados en divulgación coordinada."
+    />
+
+    <!-- Métricas Globales de la Comunidad -->
+    <div class="grid gap-4 sm:grid-cols-3">
+        <Card class="transition-colors hover:border-primary">
+            <CardHeader class="flex flex-row items-center justify-between pb-2">
+                <CardDescription>Cazadores activos</CardDescription>
+                <Users class="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-2xl font-bold">{stats.total_investigadores}</div>
+                <p class="text-xs text-muted-foreground">Investigadores registrados</p>
+            </CardContent>
+        </Card>
+
+        <Card class="transition-colors hover:border-primary">
+            <CardHeader class="flex flex-row items-center justify-between pb-2">
+                <CardDescription>Vulnerabilidades resueltas</CardDescription>
+                <ShieldCheck class="size-4 text-chart-1" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-2xl font-bold">{stats.total_vulnerabilidades_resueltas}</div>
+                <p class="text-xs text-muted-foreground">Impacto remediado</p>
+            </CardContent>
+        </Card>
+
+        <Card class="transition-colors hover:border-primary">
+            <CardHeader class="flex flex-row items-center justify-between pb-2">
+                <CardDescription>Puntos otorgados</CardDescription>
+                <Trophy class="size-4 text-chart-4" />
+            </CardHeader>
+            <CardContent>
+                <div class="text-2xl font-bold">{stats.puntos_totales_repartidos.toLocaleString()}</div>
+                <p class="text-xs text-muted-foreground">Reputación total en ledger</p>
+            </CardContent>
+        </Card>
+    </div>
+
+    <!-- Pestañas de Filtro Temporal -->
+    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
+        <div class="flex gap-2">
+            <Button
+                variant={periodo === 'historico' ? 'default' : 'outline'}
+                size="sm"
+                href="/hall-of-fame?periodo=historico"
+            >
+                <Trophy class="mr-1.5 size-3.5" />
+                Histórico (All-time)
+            </Button>
+            <Button
+                variant={periodo === 'anual' ? 'default' : 'outline'}
+                size="sm"
+                href="/hall-of-fame?periodo=anual"
+            >
+                <Sparkles class="mr-1.5 size-3.5" />
+                Este Año
+            </Button>
+            <Button
+                variant={periodo === 'mensual' ? 'default' : 'outline'}
+                size="sm"
+                href="/hall-of-fame?periodo=mensual"
+            >
+                <Medal class="mr-1.5 size-3.5" />
+                Este Mes
+            </Button>
+        </div>
+
+        <p class="text-xs text-muted-foreground">
+            Los puntos se calculan automáticamente según el impacto CVSS de cada reporte.
+        </p>
+    </div>
+
+    {#if ranking.length === 0}
+        <Card class="p-8 text-center">
+            <div class="flex flex-col items-center justify-center gap-2">
+                <Trophy class="size-10 text-muted-foreground opacity-40" />
+                <p class="text-base font-semibold">Sin clasificados en este periodo</p>
+                <p class="text-sm text-muted-foreground">
+                    Sé el primero en reportar una vulnerabilidad válida para entrar al Salón de la Fama.
+                </p>
+                <Button href="/programas" class="mt-2" size="sm">Explorar programas</Button>
+            </div>
+        </Card>
+    {:else}
+        <!-- Podio Top 3 Destacado -->
+        <div class="grid gap-4 md:grid-cols-3 md:items-end">
+            <!-- 2do Lugar (Plata) -->
+            {#if segundo}
+                <Card class="relative border-slate-400/40 bg-gradient-to-t from-slate-900/30 to-transparent order-2 md:order-1">
+                    <div class="absolute -top-3 left-4 flex size-7 items-center justify-center rounded-full bg-slate-300 font-bold text-slate-900 shadow">
+                        🥈
+                    </div>
+                    <CardHeader class="pt-6 text-center">
+                        <div class="mx-auto flex size-12 items-center justify-center rounded-full border border-slate-400/50 bg-slate-800 text-sm font-bold text-slate-200">
+                            {iniciales(segundo.name)}
+                        </div>
+                        <CardTitle class="mt-2 text-lg">{segundo.name}</CardTitle>
+                        <div class="mt-1 flex justify-center">
+                            <RangoBadge puntos={segundo.puntos} />
+                        </div>
+                    </CardHeader>
+                    <CardContent class="text-center space-y-2">
+                        <div class="text-2xl font-black text-slate-200">{segundo.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
+                        <p class="text-xs text-muted-foreground">{segundo.reportes_resueltos} vulnerabilidades resueltas</p>
+                        <div class="flex justify-center gap-1.5 pt-1 text-[11px]">
+                            {#if segundo.severidades.critica > 0}
+                                <span class="rounded bg-chart-3/20 px-1.5 py-0.5 text-chart-3">{segundo.severidades.critica} críticas</span>
+                            {/if}
+                            {#if segundo.severidades.alta > 0}
+                                <span class="rounded bg-chart-4/20 px-1.5 py-0.5 text-chart-4">{segundo.severidades.alta} altas</span>
+                            {/if}
+                        </div>
+                    </CardContent>
+                </Card>
+            {/if}
+
+            <!-- 1er Lugar (Oro) -->
+            {#if primero}
+                <Card class="relative border-amber-400/60 bg-gradient-to-t from-amber-950/20 to-transparent shadow-lg shadow-amber-500/5 order-1 md:order-2 md:-translate-y-2">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-400 px-3 py-0.5 text-xs font-bold text-amber-950 shadow-md">
+                        <Crown class="size-3.5 fill-current" />
+                        CAMPEÓN
+                    </div>
+                    <CardHeader class="pt-7 text-center">
+                        <div class="mx-auto flex size-16 items-center justify-center rounded-full border-2 border-amber-400 bg-amber-950/50 text-base font-black text-amber-300 shadow">
+                            {iniciales(primero.name)}
+                        </div>
+                        <CardTitle class="mt-2 text-xl font-bold">{primero.name}</CardTitle>
+                        <div class="mt-1 flex justify-center">
+                            <RangoBadge puntos={primero.puntos} />
+                        </div>
+                    </CardHeader>
+                    <CardContent class="text-center space-y-2">
+                        <div class="text-3xl font-black text-amber-400">{primero.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
+                        <p class="text-xs text-muted-foreground">{primero.reportes_resueltos} vulnerabilidades resueltas</p>
+                        <div class="flex justify-center gap-1.5 pt-1 text-[11px]">
+                            {#if primero.severidades.critica > 0}
+                                <span class="rounded bg-chart-3/20 px-1.5 py-0.5 font-medium text-chart-3">{primero.severidades.critica} críticas</span>
+                            {/if}
+                            {#if primero.severidades.alta > 0}
+                                <span class="rounded bg-chart-4/20 px-1.5 py-0.5 font-medium text-chart-4">{primero.severidades.alta} altas</span>
+                            {/if}
+                            {#if primero.severidades.media > 0}
+                                <span class="rounded bg-chart-2/20 px-1.5 py-0.5 font-medium text-chart-2">{primero.severidades.media} medias</span>
+                            {/if}
+                        </div>
+                    </CardContent>
+                </Card>
+            {/if}
+
+            <!-- 3er Lugar (Bronce) -->
+            {#if tercero}
+                <Card class="relative border-orange-700/40 bg-gradient-to-t from-orange-950/20 to-transparent order-3">
+                    <div class="absolute -top-3 left-4 flex size-7 items-center justify-center rounded-full bg-amber-700 font-bold text-amber-100 shadow">
+                        🥉
+                    </div>
+                    <CardHeader class="pt-6 text-center">
+                        <div class="mx-auto flex size-12 items-center justify-center rounded-full border border-amber-700/50 bg-amber-950 text-sm font-bold text-amber-200">
+                            {iniciales(tercero.name)}
+                        </div>
+                        <CardTitle class="mt-2 text-lg">{tercero.name}</CardTitle>
+                        <div class="mt-1 flex justify-center">
+                            <RangoBadge puntos={tercero.puntos} />
+                        </div>
+                    </CardHeader>
+                    <CardContent class="text-center space-y-2">
+                        <div class="text-2xl font-black text-amber-600">{tercero.puntos} <span class="text-xs font-normal text-muted-foreground">pts</span></div>
+                        <p class="text-xs text-muted-foreground">{tercero.reportes_resueltos} vulnerabilidades resueltas</p>
+                        <div class="flex justify-center gap-1.5 pt-1 text-[11px]">
+                            {#if tercero.severidades.critica > 0}
+                                <span class="rounded bg-chart-3/20 px-1.5 py-0.5 text-chart-3">{tercero.severidades.critica} críticas</span>
+                            {/if}
+                            {#if tercero.severidades.alta > 0}
+                                <span class="rounded bg-chart-4/20 px-1.5 py-0.5 text-chart-4">{tercero.severidades.alta} altas</span>
+                            {/if}
+                        </div>
+                    </CardContent>
+                </Card>
+            {/if}
+        </div>
+
+        <!-- Tabla General (Puestos del 4 en adelante) -->
+        {#if resto.length > 0}
+            <Card>
+                <CardHeader>
+                    <CardTitle class="text-base">Clasificación General</CardTitle>
+                    <CardDescription>Investigadores clasificados a partir del 4º puesto.</CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-3">
+                    {#each resto as hacker (hacker.id)}
+                        <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 p-3 transition-colors hover:border-primary/50">
+                            <div class="flex items-center gap-3">
+                                <span class="flex size-7 items-center justify-center rounded-md bg-muted text-xs font-bold text-muted-foreground">
+                                    #{hacker.posicion}
+                                </span>
+                                <div>
+                                    <p class="text-sm font-semibold">{hacker.name}</p>
+                                    <div class="mt-0.5 flex items-center gap-2">
+                                        <RangoBadge puntos={hacker.puntos} />
+                                        <span class="text-xs text-muted-foreground">· {hacker.reportes_resueltos} resueltos</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-4">
+                                <div class="hidden sm:flex gap-1.5 text-[11px]">
+                                    {#if hacker.severidades.critica > 0}
+                                        <span class="rounded bg-chart-3/15 px-1.5 py-0.5 text-chart-3">{hacker.severidades.critica} C</span>
+                                    {/if}
+                                    {#if hacker.severidades.alta > 0}
+                                        <span class="rounded bg-chart-4/15 px-1.5 py-0.5 text-chart-4">{hacker.severidades.alta} A</span>
+                                    {/if}
+                                    {#if hacker.severidades.media > 0}
+                                        <span class="rounded bg-chart-2/15 px-1.5 py-0.5 text-chart-2">{hacker.severidades.media} M</span>
+                                    {/if}
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm font-bold text-primary">{hacker.puntos} pts</p>
+                                </div>
+                            </div>
+                        </div>
+                    {/each}
+                </CardContent>
+            </Card>
+        {/if}
+    {/if}
+</div>

@@ -11,8 +11,8 @@ test('company dashboard includes company metrics', function () {
 
     $props = $this->get(route('dashboard'))->inertiaProps();
 
-    expect($props['roleStats']['tipo'])->toBe('empresa')
-        ->and($props['roleStats']['programas_activos'])->toBe(1);
+    expect($props['roleStats']['empresa']['tipo'])->toBe('empresa')
+        ->and($props['roleStats']['empresa']['programas_activos'])->toBe(1);
 });
 
 test('moderator dashboard includes moderation metrics', function () {
@@ -22,6 +22,7 @@ test('moderator dashboard includes moderation metrics', function () {
 
     $props = $this->get(route('dashboard'))->inertiaProps();
 
-    expect($props['roleStats']['tipo'])->toBe('moderador')
-        ->and($props['roleStats'])->toHaveKeys(['pendientes_revision', 'validados', 'rechazados', 'sanciones_aplicadas']);
+    expect($props['roleStats']['moderador']['tipo'])->toBe('moderador')
+        ->and($props['roleStats']['moderador'])->toHaveKeys(['pendientes_revision', 'validados', 'rechazados', 'sanciones_aplicadas']);
 });
+

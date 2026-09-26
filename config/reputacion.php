@@ -50,6 +50,46 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Puntos por severidad del reporte (Reparto justo automatizado)
+    |--------------------------------------------------------------------------
+    |
+    | Cuando un evento de reputación corresponde a un reporte (reporte_validado
+    | o reporte_resuelto), los puntos se calculan automáticamente según la
+    | severidad técnica del hallazgo (CVSS v3.1).
+    |
+    | - Crítica: 100 validado / 200 resuelto (Total: 300)
+    | - Alta:     50 validado / 100 resuelto (Total: 150)
+    | - Media:    25 validado /  50 resuelto (Total: 75)
+    | - Baja:     10 validado /  20 resuelto (Total: 30)
+    | - Ninguna:   5 validado /  10 resuelto (Total: 15)
+    |
+    */
+
+    'puntos_por_severidad' => [
+        'critica' => [
+            'reporte_validado' => (int) env('REPUTACION_PUNTOS_CRITICA_VALIDADO', 100),
+            'reporte_resuelto' => (int) env('REPUTACION_PUNTOS_CRITICA_RESUELTO', 200),
+        ],
+        'alta' => [
+            'reporte_validado' => (int) env('REPUTACION_PUNTOS_ALTA_VALIDADO', 50),
+            'reporte_resuelto' => (int) env('REPUTACION_PUNTOS_ALTA_RESUELTO', 100),
+        ],
+        'media' => [
+            'reporte_validado' => (int) env('REPUTACION_PUNTOS_MEDIA_VALIDADO', 25),
+            'reporte_resuelto' => (int) env('REPUTACION_PUNTOS_MEDIA_RESUELTO', 50),
+        ],
+        'baja' => [
+            'reporte_validado' => (int) env('REPUTACION_PUNTOS_BAJA_VALIDADO', 10),
+            'reporte_resuelto' => (int) env('REPUTACION_PUNTOS_BAJA_RESUELTO', 20),
+        ],
+        'ninguna' => [
+            'reporte_validado' => (int) env('REPUTACION_PUNTOS_NINGUNA_VALIDADO', 5),
+            'reporte_resuelto' => (int) env('REPUTACION_PUNTOS_NINGUNA_RESUELTO', 10),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Rangos de reputación
     |--------------------------------------------------------------------------
     |
