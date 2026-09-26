@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Http\Controllers\NotificacionController;
 use App\Models\User;
+use App\Services\Adjuntos\AdjuntoService;
 use App\Services\Reputacion\Rangos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,6 +57,13 @@ class HandleInertiaRequests extends Middleware
             'cuenta' => fn () => $this->estadoCuenta($request->user()),
             'notificaciones' => fn () => $this->resumenNotificaciones($request->user()),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            // Límites de las fotos de evidencia: el selector de fotos los valida antes de subir.
+            'limitesFotos' => [
+                'max' => (int) config('adjuntos.max_por_entidad'),
+                'max_kb' => AdjuntoService::maxKbEfectivo(),
+                'max_total_kb' => AdjuntoService::maxTotalKb(),
+                'mimes' => config('adjuntos.mimes'),
+            ],
         ];
     }
 

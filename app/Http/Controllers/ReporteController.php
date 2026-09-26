@@ -9,11 +9,13 @@ use App\Http\Requests\StoreReporteRequest;
 use App\Http\Requests\TransitionReporteRequest;
 use App\Http\Requests\UpdateReporteRequest;
 use App\Mail\SancionAplicadaMail;
+use App\Models\Adjunto;
 use App\Models\Auditoria;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
 use App\Rules\PocCumpleSchema;
+use App\Services\Adjuntos\AdjuntoService;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reportes\ColaDeValidacion;
@@ -30,6 +32,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class ReporteController extends Controller
 {
@@ -297,6 +301,8 @@ class ReporteController extends Controller
             ],
             'cifradoIndisponible' => $cifradoIndisponible,
             'claveHuella' => $claveHuella,
+            // Las fotos son evidencia como la PoC: solo las ve quien puede descifrar la PoC.
+            'fotos' => $puedeDescifrarPoc ? $this->fotosDe($reporte) : [],
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
             'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
@@ -404,32 +410,28 @@ class ReporteController extends Controller
                 ->withInput();
         }
 
-        $reporte = DB::transaction(function () use ($validated, $user, $cifrado) {
-            $reporte = Reporte::create([
-                'numero_reporte' => $this->generarNumeroReporte(),
-                'programa_id' => $validated['programa_id'],
-                'investigador_id' => $user->id,
-                'titulo' => $validated['titulo'],
-                'descripcion' => $cifrado['descripcion'],
-                'categoria' => $validated['categoria'] ?? null,
-                'vector_cvss' => $validated['vector_cvss'] ?? null,
-                'puntuacion_cvss' => $validated['puntuacion_cvss'] ?? null,
-                'severidad' => $validated['severidad'] ?? null,
-                'poc' => $cifrado['poc'],
-                'estado' => 'borrador',
-                'clave_huella' => $cifrado['clave_huella'],
-            ]);
+        // Las fotos se procesan y cifran antes de crear nada: si una no es válida, no queda un informe a medias.
+        $adjuntos = app(AdjuntoService::class);
 
-            $reporte->eventos()->create([
-                'actor_id' => $user->id,
-                'tipo' => 'creado',
-                'nota' => 'Reporte creado como borrador.',
-            ]);
+        try {
+            $fotos = $adjuntos->preparar($request->file('fotos', []), $programa->empresa);
+        } catch (PgpException $e) {
+            report($e);
 
-            Auditoria::registrar('reportes.creado', $reporte, ['programa_id' => $reporte->programa_id], $user->id);
+            return redirect()->back()
+                ->withErrors(['pgp' => self::MENSAJE_CIFRADO_NO_DISPONIBLE])
+                ->withInput();
+        }
 
-            return $reporte;
-        });
+        try {
+            $reporte = DB::transaction(function () use ($validated, $user, $cifrado, $adjuntos, $fotos) {
+                return $this->crearReporte($validated, $user, $cifrado, $adjuntos, $fotos);
+            });
+        } catch (Throwable $e) {
+            $adjuntos->descartar($fotos);
+
+            throw $e;
+        }
 
         // "Guardar y enviar": un borrador no llega a la empresa ni a los moderadores.
         if ($request->boolean('enviar')) {
@@ -441,6 +443,43 @@ class ReporteController extends Controller
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte guardado como borrador. Envíalo para que lo revisen.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @param  array{descripcion: string, poc: string|null, clave_huella: string}  $cifrado
+     * @param  array<int, array<string, mixed>>  $fotos
+     */
+    private function crearReporte(array $validated, User $user, array $cifrado, AdjuntoService $adjuntos, array $fotos): Reporte
+    {
+        $reporte = Reporte::create([
+            'numero_reporte' => $this->generarNumeroReporte(),
+            'programa_id' => $validated['programa_id'],
+            'investigador_id' => $user->id,
+            'titulo' => $validated['titulo'],
+            'descripcion' => $cifrado['descripcion'],
+            'categoria' => $validated['categoria'] ?? null,
+            'vector_cvss' => $validated['vector_cvss'] ?? null,
+            'puntuacion_cvss' => $validated['puntuacion_cvss'] ?? null,
+            'severidad' => $validated['severidad'] ?? null,
+            'poc' => $cifrado['poc'],
+            'estado' => 'borrador',
+            'clave_huella' => $cifrado['clave_huella'],
+        ]);
+
+        $reporte->eventos()->create([
+            'actor_id' => $user->id,
+            'tipo' => 'creado',
+            'nota' => 'Reporte creado como borrador.',
+        ]);
+
+        Auditoria::registrar('reportes.creado', $reporte, ['programa_id' => $reporte->programa_id], $user->id);
+
+        if ($fotos !== []) {
+            $adjuntos->asociar($reporte, $fotos, $user);
+        }
+
+        return $reporte;
     }
 
     public function edit(Reporte $reporte): InertiaResponse
@@ -468,6 +507,7 @@ class ReporteController extends Controller
                 ...$reporteArray,
                 'programa' => $reporte->programa->only(['id', 'nombre', 'slug', 'poc_schema']),
             ],
+            'fotos' => $this->fotosDe($reporte),
         ]);
     }
 
@@ -509,6 +549,82 @@ class ReporteController extends Controller
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Reporte actualizado exitosamente.');
+    }
+
+    /**
+     * Añade fotos de evidencia a un informe que su autor todavía puede editar.
+     */
+    public function subirFotos(Request $request, Reporte $reporte, AdjuntoService $adjuntos): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ReporteEditar, $reporte]);
+
+        $request->validate([
+            ...AdjuntoService::reglas(),
+            'fotos' => ['required', 'array', 'min:1', 'max:'.config('adjuntos.max_por_entidad')],
+        ], AdjuntoService::mensajes());
+
+        $reporte->loadMissing('programa.empresa');
+
+        try {
+            $nuevas = $adjuntos->guardar($reporte, $request->file('fotos', []), $request->user(), $reporte->programa->empresa);
+        } catch (PgpException $e) {
+            report($e);
+
+            return redirect()->back()->withErrors(['fotos' => 'No se pudieron cifrar las fotos: el cifrado de la plataforma no está disponible. Inténtalo de nuevo en unos minutos.']);
+        }
+
+        return redirect()->back()->with('success', $nuevas->count() === 1 ? 'Foto añadida al informe.' : "{$nuevas->count()} fotos añadidas al informe.");
+    }
+
+    public function eliminarFoto(Reporte $reporte, Adjunto $adjunto, AdjuntoService $adjuntos): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::ReporteEditar, $reporte]);
+        $this->asegurarFotoDe($reporte, $adjunto);
+
+        $adjuntos->eliminar($adjunto);
+
+        return redirect()->back()->with('success', 'Foto eliminada del informe.');
+    }
+
+    /**
+     * Entrega una foto descifrada. Exige lo mismo que leer la PoC del informe.
+     */
+    public function verFoto(Reporte $reporte, Adjunto $adjunto, AdjuntoService $adjuntos): Response
+    {
+        $this->asegurarFotoDe($reporte, $adjunto);
+        $reporte->loadMissing('programa.empresa');
+
+        abort_unless($this->puedeVerContenido($reporte), 403, $this->motivoSinAcceso($reporte));
+        Gate::authorize('abac', [AccionesAbac::ReporteVer, $reporte, $this->empresaContexto()]);
+        Gate::authorize('abac', [AccionesAbac::ReporteDecryptPoc, $reporte, $this->empresaContexto()]);
+
+        try {
+            return $adjuntos->responder($adjunto);
+        } catch (PgpException $e) {
+            report($e);
+            Auditoria::registrar('reportes.descifrado_fallido', $reporte, ['error' => class_basename($e), 'adjunto_id' => $adjunto->id]);
+            abort(503, 'La foto no se puede descifrar en este momento.');
+        }
+    }
+
+    private function asegurarFotoDe(Reporte $reporte, Adjunto $adjunto): void
+    {
+        abort_unless(
+            $adjunto->adjuntable_type === $reporte->getMorphClass() && (int) $adjunto->adjuntable_id === (int) $reporte->id,
+            404,
+        );
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function fotosDe(Reporte $reporte): array
+    {
+        $adjuntos = app(AdjuntoService::class);
+
+        return $reporte->adjuntos()->get()
+            ->map(fn (Adjunto $a): array => $adjuntos->resumen($a, route('reportes.fotos.ver', [$reporte, $a])))
+            ->all();
     }
 
     public function enviar(Reporte $reporte): RedirectResponse

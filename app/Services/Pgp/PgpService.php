@@ -543,6 +543,42 @@ class PgpService
     }
 
     /**
+     * Cifra un archivo binario (una foto de evidencia) a las mismas claves que
+     * un informe. Se pasa a base64 antes de cifrar para que ningún driver
+     * altere los bytes (el binario de gpg trabaja con texto armored).
+     *
+     * @return array{contenido: string, clave_huella: string}
+     */
+    public function cifrarArchivo(string $binario, ?Empresa $empresa = null): array
+    {
+        $destinatarios = $this->destinatariosPara($empresa);
+
+        return [
+            'contenido' => $this->encrypt(base64_encode($binario), $destinatarios),
+            'clave_huella' => $destinatarios[0],
+        ];
+    }
+
+    /**
+     * Descifra un archivo cifrado con {@see cifrarArchivo()} y deja constancia en
+     * Auditoría de quién lo abrió.
+     */
+    public function descifrarArchivo(string $armored, ?Model $entidad = null): string
+    {
+        $binario = base64_decode($this->decrypt($armored), true);
+
+        if ($binario === false) {
+            throw new PgpException('El archivo descifrado no es válido.');
+        }
+
+        if ($entidad !== null) {
+            $this->auditarDescifrado($entidad);
+        }
+
+        return $binario;
+    }
+
+    /**
      * Firma un mensaje con la clave de la plataforma.
      */
     public function sign(string $message): string

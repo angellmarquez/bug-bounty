@@ -346,6 +346,10 @@ class ReputationService
                 'sancion_gravedad' => $sancion->gravedad->value,
                 'sancion_puntos' => $sancion->puntos,
                 'sancion_aplicada_por' => $sancion->aplicada_por,
+                // La huella de cada foto queda sellada en la cadena: cambiar la evidencia la rompería.
+                ...(isset($evidencia['fotos']) && is_array($evidencia['fotos'])
+                    ? ['fotos_sha256' => array_column($evidencia['fotos'], 'sha256')]
+                    : []),
             ]);
 
             return $apelacion;

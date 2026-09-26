@@ -39,6 +39,7 @@
     import StateTransition from '@/components/StateTransition.svelte';
     import { Button } from '@/components/ui/button';
     import ContenidoInforme from '@/components/ContenidoInforme.svelte';
+    import GaleriaFotos from '@/components/GaleriaFotos.svelte';
     import RangoBadge from '@/components/RangoBadge.svelte';
     import EstadoProgreso from '@/components/EstadoProgreso.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
@@ -50,7 +51,7 @@
         CardTitle,
     } from '@/components/ui/card';
     import { index as reportesRoute } from '@/routes/reportes';
-    import type { Programa, Reporte } from '@/types/domain';
+    import type { FotoAdjunta, Programa, Reporte } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
 
     let {
@@ -59,6 +60,7 @@
         puedeTriar = false,
         puedeModerar = false,
         cifradoIndisponible = false,
+        fotos = [],
         historialInvestigador = null,
         accionesDisponibles = {},
         moderadoresAsignables = [],
@@ -71,6 +73,7 @@
         puedeTriar?: boolean;
         puedeModerar?: boolean;
         cifradoIndisponible?: boolean;
+        fotos?: FotoAdjunta[];
         historialInvestigador?: {
             reputation_score: number;
             informes: number;
@@ -235,6 +238,18 @@
                     />
                 </CardContent>
             </Card>
+
+            {#if fotos.length > 0}
+                <div data-test="fotos-evidencia"><Card>
+                    <CardHeader>
+                        <CardTitle>Fotos de evidencia</CardTitle>
+                        <CardDescription>Se guardan cifradas; la huella SHA-256 prueba que no cambiaron desde que se subieron.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <GaleriaFotos {fotos} />
+                    </CardContent>
+                </Card></div>
+            {/if}
 
             {#if puedeVerNotasInternas && reporte.notas_internas}
                 <Card>

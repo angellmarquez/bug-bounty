@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -278,5 +279,15 @@ class Reporte extends Model
             'name' => $oculto ? self::AUTOR_ANONIMO : $investigador->name,
             'reputation_score' => (int) ($investigador->reputation_score ?? 0),
         ];
+    }
+
+    /**
+     * Fotos de evidencia (cifradas).
+     *
+     * @return MorphMany<Adjunto, $this>
+     */
+    public function adjuntos(): MorphMany
+    {
+        return $this->morphMany(Adjunto::class, 'adjuntable')->orderBy('id');
     }
 }

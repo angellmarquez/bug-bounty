@@ -13,6 +13,7 @@
     import PageHeader from '@/components/PageHeader.svelte';
     import ApelacionTraza from '@/components/ApelacionTraza.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
+    import GaleriaFotos from '@/components/GaleriaFotos.svelte';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
     import {
         estadoApelacionColor,
@@ -22,7 +23,7 @@
         gravedadSancionColor,
         gravedadSancionLabel,
     } from '@/lib/status-colors';
-    import type { PasoApelacion, Sancion } from '@/types/domain';
+    import type { FotoAdjunta, PasoApelacion, Sancion } from '@/types/domain';
     import type { EstadoApelacion } from '@/types/enums';
 
     let {
@@ -41,6 +42,7 @@
             };
             eventos: PasoApelacion[];
             cadena_valida: boolean;
+            fotos: FotoAdjunta[];
         };
     } = $props();
 
@@ -117,6 +119,12 @@
                 </CardHeader>
                 <CardContent class="space-y-3 text-sm">
                     <p class="whitespace-pre-wrap">{apelacion.motivo}</p>
+                    {#if apelacion.fotos.length > 0}
+                        <div class="space-y-2" data-test="fotos-apelacion">
+                            <p class="text-xs text-muted-foreground">Fotos de evidencia</p>
+                            <GaleriaFotos fotos={apelacion.fotos} />
+                        </div>
+                    {/if}
                     {#if apelacion.nota_resolucion}
                         <div class="rounded-md bg-muted/50 px-3 py-2">
                             <p class="text-xs text-muted-foreground">Resolución ({fecha(apelacion.resuelta_en)})</p>

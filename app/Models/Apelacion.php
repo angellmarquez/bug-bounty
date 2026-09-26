@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -90,5 +91,15 @@ class Apelacion extends Model
     public function resueltaPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resuelta_por');
+    }
+
+    /**
+     * Fotos de evidencia (cifradas).
+     *
+     * @return MorphMany<Adjunto, $this>
+     */
+    public function adjuntos(): MorphMany
+    {
+        return $this->morphMany(Adjunto::class, 'adjuntable')->orderBy('id');
     }
 }

@@ -28,6 +28,7 @@
     import WizardSteps from '@/components/WizardSteps.svelte';
     import CvssCalculator from '@/components/CvssCalculator.svelte';
     import PocForm from '@/components/PocForm.svelte';
+    import FotosSelector from '@/components/FotosSelector.svelte';
     import AlertError from '@/components/AlertError.svelte';
     import InputError from '@/components/InputError.svelte';
     import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@
     import type { Severidad } from '@/types/enums';
     import { schemaEfectivo, schemaVacio, validarPoc } from '@/lib/poc-schema';
     import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
+    import { errorDeFotos } from '@/lib/fotos';
 
     let {
         programas = [],
@@ -130,8 +132,17 @@
     // Qué botón del último paso se pulsó: guardar solo o guardar y enviar al programa.
     let enviarAlGuardar = $state(false);
 
+    // Fotos de evidencia: se suben junto con el informe.
+    let fotos = $state<File[]>([]);
+
     function construirPayload() {
-        return { ...$state.snapshot(formulario), enviar: enviarAlGuardar };
+        const datos = { ...$state.snapshot(formulario), enviar: enviarAlGuardar };
+
+        // Con fotos la petición viaja como multipart: la PoC va como JSON para que no pierda
+        // sus tipos (el backend la decodifica en prepareForValidation).
+        return fotos.length > 0
+            ? { ...datos, poc: JSON.stringify(datos.poc), fotos: [...fotos] }
+            : datos;
     }
 
     // Enter en un campo de un paso intermedio avanza el wizard en lugar de enviar.
@@ -296,6 +307,15 @@
                     bind:errors={erroresPaso}
                 />
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Fotos de evidencia (opcional)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <FotosSelector bind:archivos={fotos} error={errorDeFotos(formErrors)} />
+                    </CardContent>
+                </Card>
+
             {:else if pasoActual === 4}
                 <Card>
                     <CardHeader>
@@ -331,6 +351,14 @@
                                 <pre class="overflow-x-auto rounded-lg bg-muted p-3 text-xs">{JSON.stringify(formulario.poc, null, 2)}</pre>
                             </div>
                         {/if}
+
+                        <div data-test="revision-fotos">
+                            <p class="text-xs text-muted-foreground">Fotos de evidencia</p>
+                            <p class="text-sm">
+                                {fotos.length === 0 ? 'Sin fotos' : `${fotos.length} foto${fotos.length === 1 ? '' : 's'}: ${fotos.map((f) => f.name).join(', ')}`}
+                            </p>
+                        </div>
+                        <InputError message={errorDeFotos(formErrors)} />
                     </CardContent>
                 </Card>
             {/if}

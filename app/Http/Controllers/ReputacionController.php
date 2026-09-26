@@ -3,16 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
+use App\Models\Adjunto;
 use App\Models\Apelacion;
 use App\Models\Sancion;
+use App\Services\Adjuntos\AdjuntoService;
+use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Reputacion\ReputationService;
 use App\Services\Reputacion\TrazaApelaciones;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use InvalidArgumentException;
+use Throwable;
 
 class ReputacionController extends Controller
 {
@@ -75,7 +80,7 @@ class ReputacionController extends Controller
         Gate::authorize('abac', [AccionesAbac::ReputacionVer]);
         abort_unless((int) $apelacion->usuario_id === (int) $request->user()->id, 403, 'Esta apelación no es tuya.');
 
-        $apelacion->load(['sancion.reporte', 'sancion.aplicadaPor', 'eventos']);
+        $apelacion->load(['sancion.reporte', 'sancion.aplicadaPor', 'eventos', 'adjuntos']);
         $sancion = $apelacion->sancion;
 
         return Inertia::render('reputacion/Apelacion', [
@@ -106,6 +111,7 @@ class ReputacionController extends Controller
                     'created_at' => $evento->created_at?->toISOString(),
                 ])->all(),
                 'cadena_valida' => app(TrazaApelaciones::class)->verificar($apelacion),
+                'fotos' => $apelacion->adjuntos->map(fn (Adjunto $a): array => app(AdjuntoService::class)->resumen($a, route('apelaciones.fotos.ver', [$apelacion, $a])))->all(),
             ],
         ]);
     }
@@ -130,7 +136,7 @@ class ReputacionController extends Controller
         ]);
     }
 
-    public function apelar(Sancion $sancion, Request $request, ReputationService $reputacion): RedirectResponse
+    public function apelar(Sancion $sancion, Request $request, ReputationService $reputacion, AdjuntoService $adjuntos): RedirectResponse
     {
         // La regla ABAC evalúa la apelación (sus atributos `sancion.*`), no la sanción sola.
         $intento = (new Apelacion)->forceFill(['usuario_id' => $request->user()->id, 'sancion_id' => $sancion->id]);
@@ -138,16 +144,44 @@ class ReputacionController extends Controller
 
         $request->validate([
             'motivo' => ['required', 'string', 'max:2000'],
-        ]);
+            ...AdjuntoService::reglas(),
+        ], AdjuntoService::mensajes());
+
+        // Las fotos se cifran con la clave de la plataforma (la apelación no es de ninguna empresa)
+        // y su huella SHA-256 queda en la evidencia y en la traza encadenada de la apelación.
+        try {
+            $fotos = $adjuntos->preparar($request->file('fotos', []));
+        } catch (PgpException $e) {
+            report($e);
+
+            return back()->withErrors(['fotos' => 'No se pudieron cifrar las fotos: el cifrado de la plataforma no está disponible. Inténtalo de nuevo en unos minutos.']);
+        }
+
+        $evidencia = $fotos === [] ? [] : [
+            'fotos' => array_map(fn (array $f): array => ['nombre' => $f['nombre_original'], 'sha256' => $f['sha256']], $fotos),
+        ];
 
         try {
-            $reputacion->crearApelacion(
-                $sancion,
-                $request->user(),
-                $request->input('motivo'),
-            );
+            DB::transaction(function () use ($reputacion, $sancion, $request, $evidencia, $adjuntos, $fotos): void {
+                $apelacion = $reputacion->crearApelacion(
+                    $sancion,
+                    $request->user(),
+                    $request->input('motivo'),
+                    $evidencia,
+                );
+
+                if ($fotos !== []) {
+                    $adjuntos->asociar($apelacion, $fotos, $request->user());
+                }
+            });
         } catch (InvalidArgumentException $e) {
+            $adjuntos->descartar($fotos);
+
             return back()->withErrors(['motivo' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            $adjuntos->descartar($fotos);
+
+            throw $e;
         }
 
         return redirect()->route('reputacion.ledger')
