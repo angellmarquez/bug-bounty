@@ -9,7 +9,7 @@ test('la pagina del salon de la fama carga correctamente de forma publica', func
         ->assertInertia(fn ($page) => $page
             ->component('HallOfFame')
             ->has('ranking')
-            ->has('stats')
+            ->has('metricas')
             ->where('periodo', 'historico'));
 });
 

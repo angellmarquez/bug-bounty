@@ -125,7 +125,7 @@ class LeaderboardController extends Controller
         return Inertia::render('HallOfFame', [
             'periodo' => $periodo,
             'ranking' => $ranking,
-            'stats' => $statsGlobales,
+            'metricas' => $statsGlobales,
         ]);
     }
 }

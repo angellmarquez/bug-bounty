@@ -371,3 +371,28 @@ export type SancionDashboard = {
     reporte?: { id: number; numero_reporte: string; titulo: string } | null;
     apelacion?: { id: number; motivo: string; estado: string } | null;
 };
+
+export type GlobalLeaderboardStats = {
+    total_investigadores: number;
+    total_vulnerabilidades_resueltas: number;
+    puntos_totales_repartidos: number;
+};
+
+export type HallOfFameRankingItem = {
+    posicion: number;
+    id: number;
+    name: string;
+    puntos: number;
+    rango: {
+        clave: string;
+        nombre: string;
+        minimo: number;
+    };
+    reportes_resueltos: number;
+    severidades: {
+        critica: number;
+        alta: number;
+        media: number;
+        baja: number;
+    };
+};

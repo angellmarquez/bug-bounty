@@ -13,7 +13,6 @@
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import MessageSquare from '@lucide/svelte/icons/message-square';
     import Building2 from '@lucide/svelte/icons/building-2';
-    import Trophy from '@lucide/svelte/icons/trophy';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavMain from '@/components/NavMain.svelte';
@@ -56,11 +55,6 @@
                 title: 'Dashboard',
                 href: dashboard(),
                 icon: LayoutGrid,
-            },
-            {
-                title: 'Salón de la Fama',
-                href: '/hall-of-fame',
-                icon: Trophy,
             },
         ];
 

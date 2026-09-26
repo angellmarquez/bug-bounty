@@ -28,41 +28,18 @@
         CardHeader,
         CardTitle,
     } from '@/components/ui/card';
-
-    type RankingItem = {
-        posicion: number;
-        id: number;
-        name: string;
-        puntos: number;
-        rango: {
-            clave: string;
-            nombre: string;
-            minimo: number;
-        };
-        reportes_resueltos: number;
-        severidades: {
-            critica: number;
-            alta: number;
-            media: number;
-            baja: number;
-        };
-    };
-
-    type GlobalStats = {
-        total_investigadores: number;
-        total_vulnerabilidades_resueltas: number;
-        puntos_totales_repartidos: number;
-    };
+    import type { GlobalLeaderboardStats, HallOfFameRankingItem } from '@/types/domain';
 
     const periodo = $derived((page.props.periodo as string) ?? 'historico');
-    const ranking = $derived((page.props.ranking as RankingItem[]) ?? []);
+    const ranking = $derived((page.props.ranking as HallOfFameRankingItem[]) ?? []);
     const stats = $derived(
-        (page.props.stats as unknown as GlobalStats) ?? {
+        (page.props.metricas as GlobalLeaderboardStats) ?? {
             total_investigadores: 0,
             total_vulnerabilidades_resueltas: 0,
             puntos_totales_repartidos: 0,
         },
     );
+
 
     const primero = $derived(ranking.find((r) => r.posicion === 1));
     const segundo = $derived(ranking.find((r) => r.posicion === 2));
