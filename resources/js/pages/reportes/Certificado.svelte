@@ -6,6 +6,7 @@
 </script>
 
 <script lang="ts">
+    import { page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import AppLogoIcon from '@/components/AppLogoIcon.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
@@ -43,6 +44,7 @@
                 programa_nombre: string;
                 empresa_nombre: string;
                 investigador_alias: string;
+                investigador_id?: number;
                 fecha_reporte: string;
                 fecha_resolucion: string;
             };
@@ -73,6 +75,10 @@
         }
     }
 
+    // El autor vuelve a su lista de certificados (la puede abrir aunque esté suspendido);
+    // la empresa, el moderador o el admin, al informe.
+    const esAutor = $derived(page.props.auth?.user?.id === certificado.datos.investigador_id);
+
     // La huella en grupos de 8 se lee y se compara mejor (y parte bien en el papel).
     const huellaAgrupada = $derived(certificado.huella.match(/.{1,8}/g)?.join(' ') ?? certificado.huella);
 </script>
@@ -83,7 +89,11 @@
     <!-- Barra de acciones (oculta al imprimir) -->
     <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4 print:hidden">
         <div class="flex items-center gap-3">
-            <BotonVolver href={`/reportes/${reporteId}`} etiqueta="Volver al informe" />
+            {#if esAutor}
+                <BotonVolver href="/certificados" etiqueta="Mis certificados" />
+            {:else}
+                <BotonVolver href={`/reportes/${reporteId}`} etiqueta="Volver al informe" />
+            {/if}
             <div>
                 <h1 class="flex items-center gap-2 text-xl font-bold">
                     <Award class="size-5 text-primary" />
