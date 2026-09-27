@@ -31,6 +31,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property bool $is_active
  * @property string|null $tema
  * @property Carbon|null $terminos_aceptados_en
+ * @property string|null $terminos_version
  * @property string|null $wallet_address
  * @property string|null $wallet_red
  * @property Carbon|null $created_at

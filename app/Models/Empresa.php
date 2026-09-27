@@ -27,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property EstadoEmpresa $estado
  * @property string|null $motivo_estado
  * @property int|null $aprobado_por
+ * @property Carbon|null $aprobado_en
  * @property string $plan
  * @property Carbon|null $plan_expira_en
  * @property Carbon|null $created_at

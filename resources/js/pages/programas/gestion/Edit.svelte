@@ -181,11 +181,11 @@
                         <div class="flex items-center justify-between">
                             <Label class="text-base font-medium">Visibilidad del programa</Label>
                             {#if !esProfesional}
-                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-500 border border-amber-500/20">
+                                <span class="inline-flex items-center gap-1 rounded-full bg-aviso/10 px-2.5 py-0.5 text-xs font-medium text-aviso border border-aviso/20">
                                     <Sparkles class="h-3 w-3" /> Plan Comunitario
                                 </span>
                             {:else}
-                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                                <span class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/20">
                                     <Sparkles class="h-3 w-3" /> Plan Profesional Activo
                                 </span>
                             {/if}
@@ -230,7 +230,7 @@
                                             Privado (Por invitación exclusiva)
                                         </p>
                                         {#if !esProfesional}
-                                            <span class="text-[10px] uppercase font-bold bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">Pro</span>
+                                            <span class="text-[10px] uppercase font-bold bg-aviso/20 text-aviso px-1.5 py-0.5 rounded">Pro</span>
                                         {/if}
                                     </div>
                                     <p class="text-xs leading-relaxed text-muted-foreground">
@@ -282,14 +282,14 @@
                     <div class="rounded-lg border p-4 transition-colors {!esProfesional ? 'opacity-60 bg-muted/20' : 'bg-card border-border'}">
                         <div class="flex items-center justify-between">
                             <div class="flex items-start gap-3">
-                                <ShieldCheck class="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+                                <ShieldCheck class="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                                 <div class="space-y-1">
                                     <div class="flex items-center gap-2">
                                         <p class="text-sm font-medium text-foreground">
                                             Exclusivo para Investigadores Verificados (Filtro Anti-Spam)
                                         </p>
                                         {#if !esProfesional}
-                                            <span class="text-[10px] uppercase font-bold bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">Pro</span>
+                                            <span class="text-[10px] uppercase font-bold bg-aviso/20 text-aviso px-1.5 py-0.5 rounded">Pro</span>
                                         {/if}
                                     </div>
                                     <p class="text-xs text-muted-foreground leading-relaxed">
@@ -308,7 +308,7 @@
                                     checked={soloVerificados}
                                     onchange={(e) => { if (esProfesional) soloVerificados = e.currentTarget.checked; }}
                                 />
-                                <div class="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 {!esProfesional ? 'cursor-not-allowed' : ''}"></div>
+                                <div class="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary {!esProfesional ? 'cursor-not-allowed' : ''}"></div>
                             </label>
                         </div>
                         <InputError message={errors.solo_verificados} />

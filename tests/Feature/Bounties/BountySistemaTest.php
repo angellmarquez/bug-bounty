@@ -2,126 +2,8 @@
 
 use App\Models\Empresa;
 use App\Models\Programa;
-use App\Models\Reporte;
 
-test('la empresa puede asignar un monto de bounty a un reporte validado', function () {
-    $empresaUser = propietarioDeEmpresa();
-    $programa = programaDeEmpresa($empresaUser, ['tiene_recompensas' => true, 'moneda' => 'USDC']);
-    $investigador = investigador();
-    $reporte = reporteDe($investigador, $programa, ['estado' => 'validado']);
-
-    $this->actingAs($empresaUser)
-        ->post(route('reportes.asignar-bounty', $reporte), [
-            'monto' => 500,
-            'moneda' => 'USDC',
-        ])
-        ->assertRedirect();
-
-    $reporte->refresh();
-    expect((float) $reporte->bounty_monto)->toEqual(500.0)
-        ->and($reporte->bounty_moneda)->toBe('USDC')
-        ->and($reporte->bounty_estado)->toBe('asignado');
-});
-
-test('un investigador no puede asignarse bounty a si mismo', function () {
-    $empresaUser = propietarioDeEmpresa();
-    $programa = programaDeEmpresa($empresaUser, ['tiene_recompensas' => true]);
-    $investigador = investigador();
-    $reporte = reporteDe($investigador, $programa, ['estado' => 'validado']);
-
-    $this->actingAs($investigador)
-        ->post(route('reportes.asignar-bounty', $reporte), [
-            'monto' => 1000,
-            'moneda' => 'USDC',
-        ])
-        ->assertForbidden();
-});
-
-test('la empresa puede registrar el pago de un bounty con un tx_hash valido', function () {
-    $empresaUser = propietarioDeEmpresa();
-    $programa = programaDeEmpresa($empresaUser, ['tiene_recompensas' => true]);
-    $investigador = investigador([
-        'wallet_address' => '0x71C83638372331E200C025434d31B057C9a63974',
-        'wallet_red' => 'polygon',
-    ]);
-    $reporte = reporteDe($investigador, $programa, [
-        'estado' => 'validado',
-        'bounty_monto' => 350,
-        'bounty_estado' => 'asignado',
-    ]);
-
-    $txHashValido = '0x'.str_repeat('a', 64);
-
-    $this->actingAs($empresaUser)
-        ->post(route('reportes.pagar-bounty', $reporte), [
-            'tx_hash' => $txHashValido,
-            'red' => 'polygon',
-        ])
-        ->assertRedirect();
-
-    $reporte->refresh();
-    expect($reporte->bounty_estado)->toBe('pagado')
-        ->and($reporte->bounty_tx_hash)->toBe(strtolower($txHashValido))
-        ->and($reporte->bounty_red)->toBe('polygon')
-        ->and($reporte->bounty_pagado_en)->not->toBeNull();
-});
-
-test('se rechaza un tx_hash con formato invalido al registrar pago', function () {
-    $empresaUser = propietarioDeEmpresa();
-    $programa = programaDeEmpresa($empresaUser, ['tiene_recompensas' => true]);
-    $investigador = investigador();
-    $reporte = reporteDe($investigador, $programa, [
-        'estado' => 'validado',
-        'bounty_monto' => 350,
-        'bounty_estado' => 'asignado',
-    ]);
-
-    $this->actingAs($empresaUser)
-        ->post(route('reportes.pagar-bounty', $reporte), [
-            'tx_hash' => 'hash_invalido_sin_formato_evm',
-            'red' => 'polygon',
-        ])
-        ->assertSessionHasErrors(['tx_hash']);
-
-    $reporte->refresh();
-    expect($reporte->bounty_estado)->toBe('asignado');
-});
-
-test('se impide el reuso de un tx_hash ya utilizado (anti-replay)', function () {
-    $empresaUser = propietarioDeEmpresa();
-    $programa = programaDeEmpresa($empresaUser, ['tiene_recompensas' => true]);
-    $investigador = investigador();
-
-    $txHash = '0x'.str_repeat('b', 64);
-
-    $reporte1 = reporteDe($investigador, $programa, [
-        'estado' => 'validado',
-        'bounty_monto' => 200,
-        'bounty_estado' => 'asignado',
-    ]);
-
-    // Pagamos el primer reporte
-    $this->actingAs($empresaUser)
-        ->post(route('reportes.pagar-bounty', $reporte1), [
-            'tx_hash' => $txHash,
-            'red' => 'polygon',
-        ])
-        ->assertRedirect();
-
-    $reporte2 = reporteDe($investigador, $programa, [
-        'estado' => 'validado',
-        'bounty_monto' => 300,
-        'bounty_estado' => 'asignado',
-    ]);
-
-    // Intentamos reutilizar el mismo tx_hash para el segundo reporte
-    $this->actingAs($empresaUser)
-        ->post(route('reportes.pagar-bounty', $reporte2), [
-            'tx_hash' => $txHash,
-            'red' => 'polygon',
-        ])
-        ->assertSessionHasErrors(['tx_hash']);
-});
+// Los pagos (asignar, registrar y verificar en la blockchain) están en BountyPagos_FeatureTest.
 
 test('empresa con plan comunitario no puede crear programas con nivel de acceso elite', function () {
     $empresaUser = propietarioDeEmpresa();
@@ -207,14 +89,12 @@ test('investigador puede actualizar su wallet evm en su perfil', function () {
             'name' => $investigador->name,
             'email' => $investigador->email,
             'wallet_address' => $walletValida,
-            'wallet_red' => 'polygon',
         ])
         ->assertRedirect(route('profile.edit'))
         ->assertSessionHasNoErrors();
 
     $investigador->refresh();
-    expect($investigador->wallet_address)->toBe($walletValida)
-        ->and($investigador->wallet_red)->toBe('polygon');
+    expect($investigador->wallet_address)->toBe($walletValida);
 });
 
 test('se rechaza una direccion de wallet no valida en el perfil', function () {
@@ -225,7 +105,6 @@ test('se rechaza una direccion de wallet no valida en el perfil', function () {
             'name' => $investigador->name,
             'email' => $investigador->email,
             'wallet_address' => 'direccion_invalida_sin_0x',
-            'wallet_red' => 'polygon',
         ])
         ->assertSessionHasErrors(['wallet_address']);
 });

@@ -47,6 +47,7 @@ export const TipoEventoReporte = {
     MarcadoDuplicado: 'marcado_duplicado',
     Sancion: 'sancion',
     Asignacion: 'asignacion',
+    Bounty: 'bounty',
 } as const;
 export type TipoEventoReporte =
     (typeof TipoEventoReporte)[keyof typeof TipoEventoReporte];

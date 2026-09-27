@@ -27,6 +27,7 @@
     import { AYUDA_NOMBRE, PATRON_NOMBRE } from '@/lib/validacion';
 
     const user = $derived(page.props.auth.user);
+    const redPagos = $derived(page.props.redPagos as string | null | undefined);
 </script>
 
 <AppHead title="Perfil" />
@@ -114,21 +115,10 @@
                     <InputError class="mt-1" message={errors.wallet_address} />
                 </div>
 
-                <div class="grid gap-2">
-                    <Label for="wallet_red">Red blockchain preferida</Label>
-                    <select
-                        id="wallet_red"
-                        name="wallet_red"
-                        class="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                        value={user.wallet_red ?? 'polygon'}
-                    >
-                        <option value="polygon">Polygon PoS (Recomendada - Comisiones mínimas)</option>
-                        <option value="arbitrum">Arbitrum One</option>
-                        <option value="base">Base</option>
-                        <option value="ethereum">Ethereum Mainnet</option>
-                    </select>
-                    <InputError class="mt-1" message={errors.wallet_red} />
-                </div>
+                <p class="text-xs text-muted-foreground" data-test="red-pagos">
+                    Los pagos se hacen en <strong>USDC</strong> sobre <strong>{redPagos ?? 'la red de la plataforma'}</strong>. Usa una wallet que controles
+                    (por ejemplo, MetaMask): una dirección de un exchange puede no recibir tokens de esa red.
+                </p>
             </div>
 
             {#if Boolean(page.props.mustVerifyEmail) && !user.email_verified_at}

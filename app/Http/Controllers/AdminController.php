@@ -147,6 +147,37 @@ class AdminController extends Controller
         return redirect()->route('admin.empresas')->with('success', 'Empresa reactivada.');
     }
 
+    /**
+     * Activa o quita el Plan Profesional (programas privados, élite y solo verificados).
+     * Mientras no haya cobro de suscripciones en la plataforma, lo concede el administrador.
+     */
+    public function cambiarPlanEmpresa(Empresa $empresa, Request $request): RedirectResponse
+    {
+        Gate::authorize('abac', [AccionesAbac::EmpresaCambiarPlan, $empresa]);
+
+        $validated = $request->validate([
+            'plan' => ['required', 'in:comunitario,profesional'],
+            'plan_expira_en' => ['nullable', 'date', 'after:today'],
+        ]);
+
+        $anterior = $empresa->plan;
+        $empresa->update([
+            'plan' => $validated['plan'],
+            'plan_expira_en' => $validated['plan'] === 'profesional' ? ($validated['plan_expira_en'] ?? null) : null,
+        ]);
+
+        Auditoria::registrar('admin.empresa.plan_cambiado', $empresa, [
+            'plan_anterior' => $anterior,
+            'plan' => $empresa->plan,
+            'expira_en' => $empresa->plan_expira_en?->toDateString(),
+        ], $request->user()->id);
+        app(Notificador::class)->planEmpresaCambiado($empresa);
+
+        return redirect()->route('admin.empresas')->with('success', $empresa->plan === 'profesional'
+            ? 'Plan Profesional activado.'
+            : 'La empresa volvió al Plan Comunitario.');
+    }
+
     private function registrarDecisionEmpresa(Request $request, Empresa $empresa, string $accion): void
     {
         Auditoria::registrar($accion, $empresa, [

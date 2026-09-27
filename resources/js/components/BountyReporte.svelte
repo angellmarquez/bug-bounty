@@ -1,32 +1,27 @@
 <script lang="ts">
-    import { router } from '@inertiajs/svelte';
+    import { Link, router } from '@inertiajs/svelte';
     import Coins from '@lucide/svelte/icons/coins';
     import CheckCircle from '@lucide/svelte/icons/check-circle';
     import ExternalLink from '@lucide/svelte/icons/external-link';
-    import Copy from '@lucide/svelte/icons/copy';
-    import Check from '@lucide/svelte/icons/check';
     import AlertCircle from '@lucide/svelte/icons/alert-circle';
-    import ArrowRight from '@lucide/svelte/icons/arrow-right';
+    import Wallet from '@lucide/svelte/icons/wallet';
+    import Loader from '@lucide/svelte/icons/loader-circle';
     import { Button } from '@/components/ui/button';
     import { Input } from '@/components/ui/input';
     import { Label } from '@/components/ui/label';
     import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
     import { Badge } from '@/components/ui/badge';
     import { Spinner } from '@/components/ui/spinner';
-
-    interface BountyProps {
-        monto: number | null;
-        moneda: string;
-        estado: 'sin_asignar' | 'asignado' | 'pagado';
-        tx_hash: string | null;
-        red: string | null;
-        pagado_en: string | null;
-        explorer_url: string | null;
-        investigador_wallet: string | null;
-        investigador_wallet_red: string | null;
-        programa_tiene_recompensas: boolean;
-        tabla_recompensas?: Record<string, string | number> | null;
-    }
+    import {
+        ErrorPagoWallet,
+        asegurarRed,
+        conectar,
+        formatearUsdc,
+        proveedor,
+        saldoUsdc,
+        transferirUsdc,
+    } from '@/lib/wallet-usdc';
+    import type { BountyInforme, EstadoBounty } from '@/types/domain';
 
     let {
         reporteId,
@@ -37,322 +32,277 @@
         severidad = null,
     }: {
         reporteId: number;
-        bounty: BountyProps;
+        bounty: BountyInforme;
         puedeAsignar?: boolean;
         puedePagar?: boolean;
         esInvestigador?: boolean;
         severidad?: string | null;
     } = $props();
 
-    let modalAsignar = $state(false);
-    let modalPagar = $state(false);
+    const ETIQUETAS: Record<EstadoBounty, string> = {
+        sin_bounty: 'Sin asignar',
+        asignado: 'Asignado',
+        verificando: 'Verificando',
+        pagado: 'Pagado',
+        fallido: 'Pago no válido',
+    };
 
-    let montoAsignar = $state(bounty.monto ? String(bounty.monto) : sugerirMonto());
-    let txHashPagar = $state('');
-    let redPagar = $state(bounty.investigador_wallet_red ?? 'polygon');
+    const CLASES_ESTADO: Record<EstadoBounty, string> = {
+        sin_bounty: 'border-border text-muted-foreground',
+        asignado: 'border-chart-2/40 bg-chart-2/10 text-chart-2',
+        verificando: 'border-aviso/40 bg-aviso/10 text-aviso',
+        pagado: 'border-primary/40 bg-primary/10 text-primary',
+        fallido: 'border-destructive/40 bg-destructive/10 text-destructive',
+    };
+
+    const sugerido = $derived.by((): string => {
+        const valor = severidad ? bounty.tabla_recompensas?.[severidad.toLowerCase()] : undefined;
+
+        return valor ? String(valor) : bounty.recompensa_min ? String(bounty.recompensa_min) : '';
+    });
+
+    let editandoMonto = $state(false);
+    let monto = $state('');
     let procesando = $state(false);
-    let errorAccion = $state('');
-    let copiado = $state(false);
+    let error = $state('');
+    // Paso del pago con wallet, para explicar qué está pasando.
+    let paso = $state('');
+    let hashManual = $state('');
+    let verManual = $state(false);
 
-    function sugerirMonto(): string {
-        if (!bounty.tabla_recompensas || !severidad) return '100';
-        const valor = bounty.tabla_recompensas[severidad.toLowerCase()];
-        return valor ? String(valor) : '100';
+    function abrirEdicion() {
+        monto = bounty.monto ? String(bounty.monto) : sugerido;
+        error = '';
+        editandoMonto = true;
     }
 
-    function copiarWallet() {
-        if (!bounty.investigador_wallet) return;
-        navigator.clipboard.writeText(bounty.investigador_wallet);
-        copiado = true;
-        setTimeout(() => (copiado = false), 2000);
-    }
-
-    function asignarBounty() {
+    function enviar(url: string, datos: Record<string, string | number | null>, alTerminar?: () => void) {
         procesando = true;
-        errorAccion = '';
-
-        router.post(
-            `/reportes/${reporteId}/bounty/asignar`,
-            {
-                monto: Number(montoAsignar),
-                moneda: bounty.moneda || 'USDC',
+        error = '';
+        router.post(url, datos, {
+            preserveScroll: true,
+            onSuccess: () => alTerminar?.(),
+            onError: (errores) => {
+                error = String(Object.values(errores)[0] ?? 'No se pudo completar la acción.');
             },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    modalAsignar = false;
-                },
-                onError: (errs) => {
-                    errorAccion = Object.values(errs)[0] as string;
-                },
-                onFinish: () => {
-                    procesando = false;
-                },
-            }
-        );
+            onFinish: () => {
+                procesando = false;
+                paso = '';
+            },
+        });
     }
 
-    function pagarBounty() {
-        procesando = true;
-        errorAccion = '';
+    function asignar() {
+        enviar(`/reportes/${reporteId}/bounty/asignar`, { monto: Number(monto) }, () => (editandoMonto = false));
+    }
 
-        router.post(
-            `/reportes/${reporteId}/bounty/pagar`,
-            {
-                tx_hash: txHashPagar.trim(),
-                red: redPagar,
-            },
-            {
-                preserveScroll: true,
-                onSuccess: () => {
-                    modalPagar = false;
-                },
-                onError: (errs) => {
-                    errorAccion = Object.values(errs)[0] as string;
-                },
-                onFinish: () => {
-                    procesando = false;
-                },
+    function registrarHash(txHash: string, pagador: string | null) {
+        paso = 'Registrando la transacción para verificarla…';
+        enviar(`/reportes/${reporteId}/bounty/transaccion`, { tx_hash: txHash.trim(), pagador }, () => {
+            hashManual = '';
+            verManual = false;
+        });
+    }
+
+    async function pagarConWallet() {
+        error = '';
+        const eth = proveedor();
+        const red = bounty.red;
+
+        if (!eth) {
+            error = 'No se encontró una wallet en el navegador. Instala MetaMask o registra el hash de la transacción a mano.';
+            return;
+        }
+        if (!red || !bounty.wallet_destino || !bounty.monto_unidades) {
+            error = 'Faltan datos para pagar (red, wallet del investigador o monto).';
+            return;
+        }
+
+        procesando = true;
+        try {
+            paso = 'Conectando con tu wallet…';
+            const cuenta = await conectar(eth);
+
+            paso = `Cambiando la wallet a ${red.nombre}…`;
+            await asegurarRed(eth, red);
+
+            paso = 'Revisando tu saldo de USDC…';
+            const saldo = await saldoUsdc(eth, red, cuenta);
+            if (saldo < BigInt(bounty.monto_unidades)) {
+                throw new ErrorPagoWallet(
+                    `Tu wallet tiene ${formatearUsdc(saldo)} USDC y el bounty es de ${bounty.monto} USDC.` +
+                        (red.testnet && red.faucets.usdc ? ` Consigue USDC de prueba en ${red.faucets.usdc}.` : ''),
+                );
             }
-        );
+
+            paso = 'Confirma la transferencia en tu wallet…';
+            const txHash = await transferirUsdc(eth, red, cuenta, bounty.wallet_destino, bounty.monto_unidades);
+
+            registrarHash(txHash, cuenta);
+        } catch (e) {
+            error = e instanceof ErrorPagoWallet ? e.message : 'No se pudo completar el pago con la wallet.';
+            procesando = false;
+            paso = '';
+        }
+    }
+
+    // Mientras se verifica, la página vuelve a consultar la blockchain sola.
+    $effect(() => {
+        if (bounty.estado !== 'verificando') return;
+
+        const intervalo = setInterval(() => {
+            router.post(`/reportes/${reporteId}/bounty/comprobar`, {}, { preserveScroll: true, preserveState: true });
+        }, 6000);
+
+        return () => clearInterval(intervalo);
+    });
+
+    function corto(texto: string | null): string {
+        return texto ? `${texto.slice(0, 8)}…${texto.slice(-6)}` : '';
     }
 </script>
 
-<Card class="border-border">
+<div data-test="bounty"><Card>
     <CardHeader class="pb-3">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-                <div class="rounded-md bg-emerald-500/10 p-1.5 text-emerald-400">
+                <div class="rounded-md bg-primary/10 p-1.5 text-primary">
                     <Coins class="h-4 w-4" />
                 </div>
-                <CardTitle class="text-sm font-semibold">Recompensa Económica (Bounty)</CardTitle>
+                <CardTitle class="text-sm font-semibold">Recompensa (bounty)</CardTitle>
             </div>
-
-            {#if bounty.estado === 'pagado'}
-                <Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 gap-1 text-xs">
-                    <CheckCircle class="h-3 w-3" /> Pagado
-                </Badge>
-            {:else if bounty.estado === 'asignado'}
-                <Badge variant="outline" class="border-amber-500/30 bg-amber-500/10 text-amber-400 gap-1 text-xs">
-                    <AlertCircle class="h-3 w-3" /> Asignado (Pendiente de pago)
-                </Badge>
-            {:else}
-                <Badge variant="outline" class="text-xs text-muted-foreground">
-                    Sin asignar
-                </Badge>
-            {/if}
+            <Badge variant="outline" class={CLASES_ESTADO[bounty.estado]} data-test="bounty-estado">{ETIQUETAS[bounty.estado]}</Badge>
         </div>
-        <CardDescription class="text-xs">
-            {#if bounty.estado === 'pagado'}
-                Recompensa pagada en {bounty.moneda} verificada en la red {bounty.red ?? 'blockchain'}.
-            {:else if bounty.estado === 'asignado'}
-                Monto fijado por la empresa. Pendiente de recepción de fondos en stablecoin.
-            {:else}
-                Este programa contempla recompensas económicas en criptoactivos (USDC).
-            {/if}
-        </CardDescription>
+        {#if bounty.red}
+            <CardDescription class="text-xs">
+                Pago en USDC sobre {bounty.red.nombre}. La plataforma no custodia fondos: verifica el pago en la blockchain.
+            </CardDescription>
+        {/if}
     </CardHeader>
 
-    <CardContent class="space-y-4 pt-1">
-        <!-- Detalles del monto -->
+    <CardContent class="space-y-4 text-sm">
         {#if bounty.monto}
-            <div class="rounded-lg border border-border/60 bg-muted/30 p-3 flex items-baseline justify-between">
-                <span class="text-xs text-muted-foreground">Monto acordado:</span>
-                <span class="font-mono text-lg font-bold text-foreground">
-                    ${Number(bounty.monto).toLocaleString()} <span class="text-xs font-normal text-muted-foreground">{bounty.moneda}</span>
-                </span>
+            <p class="font-mono text-2xl font-bold" data-test="bounty-monto">{bounty.monto.toFixed(2)} <span class="text-sm text-muted-foreground">USDC</span></p>
+        {:else}
+            <p class="text-muted-foreground">
+                {bounty.recompensa_min || bounty.recompensa_max
+                    ? `El programa paga entre ${bounty.recompensa_min ?? 0} y ${bounty.recompensa_max ?? '—'} USDC.`
+                    : 'La empresa aún no asignó una recompensa a este informe.'}
+            </p>
+        {/if}
+
+        {#if esInvestigador && !bounty.tiene_wallet && bounty.estado !== 'pagado'}
+            <div class="rounded-md border border-aviso/40 bg-aviso/10 p-3 text-xs" role="alert">
+                Para cobrar necesitas una wallet en tu perfil.
+                <Link href="/settings/profile" class="font-medium underline">Configurarla</Link>
             </div>
         {/if}
 
-        <!-- Información de pago y Tx Hash -->
-        {#if bounty.estado === 'pagado'}
-            <div class="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
-                <div class="flex items-center justify-between text-xs">
-                    <span class="text-muted-foreground">Red de transferencia:</span>
-                    <span class="font-medium uppercase text-emerald-400">{bounty.red ?? 'Polygon'}</span>
-                </div>
-
-                {#if bounty.tx_hash}
-                    <div class="space-y-1">
-                        <span class="text-[11px] text-muted-foreground">Hash de transacción (Tx Hash):</span>
-                        <div class="flex items-center gap-2">
-                            <code class="text-xs font-mono bg-background px-2 py-1 rounded border border-border/80 flex-1 truncate text-foreground" title={bounty.tx_hash}>
-                                {bounty.tx_hash}
-                            </code>
-                            {#if bounty.explorer_url}
-                                <a
-                                    href={bounty.explorer_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0"
-                                >
-                                    Ver en explorador <ExternalLink class="h-3 w-3" />
-                                </a>
-                            {/if}
-                        </div>
-                    </div>
-                {/if}
-            </div>
-        {/if}
-
-        <!-- Vista del Investigador si falta wallet -->
-        {#if esInvestigador && bounty.estado !== 'pagado' && !bounty.investigador_wallet}
-            <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2 text-xs text-amber-300">
-                <div class="flex items-center gap-1.5 font-semibold">
-                    <AlertCircle class="h-4 w-4 shrink-0 text-amber-400" />
-                    Billetera no configurada
-                </div>
-                <p class="text-[11px] leading-relaxed">
-                    No has configurado tu dirección EVM en tu perfil. Para recibir el pago de recompensas por tus vulnerabilidades, agrégala en los ajustes de tu cuenta.
-                </p>
-                <Button variant="outline" size="sm" href="/settings/profile" class="text-xs h-7 border-amber-500/40 hover:bg-amber-500/20 text-amber-200">
-                    Configurar billetera en mi perfil
-                </Button>
-            </div>
-        {/if}
-
-        <!-- Botones de Acción para la Empresa -->
-        {#if puedeAsignar && bounty.estado !== 'pagado'}
-            <Button
-                variant="outline"
-                size="sm"
-                class="w-full text-xs"
-                onclick={() => { modalAsignar = true; modalPagar = false; }}
-            >
-                <Coins class="mr-1.5 h-3.5 w-3.5 text-primary" />
-                {bounty.estado === 'asignado' ? 'Modificar monto del Bounty' : 'Asignar monto del Bounty'}
-            </Button>
-        {/if}
-
-        {#if puedePagar && bounty.estado === 'asignado'}
-            <Button
-                size="sm"
-                class="w-full text-xs bg-emerald-600 hover:bg-emerald-500 text-white"
-                onclick={() => { modalPagar = true; modalAsignar = false; }}
-            >
-                <Coins class="mr-1.5 h-3.5 w-3.5" />
-                Registrar pago cripto (Tx Hash)
-            </Button>
-        {/if}
-
-        <!-- Modal / Formulario para Asignar Bounty -->
-        {#if modalAsignar}
-            <div class="rounded-lg border border-border bg-card p-3 space-y-3 mt-2">
-                <div class="flex items-center justify-between">
-                    <h4 class="text-xs font-semibold text-foreground">Fijar recompensa del reporte</h4>
-                    <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-muted-foreground" onclick={() => modalAsignar = false}>✕</Button>
-                </div>
-
-                {#if errorAccion}
-                    <p class="text-xs text-destructive">{errorAccion}</p>
-                {/if}
-
+        {#if bounty.estado === 'verificando'}
+            <div class="flex items-start gap-2 rounded-md border border-aviso/40 bg-aviso/10 p-3 text-xs" role="status" data-test="bounty-verificando">
+                <Loader class="mt-0.5 h-4 w-4 shrink-0 animate-spin text-aviso" />
                 <div class="space-y-1">
-                    <Label for="monto_input" class="text-xs">Monto en {bounty.moneda}</Label>
-                    <div class="relative">
-                        <span class="absolute left-2.5 top-2 text-xs text-muted-foreground">$</span>
-                        <Input
-                            id="monto_input"
-                            type="number"
-                            min="1"
-                            step="1"
-                            class="pl-6 h-8 text-xs font-mono"
-                            bind:value={montoAsignar}
-                        />
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-2 pt-1">
-                    <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => modalAsignar = false}>Cancelar</Button>
-                    <Button size="sm" class="text-xs h-7" disabled={procesando || !montoAsignar} onclick={asignarBounty}>
-                        {#if procesando}<Spinner class="mr-1 h-3 w-3" />{/if}
-                        Guardar monto
-                    </Button>
+                    <p class="font-medium">Verificando el pago en la blockchain…</p>
+                    <p class="text-muted-foreground">{bounty.error ?? `Se necesitan ${bounty.red?.confirmaciones ?? '?'} confirmaciones.`}</p>
                 </div>
             </div>
         {/if}
 
-        <!-- Modal / Formulario para Pagar Bounty con Tx Hash -->
-        {#if modalPagar}
-            <div class="rounded-lg border border-border bg-card p-3 space-y-3 mt-2">
-                <div class="flex items-center justify-between">
-                    <h4 class="text-xs font-semibold text-foreground">Confirmar transferencia cripto</h4>
-                    <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-muted-foreground" onclick={() => modalPagar = false}>✕</Button>
-                </div>
+        {#if bounty.estado === 'fallido' && bounty.error}
+            <div class="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs" role="alert" data-test="bounty-error">
+                <AlertCircle class="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <p>{bounty.error}</p>
+            </div>
+        {/if}
 
-                {#if errorAccion}
-                    <p class="text-xs text-destructive">{errorAccion}</p>
-                {/if}
-
-                <!-- Datos de la wallet del investigador -->
-                <div class="rounded-md bg-muted/50 p-2.5 space-y-2 text-xs">
-                    <span class="text-[11px] text-muted-foreground block">Dirección de pago del investigador:</span>
-                    {#if bounty.investigador_wallet}
-                        <div class="flex items-center gap-2">
-                            <code class="font-mono text-xs bg-background px-2 py-1 rounded border border-border flex-1 truncate text-foreground">
-                                {bounty.investigador_wallet}
-                            </code>
-                            <Button variant="outline" size="sm" class="h-7 px-2 shrink-0" onclick={copiarWallet}>
-                                {#if copiado}
-                                    <Check class="h-3 w-3 text-emerald-400" />
-                                {:else}
-                                    <Copy class="h-3 w-3" />
-                                {/if}
-                            </Button>
-                        </div>
-                        <p class="text-[10px] text-muted-foreground">
-                            Red preferida por el hacker: <strong class="uppercase text-foreground">{bounty.investigador_wallet_red ?? 'Polygon'}</strong>
-                        </p>
-                    {:else}
-                        <p class="text-destructive font-medium">
-                            El investigador aún no ha guardado su dirección de billetera en su perfil. Pídele que la registre antes de realizar la transacción.
-                        </p>
+        {#if bounty.estado === 'pagado'}
+            <div class="flex items-start gap-2 rounded-md border border-primary/40 bg-primary/10 p-3 text-xs" data-test="bounty-pagado">
+                <CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div class="space-y-1">
+                    <p class="font-medium">Pago verificado en la blockchain</p>
+                    {#if bounty.pagado_en}
+                        <p class="text-muted-foreground">{new Intl.DateTimeFormat('es-ES', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(bounty.pagado_en))}{bounty.bloque ? ` · bloque ${bounty.bloque}` : ''}</p>
                     {/if}
                 </div>
+            </div>
+        {/if}
 
-                <!-- Input Tx Hash -->
-                <div class="space-y-1">
-                    <Label for="tx_hash_input" class="text-xs">Hash de la transacción (Tx Hash)</Label>
-                    <Input
-                        id="tx_hash_input"
-                        placeholder="0x4a7b...89c0"
-                        class="h-8 text-xs font-mono"
-                        bind:value={txHashPagar}
-                    />
-                    <p class="text-[10px] text-muted-foreground">
-                        Pega el identificador de transacción generado por tu wallet (MetaMask, Ledger, etc.).
-                    </p>
+        {#if bounty.tx_hash}
+            <div class="space-y-1 text-xs">
+                <span class="text-muted-foreground">Transacción</span>
+                {#if bounty.explorer_url}
+                    <a href={bounty.explorer_url} target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 font-mono text-primary hover:underline" data-test="bounty-explorer">
+                        {corto(bounty.tx_hash)}
+                        <ExternalLink class="h-3 w-3" />
+                    </a>
+                {:else}
+                    <span class="font-mono">{corto(bounty.tx_hash)}</span>
+                {/if}
+            </div>
+        {/if}
+
+        {#if bounty.wallet_destino && bounty.estado !== 'pagado'}
+            <div class="space-y-1 text-xs">
+                <span class="text-muted-foreground">Wallet del investigador</span>
+                <p class="font-mono break-all">{bounty.wallet_destino}</p>
+            </div>
+        {/if}
+
+        {#if error}
+            <p class="text-xs text-destructive" role="alert" data-test="bounty-error-accion">{error}</p>
+        {/if}
+        {#if paso}
+            <p class="flex items-center gap-2 text-xs text-muted-foreground"><Spinner class="h-3 w-3" /> {paso}</p>
+        {/if}
+
+        {#if puedeAsignar && editandoMonto}
+            <form class="space-y-2" onsubmit={(e) => { e.preventDefault(); asignar(); }}>
+                <Label for="bounty-monto">Monto en USDC</Label>
+                <Input id="bounty-monto" type="number" step="0.01" min={bounty.recompensa_min ?? 1} max={bounty.recompensa_max ?? undefined} bind:value={monto} required />
+                <p class="text-xs text-muted-foreground">
+                    {sugerido ? `Sugerido por la tabla del programa: ${sugerido} USDC.` : ''}
+                    {bounty.recompensa_min || bounty.recompensa_max ? ` Rango del programa: ${bounty.recompensa_min ?? 1}–${bounty.recompensa_max ?? '∞'} USDC.` : ''}
+                </p>
+                <div class="flex gap-2">
+                    <Button type="submit" size="sm" disabled={procesando}>{#if procesando}<Spinner class="mr-1 h-3 w-3" />{/if}Guardar monto</Button>
+                    <Button type="button" size="sm" variant="ghost" onclick={() => (editandoMonto = false)}>Cancelar</Button>
                 </div>
+            </form>
+        {:else if puedeAsignar}
+            <Button size="sm" variant="outline" class="w-full" onclick={abrirEdicion} data-test="bounty-asignar">
+                {bounty.monto ? 'Cambiar monto' : 'Asignar recompensa'}
+            </Button>
+        {/if}
 
-                <!-- Red usada -->
-                <div class="space-y-1">
-                    <Label for="red_select" class="text-xs">Red blockchain utilizada</Label>
-                    <select
-                        id="red_select"
-                        class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-                        bind:value={redPagar}
-                    >
-                        <option value="polygon">Polygon PoS</option>
-                        <option value="amoy">Polygon Amoy Testnet (Pruebas)</option>
-                        <option value="arbitrum">Arbitrum One</option>
-                        <option value="base">Base</option>
-                        <option value="ethereum">Ethereum</option>
-                    </select>
-                </div>
-
-                <div class="flex justify-end gap-2 pt-1">
-                    <Button variant="ghost" size="sm" class="text-xs h-7" onclick={() => modalPagar = false}>Cancelar</Button>
-                    <Button
-                        size="sm"
-                        class="text-xs h-7 bg-emerald-600 hover:bg-emerald-500 text-white"
-                        disabled={procesando || !txHashPagar.trim()}
-                        onclick={pagarBounty}
-                    >
-                        {#if procesando}<Spinner class="mr-1 h-3 w-3" />{/if}
-                        Confirmar y verificar
+        {#if puedePagar && !editandoMonto}
+            <div class="space-y-2 border-t border-border pt-3">
+                {#if !bounty.wallet_destino}
+                    <p class="text-xs text-muted-foreground">El investigador aún no configuró su wallet: no se puede pagar todavía.</p>
+                {:else}
+                    <Button size="sm" class="w-full" onclick={pagarConWallet} disabled={procesando} data-test="bounty-pagar-wallet">
+                        <Wallet class="mr-1.5 h-4 w-4" />
+                        Pagar {bounty.monto?.toFixed(2)} USDC con mi wallet
                     </Button>
-                </div>
+                    {#if bounty.red?.testnet}
+                        <p class="text-xs text-muted-foreground">
+                            Red de pruebas: el USDC no tiene valor.
+                            {#if bounty.red.faucets.usdc}<a class="underline" href={bounty.red.faucets.usdc} target="_blank" rel="noopener noreferrer">USDC de prueba</a>{/if}
+                            {#if bounty.red.faucets.gas} · <a class="underline" href={bounty.red.faucets.gas} target="_blank" rel="noopener noreferrer">{bounty.red.moneda_nativa.symbol} para el gas</a>{/if}
+                        </p>
+                    {/if}
+
+                    <button type="button" class="text-xs text-muted-foreground underline" onclick={() => (verManual = !verManual)}>
+                        ¿Pagaste desde otra wallet o un exchange? Registra el hash
+                    </button>
+                    {#if verManual}
+                        <form class="space-y-2" onsubmit={(e) => { e.preventDefault(); registrarHash(hashManual, null); }}>
+                            <Label for="bounty-hash">Hash de la transacción</Label>
+                            <Input id="bounty-hash" bind:value={hashManual} placeholder="0x…" class="font-mono text-xs" required />
+                            <Button type="submit" size="sm" variant="outline" disabled={procesando}>Registrar y verificar</Button>
+                        </form>
+                    {/if}
+                {/if}
             </div>
         {/if}
     </CardContent>
-</Card>
+</Card></div>

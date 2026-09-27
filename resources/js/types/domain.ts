@@ -35,6 +35,8 @@ export type Empresa = {
     motivo_estado: string | null;
     aprobado_por: number | null;
     aprobado_en: string | null;
+    plan?: 'comunitario' | 'profesional';
+    plan_expira_en?: string | null;
     created_at: string;
     updated_at: string;
     usuarios?: User[];
@@ -128,6 +130,52 @@ export type Reporte = {
     asignadoA?: User | null;
     eventos?: EventoReporte[];
     duplicadoDe?: Reporte | null;
+    bounty?: BountyInforme;
+};
+
+export type EstadoBounty =
+    | 'sin_bounty'
+    | 'asignado'
+    | 'verificando'
+    | 'pagado'
+    | 'fallido';
+
+/** Red en la que se pagan los bounties, con lo que la wallet necesita para cambiarse a ella. */
+export type RedBounty = {
+    clave: string;
+    nombre: string;
+    testnet: boolean;
+    chain_id: number;
+    rpc_url: string;
+    explorer_url: string;
+    moneda_nativa: { name: string; symbol: string; decimals: number };
+    usdc: string;
+    confirmaciones: number;
+    faucets: { usdc?: string; gas?: string };
+};
+
+/**
+ * Recompensa de un informe. `wallet_destino` y `pagador` solo llegan a quien paga y al
+ * propio investigador (la wallet lo identificaría ante un moderador en triaje ciego).
+ */
+export type BountyInforme = {
+    programa_tiene_recompensas: boolean;
+    tabla_recompensas: Record<string, number | string> | null;
+    recompensa_min: number | null;
+    recompensa_max: number | null;
+    estado: EstadoBounty;
+    monto: number | null;
+    moneda: 'USDC';
+    monto_unidades: string | null;
+    tx_hash: string | null;
+    explorer_url: string | null;
+    bloque: number | null;
+    pagador: string | null;
+    pagado_en: string | null;
+    error: string | null;
+    wallet_destino: string | null;
+    tiene_wallet: boolean;
+    red: RedBounty | null;
 };
 
 export type EventoReporte = {

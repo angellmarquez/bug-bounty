@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('apelaciones:auditar-sla')->hourly();
+Schedule::command('bounties:verificar-pendientes')->everyMinute()->withoutOverlapping();

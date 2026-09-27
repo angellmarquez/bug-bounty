@@ -58,7 +58,6 @@
 
     let {
         reporte: initialReporte,
-        bounty = null,
         puedeVerNotasInternas,
         puedeVerCertificado = false,
         puedeTriar = false,
@@ -74,19 +73,6 @@
         avisoCola = null,
     }: {
         reporte: Reporte;
-        bounty?: {
-            monto: number | null;
-            moneda: string;
-            estado: 'sin_asignar' | 'asignado' | 'pagado';
-            tx_hash: string | null;
-            red: string | null;
-            pagado_en: string | null;
-            explorer_url: string | null;
-            investigador_wallet: string | null;
-            investigador_wallet_red: string | null;
-            programa_tiene_recompensas: boolean;
-            tabla_recompensas?: Record<string, string | number> | null;
-        } | null;
         puedeVerNotasInternas: boolean;
         puedeVerCertificado?: boolean;
         puedeTriar?: boolean;
@@ -109,6 +95,7 @@
 
     // Derivado: tras cada acción de triaje Inertia entrega props nuevas a esta misma instancia.
     const reporte = $derived(initialReporte);
+    const bounty = $derived(reporte.bounty ?? null);
     const auth = $derived(page.props.auth);
 
     let transitionOpen = $state(false);

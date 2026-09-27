@@ -22,6 +22,8 @@ class ProfileController extends Controller
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            // Red en la que se pagan los bounties: la wallet debe ser una dirección EVM de esa red.
+            'redPagos' => config('bounty.redes.'.config('bounty.red').'.nombre'),
         ]);
     }
 

@@ -199,15 +199,15 @@
                             <div class="flex flex-wrap items-center gap-2">
                                 <NivelAccesoBadge nivel={programa.nivel_acceso} />
                                 {#if !programa.es_publico}
-                                    <Badge variant="outline" class="text-[10px] text-amber-400 border-amber-500/30 bg-amber-500/10 gap-1">
+                                    <Badge variant="outline" class="text-[10px] text-aviso border-aviso/30 bg-aviso/10 gap-1">
                                         <Lock class="h-2.5 w-2.5" /> Privado
                                     </Badge>
                                 {/if}
                             </div>
 
                             {#if programa.tiene_recompensas}
-                                <div class="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/20 font-mono">
-                                    <Coins class="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                                <div class="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary border border-primary/20 font-mono">
+                                    <Coins class="h-3.5 w-3.5 text-primary shrink-0" />
                                     {#if programa.recompensa_min && programa.recompensa_max}
                                         <span>${Number(programa.recompensa_min).toLocaleString()} - ${Number(programa.recompensa_max).toLocaleString()} {programa.moneda ?? 'USDC'}</span>
                                     {:else if programa.recompensa_max}

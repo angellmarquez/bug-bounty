@@ -86,21 +86,30 @@ class UpdateProgramaRequest extends FormRequest
         ];
     }
 
+    /**
+     * Sin Plan Profesional no se puede SUBIR la exigencia de un programa (hacerlo privado,
+     * solo para verificados o de nivel élite), pero sí editar uno que ya lo era: así una
+     * empresa que perdió el plan no queda sin poder corregir sus programas.
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
             $empresa = $this->user()?->empresas()->wherePivot('estado', 'activo')->first();
-            if ($empresa !== null && ! $empresa->puedeAccederElite()) {
-                if ($this->has('es_publico') && $this->boolean('es_publico') === false) {
-                    $validator->errors()->add('es_publico', 'Los programas privados son exclusivos del Plan Profesional. Actualiza tu suscripción para invitar a investigadores seleccionados.');
-                }
-                if ($this->has('solo_verificados') && $this->boolean('solo_verificados') === true) {
-                    $validator->errors()->add('solo_verificados', 'El filtro de Investigadores Verificados es exclusivo del Plan Profesional.');
-                }
-                $nivel = $this->input('nivel_acceso');
-                if ($nivel && in_array($nivel, ['medio', 'alto'], true)) {
-                    $validator->errors()->add('nivel_acceso', 'Restringir programas a investigadores de élite (Plata u Oro) requiere el Plan Profesional.');
-                }
+            $programa = $this->route('programa');
+
+            if ($empresa === null || $empresa->puedeAccederElite() || ! $programa instanceof Programa) {
+                return;
+            }
+
+            if ($this->has('es_publico') && $this->boolean('es_publico') === false && $programa->es_publico) {
+                $validator->errors()->add('es_publico', 'Los programas privados son exclusivos del Plan Profesional. Actualiza tu suscripción para invitar a investigadores seleccionados.');
+            }
+            if ($this->has('solo_verificados') && $this->boolean('solo_verificados') === true && ! $programa->solo_verificados) {
+                $validator->errors()->add('solo_verificados', 'El filtro de Investigadores Verificados es exclusivo del Plan Profesional.');
+            }
+            $nivel = $this->input('nivel_acceso');
+            if (in_array($nivel, ['medio', 'alto'], true) && $nivel !== $programa->nivel_acceso->value) {
+                $validator->errors()->add('nivel_acceso', 'Restringir programas a investigadores de élite (Plata u Oro) requiere el Plan Profesional.');
             }
         });
     }

@@ -71,6 +71,9 @@ final class AccionesAbac
 
     public const EmpresaReactivar = 'empresas.reactivar';
 
+    /** Activar o quitar el Plan Profesional de una empresa (solo el administrador). */
+    public const EmpresaCambiarPlan = 'empresas.cambiar_plan';
+
     public const EmpresaGestionarMiembros = 'empresas.gestionar_miembros';
 
     public const ModeradorAsignar = 'moderadores.asignar';

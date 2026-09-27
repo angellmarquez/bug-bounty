@@ -31,8 +31,7 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
-            'wallet_address' => ['nullable', 'string', 'max:100', 'regex:/^0x[a-fA-F0-9]{40}$/'],
-            'wallet_red' => ['nullable', 'string', 'max:50'],
+            'wallet_address' => ['nullable', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
         ];
     }
 

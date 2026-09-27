@@ -103,6 +103,50 @@ class Notificador
         }
     }
 
+    // ------------------------------------------------------------------
+    // Recompensas (bounties)
+    // ------------------------------------------------------------------
+
+    public function bountyAsignado(Reporte $reporte, ?User $actor = null): void
+    {
+        $this->seguro(fn () => $this->enviar(
+            [$reporte->investigador],
+            new AvisoPlataforma(
+                'informe',
+                'Tu informe tiene una recompensa asignada',
+                "{$reporte->numero_reporte} · ".number_format((float) $reporte->bounty_monto, 2, '.', '').' USDC.'
+                    .($reporte->investigador->wallet_address === null ? ' Configura tu wallet en el perfil para poder cobrarla.' : ' Se te pagará a la wallet de tu perfil.'),
+                "/reportes/{$reporte->id}",
+            ),
+            $actor,
+        ));
+    }
+
+    public function bountyPagado(Reporte $reporte): void
+    {
+        $this->seguro(fn () => $this->enviar(
+            [$reporte->investigador],
+            new AvisoPlataforma(
+                'informe',
+                'Recibiste el pago de tu recompensa',
+                "{$reporte->numero_reporte} · ".number_format((float) $reporte->bounty_monto, 2, '.', '').' USDC verificados en la blockchain.',
+                "/reportes/{$reporte->id}",
+            ),
+        ));
+    }
+
+    /** La empresa que pagó se entera de que la transacción no sirvió y puede registrar otra. */
+    public function bountyFallido(Reporte $reporte, string $motivo): void
+    {
+        $this->seguro(function () use ($reporte, $motivo): void {
+            $reporte->loadMissing('programa.empresa');
+            $this->enviar(
+                $this->propietarios($reporte->programa->empresa),
+                new AvisoPlataforma('informe', 'No se pudo verificar el pago del bounty', "{$reporte->numero_reporte}: {$motivo}", "/reportes/{$reporte->id}"),
+            );
+        });
+    }
+
     /** Al cerrarse el informe como resuelto su autor recibe el certificado de divulgación. */
     public function certificadoEmitido(Reporte $reporte, ?User $actor = null): void
     {
@@ -280,6 +324,23 @@ class Notificador
 
             $this->enviar($this->propietarios($empresa), new AvisoPlataforma('empresa', $titulo, $mensaje, '/empresa'));
         });
+    }
+
+    public function planEmpresaCambiado(Empresa $empresa): void
+    {
+        $profesional = $empresa->plan === 'profesional';
+
+        $this->seguro(fn () => $this->enviar(
+            $this->propietarios($empresa),
+            new AvisoPlataforma(
+                'empresa',
+                $profesional ? 'Tu empresa tiene el Plan Profesional' : 'Tu empresa volvió al Plan Comunitario',
+                $profesional
+                    ? 'Ya puedes crear programas privados, exigir rangos de élite y limitar programas a investigadores verificados.'
+                    : 'Tus programas actuales se mantienen, pero no podrás crear nuevos privados ni subir su nivel de exigencia.',
+                '/empresa',
+            ),
+        ));
     }
 
     public function moderadorRol(User $usuario, bool $asignado): void
