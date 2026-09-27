@@ -78,7 +78,7 @@
                 <Label for="email">Correo electrónico</Label>
                 <Input
                     id="email"
-                    type="email"
+                    type="email" maxlength={255}
                     name="email"
                     class="mt-1 block w-full"
                     value={user.email}

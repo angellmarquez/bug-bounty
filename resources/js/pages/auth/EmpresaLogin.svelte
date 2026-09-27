@@ -29,7 +29,7 @@
         <div class="grid gap-5">
             <div class="grid gap-2">
                 <Label for="email">Correo del responsable</Label>
-                <Input id="email" type="email" name="email" required autocomplete="email" placeholder="responsable@empresa.com" />
+                <Input id="email" type="email" maxlength={255} name="email" required autocomplete="email" placeholder="responsable@empresa.com" />
                 <InputError message={errors.email} />
             </div>
 

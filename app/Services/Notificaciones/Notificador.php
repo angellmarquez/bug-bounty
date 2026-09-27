@@ -326,6 +326,23 @@ class Notificador
         });
     }
 
+    /** El programa llegó a su fecha de fin y quedó en pausa: la empresa decide si lo amplía o lo cierra. */
+    public function programaVencido(Programa $programa): void
+    {
+        $this->seguro(function () use ($programa): void {
+            $programa->loadMissing('empresa');
+            $this->enviar(
+                $this->propietarios($programa->empresa),
+                new AvisoPlataforma(
+                    'empresa',
+                    'Tu programa llegó a su fecha de fin',
+                    "«{$programa->nombre}» terminó el ".$programa->termina_en?->format('d/m/Y').' y quedó en pausa: ya no recibe informes. Amplía la fecha para reactivarlo o márcalo como resuelto.',
+                    "/programas/{$programa->id}",
+                ),
+            );
+        });
+    }
+
     public function planEmpresaCambiado(Empresa $empresa): void
     {
         $profesional = $empresa->plan === 'profesional';

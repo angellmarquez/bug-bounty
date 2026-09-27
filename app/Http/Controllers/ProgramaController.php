@@ -400,6 +400,13 @@ class ProgramaController extends Controller
             return $this->resolver($programa);
         }
 
+        // Un programa cuya fecha de fin ya pasó no se publica ni se reactiva: primero hay que ampliarla.
+        if ($estadoDestino === 'activo' && $programa->haTerminado()) {
+            throw ValidationException::withMessages([
+                'estado' => 'El programa terminó el '.$programa->termina_en?->format('d/m/Y').'. Amplía la fecha de fin para volver a publicarlo.',
+            ]);
+        }
+
         // Sin objetivos no hay alcance definido: los investigadores no sabrían qué investigar.
         if ($estadoDestino === 'activo' && ! $programa->objetivos()->exists()) {
             throw ValidationException::withMessages([
@@ -485,7 +492,7 @@ class ProgramaController extends Controller
         $this->authorizeProgramAction(AccionesAbac::ProgramaInvitarHacker, $programa);
 
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'string', 'email:rfc,strict', 'max:255'],
         ]);
 
         $investigador = User::where('email', $validated['email'])->first();

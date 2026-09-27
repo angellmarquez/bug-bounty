@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Abac\AccionesAbac;
 use App\Enums\NivelAcceso;
 use App\Models\Programa;
+use App\Rules\FechaNoPasada;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -49,6 +50,13 @@ class UpdateProgramaRequest extends FormRequest
         }
     }
 
+    private function programaActual(): ?Programa
+    {
+        $programa = $this->route('programa');
+
+        return $programa instanceof Programa ? $programa : null;
+    }
+
     /**
      * @return array<string, array<int, string|ValidationRule>>
      */
@@ -75,9 +83,9 @@ class UpdateProgramaRequest extends FormRequest
             'poc_schema.*.help' => ['nullable', 'string', 'max:500'],
             'poc_schema.*.options' => ['nullable', 'array'],
             'poc_schema.*.repeatable' => ['boolean'],
-            'poc_schema.*.defaultValue' => ['nullable', 'string'],
-            'inicia_en' => ['nullable', 'date'],
-            'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en'],
+            'poc_schema.*.defaultValue' => ['nullable', 'string', 'max:2000'],
+            'inicia_en' => ['nullable', 'date', new FechaNoPasada($this->programaActual()?->inicia_en, 'La fecha de inicio')],
+            'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en', new FechaNoPasada($this->programaActual()?->termina_en, 'La fecha de fin')],
             'objetivos' => ['nullable', 'array'],
             'objetivos.*.id' => ['nullable', 'integer'],
             'objetivos.*.tipo' => ['required_with:objetivos', Rule::in(['web', 'api', 'movil', 'otro'])],

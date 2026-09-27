@@ -49,6 +49,9 @@
 
     let { empresaPlan }: Props = $props();
 
+    // Hoy en formato yyyy-mm-dd, el de los campos de fecha: no se eligen fechas pasadas.
+    const hoy = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
     const esEmpresa = $derived(((page.props.userRoles as string[] | undefined) ?? []).includes('empresa'));
     const esProfesional = $derived(empresaPlan?.es_profesional ?? false);
 
@@ -146,6 +149,7 @@
                                 id="inicia_en"
                                 name="inicia_en"
                                 type="date"
+                                min={hoy}
                             />
                             <InputError message={errors.inicia_en} />
                         </div>
@@ -156,6 +160,7 @@
                                 id="termina_en"
                                 name="termina_en"
                                 type="date"
+                                min={hoy}
                             />
                             <InputError message={errors.termina_en} />
                         </div>

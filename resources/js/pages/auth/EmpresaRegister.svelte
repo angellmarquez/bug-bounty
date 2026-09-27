@@ -51,7 +51,7 @@
 
             <div class="grid gap-2">
                 <Label for="empresa_email">Correo de la empresa</Label>
-                <Input id="empresa_email" type="email" name="empresa_email" required autocomplete="organization" placeholder="contacto@empresa.com" />
+                <Input id="empresa_email" type="email" maxlength={255} name="empresa_email" required autocomplete="organization" placeholder="contacto@empresa.com" />
                 <p class="text-xs text-muted-foreground">Correo institucional o corporativo para notificaciones.</p>
                 <InputError message={errors.empresa_email} />
             </div>
@@ -65,7 +65,7 @@
 
             <div class="grid gap-2">
                 <Label for="email">Correo del responsable</Label>
-                <Input id="email" type="email" name="email" required autocomplete="email" placeholder="tu-correo@empresa.com" />
+                <Input id="email" type="email" maxlength={255} name="email" required autocomplete="email" placeholder="tu-correo@empresa.com" />
                 <p class="text-xs text-muted-foreground">Email con el que la persona iniciará sesión.</p>
                 <InputError message={errors.email} />
             </div>

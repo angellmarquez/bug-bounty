@@ -149,6 +149,7 @@ class AtributosAbac
 
         if ($modelo instanceof Programa) {
             $atributos['invited_hacker_ids'] = $modelo->invited_hacker_ids;
+            $atributos['fuera_de_fechas'] = $modelo->fuera_de_fechas;
         }
 
         // Cola por orden de llegada: el moderador solo abre el siguiente informe sin revisor.

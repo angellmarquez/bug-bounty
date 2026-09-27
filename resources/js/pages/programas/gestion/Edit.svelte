@@ -63,6 +63,11 @@
 
     let { programa, empresaPlan }: Props = $props();
 
+    // Hoy en formato yyyy-mm-dd, el de los campos de fecha: no se eligen fechas pasadas.
+    const hoy = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    // Una fecha ya guardada en el pasado se conserva (se puede editar el resto sin cambiarla).
+    const minimo = (guardada: string | null | undefined): string => (guardada && guardada.slice(0, 10) < hoy ? guardada.slice(0, 10) : hoy);
+
     const esProfesional = $derived(empresaPlan?.es_profesional ?? false);
 
     let tieneRecompensas = $state(Boolean(programa.tiene_recompensas));
@@ -160,6 +165,7 @@
                                 id="inicia_en"
                                 name="inicia_en"
                                 type="date"
+                                min={minimo(programa.inicia_en)}
                                 value={programa.inicia_en?.slice(0, 10) ?? ''}
                             />
                             <InputError message={errors.inicia_en} />
@@ -171,6 +177,7 @@
                                 id="termina_en"
                                 name="termina_en"
                                 type="date"
+                                min={minimo(programa.termina_en)}
                                 value={programa.termina_en?.slice(0, 10) ?? ''}
                             />
                             <InputError message={errors.termina_en} />

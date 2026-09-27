@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
 use App\Enums\NivelAcceso;
+use App\Rules\FechaNoPasada;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -52,9 +53,9 @@ class StoreProgramaRequest extends FormRequest
             'poc_schema.*.help' => ['nullable', 'string', 'max:500'],
             'poc_schema.*.options' => ['nullable', 'array'],
             'poc_schema.*.repeatable' => ['boolean'],
-            'poc_schema.*.defaultValue' => ['nullable', 'string'],
-            'inicia_en' => ['nullable', 'date'],
-            'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en'],
+            'poc_schema.*.defaultValue' => ['nullable', 'string', 'max:2000'],
+            'inicia_en' => ['nullable', 'date', new FechaNoPasada(etiqueta: 'La fecha de inicio')],
+            'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en', new FechaNoPasada(etiqueta: 'La fecha de fin')],
             // Una empresa no puede crear un programa sin alcance: necesita al menos un objetivo.
             'objetivos' => [
                 Rule::requiredIf(fn () => (bool) $this->user()?->empresas()->wherePivot('estado', 'activo')->exists()),
