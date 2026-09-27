@@ -170,9 +170,9 @@
                         <div class="flex items-center justify-between">
                             <Label class="text-base font-medium">Visibilidad del programa</Label>
                             {#if !esProfesional}
-                                <span class="inline-flex items-center gap-1 rounded-full bg-aviso/10 px-2.5 py-0.5 text-xs font-medium text-aviso border border-aviso/20">
-                                    <Sparkles class="h-3 w-3" /> Plan Comunitario
-                                </span>
+                                <a href="/empresa/plan" class="inline-flex items-center gap-1 rounded-full bg-aviso/10 px-2.5 py-0.5 text-xs font-medium text-aviso border border-aviso/20 hover:bg-aviso/20" title="Contratar el Plan Profesional">
+                                    <Sparkles class="h-3 w-3" /> Plan Comunitario · Mejorar
+                                </a>
                             {:else}
                                 <span class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/20">
                                     <Sparkles class="h-3 w-3" /> Plan Profesional Activo

@@ -1,12 +1,14 @@
 <?php
 
 use App\Http\Controllers\Admin\AbacSimuladorController;
+use App\Http\Controllers\Admin\SuscripcionesController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ApelacionController;
 use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\EmpresaPlanController;
 use App\Http\Controllers\InicioController;
 use App\Http\Controllers\InvitacionController;
 use App\Http\Controllers\LeaderboardController;
@@ -71,6 +73,11 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('reportes/{reporte}/marcar-duplicado', [ReporteController::class, 'marcarDuplicado'])->name('reportes.marcar-duplicado');
     Route::post('reportes/{reporte}/reparacion', [ReporteController::class, 'reparacion'])->name('reportes.reparacion');
     Route::post('reportes/{reporte}/cerrar', [ReporteController::class, 'cerrar'])->name('reportes.cerrar');
+    // Plan Profesional: la empresa lo paga en USDC a la tesorería y la plataforma lo verifica on-chain.
+    Route::get('empresa/plan', [EmpresaPlanController::class, 'show'])->name('empresa.plan');
+    Route::post('empresa/plan/pagos', [EmpresaPlanController::class, 'pagar'])->name('empresa.plan.pagar')->middleware('throttle:interacciones');
+    Route::post('empresa/plan/pagos/{pago}/comprobar', [EmpresaPlanController::class, 'comprobar'])->name('empresa.plan.comprobar')->middleware('throttle:60,1');
+
     // Recompensas en USDC: la empresa paga desde su wallet y la plataforma verifica en la blockchain.
     Route::post('reportes/{reporte}/bounty/asignar', [ReporteController::class, 'asignarBounty'])->name('reportes.bounty.asignar');
     Route::post('reportes/{reporte}/bounty/transaccion', [ReporteController::class, 'registrarTransaccionBounty'])->name('reportes.bounty.transaccion')->middleware('throttle:interacciones');
@@ -127,6 +134,11 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('admin/abac/simular', [AbacSimuladorController::class, 'simular'])->name('admin.abac.simular');
 
     // Config reputacion
+    // Plan Profesional: configuración (wallet de tesorería y precio) e ingresos.
+    Route::get('admin/config/plan', [SuscripcionesController::class, 'configuracion'])->name('admin.config.plan');
+    Route::put('admin/config/plan', [SuscripcionesController::class, 'actualizar'])->name('admin.config.plan.update');
+    Route::get('admin/ingresos', [SuscripcionesController::class, 'ingresos'])->name('admin.ingresos');
+
     Route::get('admin/config/reputacion', [AdminController::class, 'configReputacion'])->name('admin.config.reputacion');
     Route::put('admin/config/reputacion', [AdminController::class, 'updateConfigReputacion'])->name('admin.config.reputacion.update');
 

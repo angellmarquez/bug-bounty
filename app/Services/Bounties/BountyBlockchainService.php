@@ -47,6 +47,35 @@ class BountyBlockchainService
     }
 
     /**
+     * La red activa con lo que la wallet del navegador necesita para cambiarse a ella y pagar;
+     * null si no está disponible (red desconocida o mainnet deshabilitada).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function redParaInterfaz(): ?array
+    {
+        try {
+            $red = $this->red();
+        } catch (RuntimeException) {
+            return null;
+        }
+
+        return [
+            'clave' => $red['clave'],
+            'nombre' => $red['nombre'],
+            'testnet' => $red['testnet'],
+            'chain_id' => $red['chain_id'],
+            'rpc_url' => $red['rpc_url'],
+            'explorer_url' => $red['explorer_url'],
+            'moneda_nativa' => $red['moneda_nativa'],
+            'usdc' => $red['usdc'],
+            'confirmaciones' => $red['confirmaciones'],
+            'propina_minima_gwei' => $red['propina_minima_gwei'] ?? 0,
+            'faucets' => $red['faucets'],
+        ];
+    }
+
+    /**
      * Monto en unidades mínimas del token (USDC tiene 6 decimales), como entero en texto.
      */
     public function unidades(float $monto): string

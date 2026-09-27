@@ -17,6 +17,8 @@
     import Mail from '@lucide/svelte/icons/mail';
     import Cpu from '@lucide/svelte/icons/cpu';
     import FileBadge from '@lucide/svelte/icons/file-badge';
+    import Crown from '@lucide/svelte/icons/crown';
+    import Receipt from '@lucide/svelte/icons/receipt';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavMain from '@/components/NavMain.svelte';
@@ -149,6 +151,11 @@
 
         if (isEmpresa) {
             items.push({
+                title: 'Mi plan',
+                href: '/empresa/plan',
+                icon: Crown,
+            });
+            items.push({
                 title: 'Panel empresa',
                 href: '/empresa',
                 icon: Shield,
@@ -171,6 +178,8 @@
             { title: 'Simulador ABAC', href: '/admin/abac/simulador', icon: Cpu },
             { title: 'Auditoría', href: '/admin/auditoria', icon: ClipboardList },
             { title: 'Config. Reputación', href: '/admin/config/reputacion', icon: Settings },
+            { title: 'Config. Plan', href: '/admin/config/plan', icon: Crown },
+            { title: 'Ingresos', href: '/admin/ingresos', icon: Receipt },
             { title: 'Claves PGP', href: '/admin/pgp', icon: Key },
         ];
     });

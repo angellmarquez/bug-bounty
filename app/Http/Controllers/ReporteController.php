@@ -1146,11 +1146,7 @@ class ReporteController extends Controller
         $blockchain = app(BountyBlockchainService::class);
         $programa = $reporte->programa;
 
-        try {
-            $red = $blockchain->red();
-        } catch (\RuntimeException) {
-            $red = null;
-        }
+        $red = $blockchain->redParaInterfaz();
 
         $monto = $reporte->bounty_monto === null ? null : (float) $reporte->bounty_monto;
 
@@ -1171,19 +1167,7 @@ class ReporteController extends Controller
             'error' => $reporte->bounty_error,
             'wallet_destino' => $veWallet ? ($reporte->bounty_wallet_destino ?? $reporte->investigador->wallet_address) : null,
             'tiene_wallet' => $reporte->investigador->wallet_address !== null,
-            'red' => $red === null ? null : [
-                'clave' => $red['clave'],
-                'nombre' => $red['nombre'],
-                'testnet' => $red['testnet'],
-                'chain_id' => $red['chain_id'],
-                'rpc_url' => $red['rpc_url'],
-                'explorer_url' => $red['explorer_url'],
-                'moneda_nativa' => $red['moneda_nativa'],
-                'usdc' => $red['usdc'],
-                'confirmaciones' => $red['confirmaciones'],
-                'propina_minima_gwei' => $red['propina_minima_gwei'] ?? 0,
-                'faucets' => $red['faucets'],
-            ],
+            'red' => $red,
         ];
     }
 

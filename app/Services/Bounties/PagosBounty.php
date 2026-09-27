@@ -4,6 +4,7 @@ namespace App\Services\Bounties;
 
 use App\Enums\TipoEventoReporte;
 use App\Models\Auditoria;
+use App\Models\PagoSuscripcion;
 use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Notificaciones\Notificador;
@@ -78,6 +79,9 @@ class PagosBounty
 
         if (Reporte::query()->whereRaw('lower(bounty_tx_hash) = ?', [$txHash])->whereKeyNot($reporte->id)->exists()) {
             throw ValidationException::withMessages(['tx_hash' => 'Esta transacción ya se usó para pagar otro informe.']);
+        }
+        if (PagoSuscripcion::query()->whereRaw('lower(tx_hash) = ?', [$txHash])->exists()) {
+            throw ValidationException::withMessages(['tx_hash' => 'Esta transacción ya se usó para pagar un plan de empresa.']);
         }
 
         $reporte->update([

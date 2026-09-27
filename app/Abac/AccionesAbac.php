@@ -74,6 +74,17 @@ final class AccionesAbac
     /** Activar o quitar el Plan Profesional de una empresa (solo el administrador). */
     public const EmpresaCambiarPlan = 'empresas.cambiar_plan';
 
+    /** La empresa paga (o renueva) su propio Plan Profesional en USDC. */
+    public const EmpresaPagarPlan = 'empresas.pagar_plan';
+
+    /** Ver y cambiar la configuración del plan (wallet de tesorería, precio): solo el administrador. */
+    public const ConfigSuscripcionVer = 'config_suscripcion.ver';
+
+    public const ConfigSuscripcionActualizar = 'config_suscripcion.actualizar';
+
+    /** Ver los ingresos recibidos por planes: solo el administrador. */
+    public const IngresosVer = 'ingresos.ver';
+
     public const EmpresaGestionarMiembros = 'empresas.gestionar_miembros';
 
     public const ModeradorAsignar = 'moderadores.asignar';

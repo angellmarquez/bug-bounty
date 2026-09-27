@@ -439,14 +439,14 @@
                             <CardTitle class="text-base text-aviso">Programa Exclusivo para Verificados</CardTitle>
                         </div>
                         <CardDescription class="text-xs">
-                            Este programa requiere al menos {verificacion.meta} reportes validados por la plataforma para prevenir duplicados y reportes inválidos.
+                            Este programa requiere al menos {verificacion.meta} informes confirmados por la empresa y no tener sanciones recientes.
                         </CardDescription>
                     </CardHeader>
                     <CardContent class="space-y-3">
                         <div class="space-y-1.5">
                             <div class="flex items-center justify-between text-xs">
                                 <span class="text-muted-foreground">Progreso de verificación</span>
-                                <span class="font-medium text-aviso">{verificacion.reportes_validados} de {verificacion.meta} validados</span>
+                                <span class="font-medium text-aviso">{verificacion.reportes_validados} de {verificacion.meta} confirmados</span>
                             </div>
                             <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
                                 <div class="h-full bg-aviso transition-all duration-300" style={`width: ${verificacion.porcentaje}%`}></div>

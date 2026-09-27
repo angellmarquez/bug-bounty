@@ -265,41 +265,59 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(Auditoria::class, 'usuario_id');
     }
 
+    /** Informes que hacen falta para ser investigador verificado. */
+    public const INFORMES_PARA_VERIFICARSE = 3;
+
+    /** Días que una sanción vigente impide la verificación. */
+    public const DIAS_SIN_SANCIONES_PARA_VERIFICARSE = 30;
+
     /**
-     * Cantidad de reportes aprobados/validados por moderación sin descartar.
+     * Informes confirmados por la empresa (en reparación o cerrados). Uno solo validado por
+     * moderación no cuenta: la empresa aún puede no confirmarlo, y así cuesta más inflarlo.
      */
     public function cantidadReportesValidados(): int
     {
         return $this->reportes()
-            ->whereIn('estado', ['validado', 'en_reparacion', 'cerrado'])
+            ->whereIn('estado', ['en_reparacion', 'cerrado'])
             ->count();
     }
 
+    /** Sanción aplicada o apelada (no revocada) en los últimos días. */
+    public function tieneSancionReciente(): bool
+    {
+        return $this->sanciones()
+            ->whereIn('estado', ['aplicada', 'apelada'])
+            ->where('created_at', '>=', now()->subDays(self::DIAS_SIN_SANCIONES_PARA_VERIFICARSE))
+            ->exists();
+    }
+
     /**
-     * Un investigador se considera verificado (Proof of Competence) si ha completado
-     * al menos 3 reportes validados y no cuenta con suspensiones activas.
+     * Investigador verificado (prueba de competencia): al menos 3 informes confirmados por la
+     * empresa, sin suspensión en curso ni sanciones vigentes de los últimos 30 días.
      */
     public function esVerificado(): bool
     {
-        return $this->cantidadReportesValidados() >= 3 && $this->suspensionActiva() === null;
+        return $this->progresoVerificacion()['es_verificado'];
     }
 
     /**
      * Progreso hacia la verificación de investigador para la interfaz.
      *
-     * @return array{es_verificado: bool, reportes_validados: int, meta: int, porcentaje: int, faltantes: int}
+     * @return array{es_verificado: bool, reportes_validados: int, meta: int, porcentaje: int, faltantes: int, sancion_reciente: bool}
      */
     public function progresoVerificacion(): array
     {
         $validados = $this->cantidadReportesValidados();
-        $meta = 3;
+        $meta = self::INFORMES_PARA_VERIFICARSE;
+        $sancionado = $this->suspensionActiva() !== null || $this->tieneSancionReciente();
 
         return [
-            'es_verificado' => $validados >= $meta && $this->suspensionActiva() === null,
+            'es_verificado' => $validados >= $meta && ! $sancionado,
             'reportes_validados' => $validados,
             'meta' => $meta,
             'porcentaje' => min(100, (int) round(($validados / $meta) * 100)),
             'faltantes' => max(0, $meta - $validados),
+            'sancion_reciente' => $sancionado,
         ];
     }
 }

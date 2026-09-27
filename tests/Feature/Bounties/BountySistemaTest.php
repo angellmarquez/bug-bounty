@@ -146,7 +146,7 @@ test('investigador con 3 o mas reportes validados es verificado y puede crear re
     $investigador = investigador();
 
     // Crear 3 reportes validados
-    reporteDe($investigador, null, ['estado' => 'validado']);
+    reporteDe($investigador, null, ['estado' => 'en_reparacion']);
     reporteDe($investigador, null, ['estado' => 'en_reparacion']);
     reporteDe($investigador, null, ['estado' => 'cerrado']);
 

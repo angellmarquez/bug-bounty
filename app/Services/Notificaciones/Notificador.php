@@ -7,6 +7,7 @@ use App\Models\Apelacion;
 use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
 use App\Models\EventoReporte;
+use App\Models\PagoSuscripcion;
 use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\Sancion;
@@ -341,6 +342,52 @@ class Notificador
                 ),
             );
         });
+    }
+
+    public function planPagado(Empresa $empresa, PagoSuscripcion $pago): void
+    {
+        $this->seguro(fn () => $this->enviar(
+            $this->propietarios($empresa),
+            new AvisoPlataforma('empresa', 'Pago del Plan Profesional confirmado', number_format($pago->monto, 2, '.', '').' USDC verificados en la blockchain. Tu plan está activo hasta el '.$pago->periodo_hasta?->format('d/m/Y').'.', '/empresa/plan'),
+        ));
+    }
+
+    public function planPagoFallido(Empresa $empresa, string $motivo): void
+    {
+        $this->seguro(fn () => $this->enviar(
+            $this->propietarios($empresa),
+            new AvisoPlataforma('empresa', 'No se pudo verificar el pago del plan', $motivo, '/empresa/plan'),
+        ));
+    }
+
+    public function planPorVencer(Empresa $empresa): void
+    {
+        $this->seguro(fn () => $this->enviar(
+            $this->propietarios($empresa),
+            new AvisoPlataforma('empresa', 'Tu Plan Profesional vence pronto', 'Vence el '.$empresa->plan_expira_en?->format('d/m/Y').'. Renuévalo para seguir creando programas privados, de élite o solo para verificados.', '/empresa/plan'),
+        ));
+    }
+
+    public function planVencido(Empresa $empresa): void
+    {
+        $this->seguro(fn () => $this->enviar(
+            $this->propietarios($empresa),
+            new AvisoPlataforma('empresa', 'Tu Plan Profesional venció', 'Tus programas actuales siguen funcionando, pero no podrás crear nuevos privados ni subir su nivel de exigencia hasta renovar.', '/empresa/plan'),
+        ));
+    }
+
+    /** Cambió la wallet que recibe los pagos del plan: todos los administradores deben saberlo. */
+    public function tesoreriaCambiada(User $autor, ?string $anterior, ?string $nueva): void
+    {
+        $this->seguro(fn () => $this->enviar(
+            $this->administradores(),
+            new AvisoPlataforma(
+                'sistema',
+                'Cambió la wallet de tesorería',
+                "{$autor->name} cambió la wallet que recibe los pagos del plan: ".($anterior ?? 'ninguna').' → '.($nueva ?? 'ninguna').'. Si no fue intencional, revísalo de inmediato.',
+                '/admin/config/plan',
+            ),
+        ));
     }
 
     public function planEmpresaCambiado(Empresa $empresa): void

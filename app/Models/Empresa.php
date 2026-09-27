@@ -30,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $aprobado_en
  * @property string $plan
  * @property Carbon|null $plan_expira_en
+ * @property Carbon|null $plan_aviso_vencimiento_en
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -37,7 +38,7 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $aprobador
  * @property-read ClavePgpEmpresa|null $clavePgp
  */
-#[Fillable(['razon_social', 'nombre_comercial', 'identificador_fiscal', 'slug', 'email', 'telefono', 'sitio_web', 'estado', 'plan', 'plan_expira_en', 'motivo_estado', 'aprobado_por', 'aprobado_en'])]
+#[Fillable(['razon_social', 'nombre_comercial', 'identificador_fiscal', 'slug', 'email', 'telefono', 'sitio_web', 'estado', 'plan', 'plan_expira_en', 'plan_aviso_vencimiento_en', 'motivo_estado', 'aprobado_por', 'aprobado_en'])]
 class Empresa extends Model
 {
     /** @use HasFactory<EmpresaFactory> */
@@ -48,6 +49,7 @@ class Empresa extends Model
         return [
             'estado' => EstadoEmpresa::class,
             'plan_expira_en' => 'datetime',
+            'plan_aviso_vencimiento_en' => 'datetime',
             'aprobado_en' => 'datetime',
             'deleted_at' => 'datetime',
         ];
@@ -71,6 +73,16 @@ class Empresa extends Model
     public function puedeAccederElite(): bool
     {
         return $this->esPlanProfesional();
+    }
+
+    /**
+     * Pagos del Plan Profesional hechos a la tesorería del proyecto.
+     *
+     * @return HasMany<PagoSuscripcion, $this>
+     */
+    public function pagosSuscripcion(): HasMany
+    {
+        return $this->hasMany(PagoSuscripcion::class);
     }
 
     /**
