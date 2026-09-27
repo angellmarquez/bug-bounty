@@ -132,14 +132,62 @@ export async function transferirUsdc(
     destino: string,
     unidades: string,
 ): Promise<string> {
+    const comision = await comisionSugerida(eth, red);
+
     return llamar<string>(eth, 'eth_sendTransaction', [
         {
             from: cuenta,
             to: red.usdc,
             data: codificarTransfer(destino, unidades),
             value: '0x0',
+            ...comision,
         },
     ]);
+}
+
+const GWEI = 1_000_000_000n;
+
+/**
+ * Comisión EIP-1559 que acepta la red. Polygon exige una propina mínima (25 gwei) y MetaMask,
+ * con un RPC que no la conoce, propone 1,5 gwei y la transacción se rechaza. Se toma la mayor
+ * entre la que sugiere el nodo y la mínima de la red, y el tope cubre que la base se duplique.
+ */
+async function comisionSugerida(
+    eth: ProveedorEip1193,
+    red: RedBounty,
+): Promise<
+    | { maxPriorityFeePerGas: string; maxFeePerGas: string }
+    | Record<string, never>
+> {
+    const minima = BigInt(red.propina_minima_gwei ?? 0) * GWEI;
+    if (minima === 0n) return {};
+
+    let propina = minima;
+    try {
+        const sugerida = BigInt(
+            await llamar<string>(eth, 'eth_maxPriorityFeePerGas'),
+        );
+        if (sugerida > propina) propina = sugerida;
+    } catch {
+        // Algunos nodos no lo implementan: basta con la mínima de la red.
+    }
+
+    let base = 0n;
+    try {
+        const bloque = await llamar<{ baseFeePerGas?: string } | null>(
+            eth,
+            'eth_getBlockByNumber',
+            ['latest', false],
+        );
+        base = BigInt(bloque?.baseFeePerGas ?? '0x0');
+    } catch {
+        base = 0n;
+    }
+
+    return {
+        maxPriorityFeePerGas: '0x' + propina.toString(16),
+        maxFeePerGas: '0x' + (base * 2n + propina).toString(16),
+    };
 }
 
 /** 0x3532…8f1D */

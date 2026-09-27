@@ -41,6 +41,8 @@ return [
             'usdc' => '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
             'decimales' => 6,
             'confirmaciones' => (int) env('BOUNTY_CONFIRMACIONES_AMOY', 3),
+            // Polygon rechaza propinas (priority fee) por debajo de 25 gwei; MetaMask suele proponer 1,5.
+            'propina_minima_gwei' => 30,
             'faucets' => [
                 'usdc' => 'https://faucet.circle.com',
                 'gas' => 'https://faucet.polygon.technology',
@@ -57,6 +59,7 @@ return [
             'usdc' => '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
             'decimales' => 6,
             'confirmaciones' => (int) env('BOUNTY_CONFIRMACIONES_POLYGON', 30),
+            'propina_minima_gwei' => 30,
             'faucets' => [],
         ],
     ],

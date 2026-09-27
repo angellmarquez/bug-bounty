@@ -151,6 +151,8 @@ export type RedBounty = {
     moneda_nativa: { name: string; symbol: string; decimals: number };
     usdc: string;
     confirmaciones: number;
+    /** Propina mínima (priority fee) que acepta la red, en gwei. */
+    propina_minima_gwei: number;
     faucets: { usdc?: string; gas?: string };
 };
 

@@ -1181,6 +1181,7 @@ class ReporteController extends Controller
                 'moneda_nativa' => $red['moneda_nativa'],
                 'usdc' => $red['usdc'],
                 'confirmaciones' => $red['confirmaciones'],
+                'propina_minima_gwei' => $red['propina_minima_gwei'] ?? 0,
                 'faucets' => $red['faucets'],
             ],
         ];

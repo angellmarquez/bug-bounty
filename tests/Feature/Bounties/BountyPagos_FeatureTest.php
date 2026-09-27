@@ -295,6 +295,7 @@ test('la wallet solo la ven quien paga y el investigador, nunca el moderador en 
             ->where('reporte.bounty.wallet_destino', WALLET_INVESTIGADOR)
             ->where('reporte.bounty.monto_unidades', '100000000')
             ->where('reporte.bounty.red.chain_id', 80002)
+            ->where('reporte.bounty.red.propina_minima_gwei', 30)
             ->where('accionesDisponibles.pagar_bounty', true));
 
     $this->actingAs($investigador)->get(route('reportes.show', $reporte))
