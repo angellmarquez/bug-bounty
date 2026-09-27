@@ -41,7 +41,7 @@
                 numero_reporte: string;
                 titulo: string;
                 categoria?: string;
-                severidad: string;
+                severidad: string | null;
                 cvss_score: number;
                 cvss_vector?: string | null;
                 programa_nombre: string;
@@ -180,8 +180,8 @@
                         <div>
                             <dt class="mb-1 text-xs text-muted-foreground">Severidad y puntuación</dt>
                             <dd class="flex items-center gap-2">
-                                <SeverityBadge severidad={certificado.datos.severidad as Severidad} />
-                                <span class="font-mono text-xs font-bold">CVSS {Number(certificado.datos.cvss_score).toFixed(1)}</span>
+                                {#if certificado.datos.severidad}<SeverityBadge severidad={certificado.datos.severidad as Severidad} />{:else}<span class="text-xs text-muted-foreground">Sin clasificar</span>{/if}
+                                <span class="font-mono text-xs font-bold">CVSS {certificado.datos.severidad ? Number(certificado.datos.cvss_score).toFixed(1) : '—'}</span>
                             </dd>
                         </div>
                         <div>

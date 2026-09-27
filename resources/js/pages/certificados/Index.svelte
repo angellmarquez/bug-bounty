@@ -22,7 +22,7 @@
         reporte_id: number;
         numero_reporte: string;
         titulo: string;
-        severidad: string;
+        severidad: string | null;
         cvss_score: number;
         programa_nombre: string;
         empresa_nombre: string | null;
@@ -87,8 +87,8 @@
                         </CardHeader>
                         <CardContent class="space-y-4">
                             <div class="flex flex-wrap items-center gap-3 text-sm">
-                                <SeverityBadge severidad={c.severidad as Severidad} />
-                                <span class="font-mono text-xs font-bold">CVSS {Number(c.cvss_score).toFixed(1)}</span>
+                                {#if c.severidad}<SeverityBadge severidad={c.severidad as Severidad} />{:else}<span class="text-xs text-muted-foreground">Sin clasificar</span>{/if}
+                                <span class="font-mono text-xs font-bold">CVSS {c.severidad ? Number(c.cvss_score).toFixed(1) : '—'}</span>
                                 <span class="text-xs text-muted-foreground">Resuelto el {formatearFecha(c.fecha_resolucion)}</span>
                             </div>
 

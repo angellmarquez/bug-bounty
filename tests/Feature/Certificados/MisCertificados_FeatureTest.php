@@ -73,3 +73,29 @@ test('sin informes cerrados la lista esta vacia', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('certificados/Index')->has('certificados', 0));
 });
+
+test('un informe cerrado sin severidad (CVSS sin calcular) tiene su certificado y no rompe la lista', function () {
+    $investigador = investigador();
+    $reporte = reporteDe($investigador, Programa::factory()->create(), [
+        'estado' => 'cerrado',
+        'cerrado_en' => now(),
+        'severidad' => null,
+        'puntuacion_cvss' => null,
+        'vector_cvss' => null,
+    ]);
+
+    $this->actingAs($investigador)
+        ->get(route('certificados.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('certificados', 1)
+            ->where('certificados.0.severidad', null)
+            ->where('certificados.0.codigo', fn ($codigo) => str_starts_with($codigo, 'BB-CERT-')));
+
+    $certificado = $reporte->fresh()->certificado;
+
+    $this->get(route('certificados.show', $reporte))->assertOk();
+    $this->get(route('certificados.verificar', ['codigo' => $certificado->codigo]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('verificacion.valido', true)->where('certificado.datos.severidad', null));
+});

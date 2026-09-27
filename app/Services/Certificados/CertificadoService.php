@@ -57,7 +57,8 @@ class CertificadoService
             'numero_reporte' => $reporte->numero_reporte,
             'titulo' => $reporte->titulo,
             'categoria' => $reporte->categoria ?? 'Vulnerabilidad de Seguridad',
-            'severidad' => $reporte->severidad->value,
+            // Un informe puede cerrarse sin CVSS calculado: queda sin clasificar (null).
+            'severidad' => $reporte->severidad?->value,
             'cvss_score' => (float) ($reporte->puntuacion_cvss ?? 0.0),
             'cvss_vector' => $reporte->vector_cvss,
             'programa_nombre' => $reporte->programa->nombre,
