@@ -39,6 +39,10 @@ final class AccionesAbac
 
     public const ReporteDecryptPoc = 'reportes.decrypt_poc';
 
+    public const ReporteAsignarBounty = 'reportes.asignar_bounty';
+
+    public const ReportePagarBounty = 'reportes.pagar_bounty';
+
     public const ProgramaInvitarHacker = 'programas.invitar_hacker';
 
     public const ProgramaVer = 'programas.ver';

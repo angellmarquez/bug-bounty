@@ -27,7 +27,8 @@ use Illuminate\Support\Carbon;
  * @property EstadoEmpresa $estado
  * @property string|null $motivo_estado
  * @property int|null $aprobado_por
- * @property Carbon|null $aprobado_en
+ * @property string $plan
+ * @property Carbon|null $plan_expira_en
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
@@ -35,7 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $aprobador
  * @property-read ClavePgpEmpresa|null $clavePgp
  */
-#[Fillable(['razon_social', 'nombre_comercial', 'identificador_fiscal', 'slug', 'email', 'telefono', 'sitio_web', 'estado', 'motivo_estado', 'aprobado_por', 'aprobado_en'])]
+#[Fillable(['razon_social', 'nombre_comercial', 'identificador_fiscal', 'slug', 'email', 'telefono', 'sitio_web', 'estado', 'plan', 'plan_expira_en', 'motivo_estado', 'aprobado_por', 'aprobado_en'])]
 class Empresa extends Model
 {
     /** @use HasFactory<EmpresaFactory> */
@@ -45,9 +46,30 @@ class Empresa extends Model
     {
         return [
             'estado' => EstadoEmpresa::class,
+            'plan_expira_en' => 'datetime',
             'aprobado_en' => 'datetime',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Determina si la empresa tiene contratado el plan profesional / élite activo.
+     */
+    public function esPlanProfesional(): bool
+    {
+        if ($this->plan !== 'profesional') {
+            return false;
+        }
+
+        return $this->plan_expira_en === null || $this->plan_expira_en->isFuture();
+    }
+
+    /**
+     * Las empresas profesionales pueden crear programas privados y exigir rangos élite.
+     */
+    public function puedeAccederElite(): bool
+    {
+        return $this->esPlanProfesional();
     }
 
     /**

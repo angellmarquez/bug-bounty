@@ -21,6 +21,7 @@
     import Settings from '@lucide/svelte/icons/settings';
     import Edit from '@lucide/svelte/icons/edit';
     import CheckCircle from '@lucide/svelte/icons/check-circle';
+    import Coins from '@lucide/svelte/icons/coins';
     import AppHead from '@/components/AppHead.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
@@ -258,6 +259,70 @@
                     {/if}
                 </CardContent>
             </Card>
+
+            {#if programa.tiene_recompensas}
+                <Card class="border-emerald-500/30 bg-emerald-500/5">
+                    <CardHeader class="pb-3">
+                        <div class="flex items-center justify-between">
+                            <CardTitle class="flex items-center gap-2 text-foreground">
+                                <Coins class="h-5 w-5 text-emerald-400" />
+                                Recompensas Económicas (Bounties)
+                            </CardTitle>
+                            <span class="rounded-md bg-emerald-500/10 px-2.5 py-1 font-mono text-sm font-bold text-emerald-400 border border-emerald-500/20">
+                                {#if programa.recompensa_min && programa.recompensa_max}
+                                    ${Number(programa.recompensa_min).toLocaleString()} - ${Number(programa.recompensa_max).toLocaleString()} {programa.moneda ?? 'USDC'}
+                                {:else if programa.recompensa_max}
+                                    Hasta ${Number(programa.recompensa_max).toLocaleString()} {programa.moneda ?? 'USDC'}
+                                {:else}
+                                    En {programa.moneda ?? 'USDC'}
+                                {/if}
+                            </span>
+                        </div>
+                        <CardDescription>
+                            Este programa recompensa a los investigadores por reportes válidos con pagos directos en stablecoins.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        {#if programa.tabla_recompensas}
+                            <div>
+                                <h4 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                                    Tabla orientativa por severidad
+                                </h4>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div class="rounded-lg border border-destructive/30 bg-background/80 p-3 text-center space-y-1">
+                                        <span class="text-xs font-medium text-destructive">Crítica</span>
+                                        <p class="font-mono text-base font-bold text-foreground">
+                                            ${Number(programa.tabla_recompensas.critica ?? 0).toLocaleString()} <span class="text-xs text-muted-foreground">{programa.moneda ?? 'USDC'}</span>
+                                        </p>
+                                    </div>
+                                    <div class="rounded-lg border border-chart-4/30 bg-background/80 p-3 text-center space-y-1">
+                                        <span class="text-xs font-medium text-chart-4">Alta</span>
+                                        <p class="font-mono text-base font-bold text-foreground">
+                                            ${Number(programa.tabla_recompensas.alta ?? 0).toLocaleString()} <span class="text-xs text-muted-foreground">{programa.moneda ?? 'USDC'}</span>
+                                        </p>
+                                    </div>
+                                    <div class="rounded-lg border border-chart-2/30 bg-background/80 p-3 text-center space-y-1">
+                                        <span class="text-xs font-medium text-chart-2">Media</span>
+                                        <p class="font-mono text-base font-bold text-foreground">
+                                            ${Number(programa.tabla_recompensas.media ?? 0).toLocaleString()} <span class="text-xs text-muted-foreground">{programa.moneda ?? 'USDC'}</span>
+                                        </p>
+                                    </div>
+                                    <div class="rounded-lg border border-chart-1/30 bg-background/80 p-3 text-center space-y-1">
+                                        <span class="text-xs font-medium text-chart-1">Baja</span>
+                                        <p class="font-mono text-base font-bold text-foreground">
+                                            ${Number(programa.tabla_recompensas.baja ?? 0).toLocaleString()} <span class="text-xs text-muted-foreground">{programa.moneda ?? 'USDC'}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        {/if}
+                        <p class="text-xs text-muted-foreground flex items-center gap-1.5">
+                            <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                            Los pagos se transfieren directo a tu billetera configurada en tu perfil una vez que la empresa valide el reporte.
+                        </p>
+                    </CardContent>
+                </Card>
+            {/if}
 
             {#if programa.objetivos && programa.objetivos.length > 0}
                 <Card>

@@ -34,7 +34,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $clave_huella
  * @property EstadoReporte $estado
  * @property int|null $es_duplicado_de
- * @property string|null $notas_internas
+ * @property float|null $bounty_monto
+ * @property string|null $bounty_moneda
+ * @property string $bounty_estado
+ * @property string|null $bounty_tx_hash
+ * @property string|null $bounty_red
+ * @property Carbon|null $bounty_pagado_en
  * @property Carbon|null $enviado_en
  * @property Carbon|null $cerrado_en
  * @property Carbon|null $created_at
@@ -50,7 +55,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, EntradaReputacion> $entradasReputacion
  * @property-read CertificadoDivulgacion|null $certificado
  */
-#[Fillable(['numero_reporte', 'programa_id', 'investigador_id', 'asignado_a', 'titulo', 'descripcion', 'categoria', 'vector_cvss', 'puntuacion_cvss', 'severidad', 'poc', 'clave_huella', 'estado', 'es_duplicado_de', 'notas_internas', 'enviado_en', 'cerrado_en'])]
+#[Fillable(['numero_reporte', 'programa_id', 'investigador_id', 'asignado_a', 'titulo', 'descripcion', 'categoria', 'vector_cvss', 'puntuacion_cvss', 'severidad', 'poc', 'clave_huella', 'estado', 'es_duplicado_de', 'notas_internas', 'bounty_monto', 'bounty_moneda', 'bounty_estado', 'bounty_tx_hash', 'bounty_red', 'bounty_pagado_en', 'enviado_en', 'cerrado_en'])]
 #[Hidden(['notas_internas'])]
 class Reporte extends Model
 {
@@ -107,6 +112,8 @@ class Reporte extends Model
             'puntuacion_cvss' => 'decimal:1',
             'severidad' => Severidad::class,
             'estado' => EstadoReporte::class,
+            'bounty_monto' => 'float',
+            'bounty_pagado_en' => 'datetime',
             'enviado_en' => 'datetime',
             'cerrado_en' => 'datetime',
             'deleted_at' => 'datetime',

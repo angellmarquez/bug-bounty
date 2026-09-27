@@ -377,6 +377,19 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
+        // Gestionar y pagar recompensas (bounties) por la empresa dueña del programa
+        [
+            'id' => 'empresa-gestionar-y-pagar-bounties',
+            'prioridad' => 35,
+            'acciones' => ['reportes.asignar_bounty', 'reportes.pagar_bounty'],
+            'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
+            'objeto' => [
+                'estado' => ['in' => ['validado', 'en_reparacion', 'cerrado']],
+                'programa.empresa_id' => ['=' => '@sujeto.empresa_id'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
 
         // ------------------------------------------------------------------
         // 5. Moderador: Programas y Triaje

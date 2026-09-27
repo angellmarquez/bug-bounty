@@ -35,13 +35,35 @@
     import type { ReputacionConfig } from '@/lib/rangos';
     import { store as programaStore } from '@/routes/programas';
     import { TIPOS_OBJETIVO } from '@/lib/tipo-objetivo';
+    import Coins from '@lucide/svelte/icons/coins';
+    import Sparkles from '@lucide/svelte/icons/sparkles';
+
+    interface Props {
+        empresaPlan?: {
+            plan: string;
+            es_profesional: boolean;
+            expira_en: string | null;
+        };
+    }
+
+    let { empresaPlan }: Props = $props();
 
     const esEmpresa = $derived(((page.props.userRoles as string[] | undefined) ?? []).includes('empresa'));
+    const esProfesional = $derived(empresaPlan?.es_profesional ?? false);
 
     // Niveles de acceso (con su rango) definidos en config/reputacion.php.
     const niveles = $derived((page.props.reputacionConfig as ReputacionConfig).niveles);
 
     let esPublico = $state(true);
+    let tieneRecompensas = $state(false);
+    let recompensaMin = $state('50');
+    let recompensaMax = $state('2000');
+    let tablaBounties = $state({
+        critica: '1500',
+        alta: '750',
+        media: '300',
+        baja: '100',
+    });
 
     // Se empieza con un objetivo vacío: el programa necesita al menos uno.
     let objetivos = $state<{ tipo: string; valor: string; descripcion: string }[]>([
@@ -138,7 +160,18 @@
                     </div>
 
                     <div class="space-y-3">
-                        <Label class="text-base font-medium">Visibilidad del programa</Label>
+                        <div class="flex items-center justify-between">
+                            <Label class="text-base font-medium">Visibilidad del programa</Label>
+                            {#if !esProfesional}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-500 border border-amber-500/20">
+                                    <Sparkles class="h-3 w-3" /> Plan Comunitario
+                                </span>
+                            {:else}
+                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                                    <Sparkles class="h-3 w-3" /> Plan Profesional Activo
+                                </span>
+                            {/if}
+                        </div>
                         <div class="grid gap-3 sm:grid-cols-2">
                             <label
                                 class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50 {esPublico ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'}"
@@ -162,31 +195,44 @@
                             </label>
 
                             <label
-                                class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50 {!esPublico ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'}"
+                                class="flex items-start gap-3 rounded-lg border p-4 transition-colors {esProfesional ? 'cursor-pointer hover:bg-muted/50' : 'opacity-60 cursor-not-allowed bg-muted/20'} {!esPublico ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border'}"
                             >
                                 <input
                                     type="radio"
                                     name="visibilidad_radio"
                                     class="sr-only"
+                                    disabled={!esProfesional}
                                     checked={!esPublico}
-                                    onchange={() => (esPublico = false)}
+                                    onchange={() => { if (esProfesional) esPublico = false; }}
                                 />
                                 <Lock class="mt-0.5 h-5 w-5 shrink-0 {!esPublico ? 'text-primary' : 'text-muted-foreground'}" />
                                 <div class="space-y-1">
-                                    <p class="text-sm font-medium {!esPublico ? 'text-foreground' : 'text-muted-foreground'}">
-                                        Privado (Por invitación exclusiva)
-                                    </p>
+                                    <div class="flex items-center gap-2">
+                                        <p class="text-sm font-medium {!esPublico ? 'text-foreground' : 'text-muted-foreground'}">
+                                            Privado (Por invitación exclusiva)
+                                        </p>
+                                        {#if !esProfesional}
+                                            <span class="text-[10px] uppercase font-bold bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">Pro</span>
+                                        {/if}
+                                    </div>
                                     <p class="text-xs leading-relaxed text-muted-foreground">
-                                        Oculto del directorio público. Tú decides qué investigadores participan invitándolos por su correo.
+                                        {#if esProfesional}
+                                            Oculto del directorio público. Tú decides qué investigadores participan invitándolos por su correo.
+                                        {:else}
+                                            Requiere suscripción al <strong>Plan Profesional</strong> para crear programas privados protegidos.
+                                        {/if}
                                     </p>
                                 </div>
                             </label>
                         </div>
                         <input type="hidden" name="es_publico" value={esPublico ? '1' : '0'} />
+                        <InputError message={errors.es_publico} />
                     </div>
 
-                    <div class="max-w-sm space-y-2">
-                        <Label for="nivel_acceso">Nivel de acceso</Label>
+                    <div class="max-w-md space-y-2">
+                        <div class="flex items-center justify-between">
+                            <Label for="nivel_acceso">Filtro de Investigadores por Reputación</Label>
+                        </div>
                         <select
                             id="nivel_acceso"
                             name="nivel_acceso"
@@ -194,16 +240,162 @@
                             value={"bajo"}
                         >
                             {#each niveles as nivel (nivel.valor)}
-                                <option value={nivel.valor}>
-                                    {nivel.etiqueta} · rango {nivel.rangoNombre} o superior ({nivel.minimo}+ pts)
+                                {@const requierePro = nivel.valor !== 'bajo'}
+                                <option
+                                    value={nivel.valor}
+                                    disabled={!esProfesional && requierePro}
+                                >
+                                    {nivel.etiqueta} · rango {nivel.rangoNombre} ({nivel.minimo}+ pts)
+                                    {!esProfesional && requierePro ? ' [Requiere Plan Pro]' : ''}
                                 </option>
                             {/each}
                         </select>
                         <p class="text-xs text-muted-foreground">
-                            Solo los investigadores con ese rango de reputación (o más) verán el programa y podrán enviar reportes.
+                            {#if !esProfesional}
+                                Con el Plan Comunitario tus programas están abiertos a todos los investigadores registrados (Nivel Bronce). Actualiza a Profesional para filtrar solo investigadores Plata u Oro.
+                            {:else}
+                                Solo los investigadores con ese rango de reputación (o más) verán el programa y podrán enviar reportes.
+                            {/if}
                         </p>
                         <InputError message={errors.nivel_acceso} />
                     </div>
+                </CardContent>
+            </Card>
+
+            <!-- Recompensas (Bounties) Cripto -->
+            <Card class="border-border">
+                <CardContent class="space-y-4 pt-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                                <Coins class="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h3 class="text-base font-semibold text-foreground flex items-center gap-2">
+                                    Recompensas Económicas (Bounties Cripto / USDC)
+                                </h3>
+                                <p class="text-xs text-muted-foreground">
+                                    Atrae a los mejores investigadores ofreciendo recompensas directas pagadas en stablecoins (USDC).
+                                </p>
+                            </div>
+                        </div>
+
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                name="tiene_recompensas"
+                                value="1"
+                                class="sr-only peer"
+                                checked={tieneRecompensas}
+                                onchange={(e) => tieneRecompensas = e.currentTarget.checked}
+                            />
+                            <div class="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                    </div>
+
+                    {#if tieneRecompensas}
+                        <div class="mt-4 pt-4 border-t border-border/60 space-y-4">
+                            <input type="hidden" name="moneda" value="USDC" />
+
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="space-y-2">
+                                    <Label for="recompensa_min">Recompensa mínima estimada (USDC)</Label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-2 text-xs text-muted-foreground">$</span>
+                                        <Input
+                                            id="recompensa_min"
+                                            name="recompensa_min"
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            class="pl-7"
+                                            bind:value={recompensaMin}
+                                        />
+                                    </div>
+                                    <InputError message={errors.recompensa_min} />
+                                </div>
+
+                                <div class="space-y-2">
+                                    <Label for="recompensa_max">Recompensa máxima estimada (USDC)</Label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-2 text-xs text-muted-foreground">$</span>
+                                        <Input
+                                            id="recompensa_max"
+                                            name="recompensa_max"
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            class="pl-7"
+                                            bind:value={recompensaMax}
+                                        />
+                                    </div>
+                                    <InputError message={errors.recompensa_max} />
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 pt-2">
+                                <Label class="text-xs uppercase font-semibold text-muted-foreground tracking-wider">
+                                    Tabla orientativa de recompensas por severidad (USDC)
+                                </Label>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div class="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1">
+                                        <span class="text-xs font-medium text-destructive">Crítica</span>
+                                        <div class="relative mt-1">
+                                            <span class="absolute left-2.5 top-2 text-xs text-muted-foreground">$</span>
+                                            <Input
+                                                name="tabla_recompensas[critica]"
+                                                type="number"
+                                                class="pl-6 h-8 text-xs font-mono"
+                                                bind:value={tablaBounties.critica}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-lg border border-chart-4/30 bg-chart-4/5 p-3 space-y-1">
+                                        <span class="text-xs font-medium text-chart-4">Alta</span>
+                                        <div class="relative mt-1">
+                                            <span class="absolute left-2.5 top-2 text-xs text-muted-foreground">$</span>
+                                            <Input
+                                                name="tabla_recompensas[alta]"
+                                                type="number"
+                                                class="pl-6 h-8 text-xs font-mono"
+                                                bind:value={tablaBounties.alta}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-lg border border-chart-2/30 bg-chart-2/5 p-3 space-y-1">
+                                        <span class="text-xs font-medium text-chart-2">Media</span>
+                                        <div class="relative mt-1">
+                                            <span class="absolute left-2.5 top-2 text-xs text-muted-foreground">$</span>
+                                            <Input
+                                                name="tabla_recompensas[media]"
+                                                type="number"
+                                                class="pl-6 h-8 text-xs font-mono"
+                                                bind:value={tablaBounties.media}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-lg border border-chart-1/30 bg-chart-1/5 p-3 space-y-1">
+                                        <span class="text-xs font-medium text-chart-1">Baja</span>
+                                        <div class="relative mt-1">
+                                            <span class="absolute left-2.5 top-2 text-xs text-muted-foreground">$</span>
+                                            <Input
+                                                name="tabla_recompensas[baja]"
+                                                type="number"
+                                                class="pl-6 h-8 text-xs font-mono"
+                                                bind:value={tablaBounties.baja}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-muted-foreground">
+                                    Los pagos no son custodiados por la plataforma. Al validar un reporte transferirás directamente a la billetera EVM del investigador y registrarás el hash de transacción.
+                                </p>
+                            </div>
+                        </div>
+                    {/if}
                 </CardContent>
             </Card>
 

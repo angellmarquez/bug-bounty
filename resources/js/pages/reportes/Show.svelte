@@ -44,6 +44,7 @@
     import RangoBadge from '@/components/RangoBadge.svelte';
     import EstadoProgreso from '@/components/EstadoProgreso.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
+    import BountyReporte from '@/components/BountyReporte.svelte';
     import {
         Card,
         CardContent,
@@ -57,6 +58,7 @@
 
     let {
         reporte: initialReporte,
+        bounty = null,
         puedeVerNotasInternas,
         puedeVerCertificado = false,
         puedeTriar = false,
@@ -72,6 +74,19 @@
         avisoCola = null,
     }: {
         reporte: Reporte;
+        bounty?: {
+            monto: number | null;
+            moneda: string;
+            estado: 'sin_asignar' | 'asignado' | 'pagado';
+            tx_hash: string | null;
+            red: string | null;
+            pagado_en: string | null;
+            explorer_url: string | null;
+            investigador_wallet: string | null;
+            investigador_wallet_red: string | null;
+            programa_tiene_recompensas: boolean;
+            tabla_recompensas?: Record<string, string | number> | null;
+        } | null;
         puedeVerNotasInternas: boolean;
         puedeVerCertificado?: boolean;
         puedeTriar?: boolean;
@@ -359,6 +374,17 @@
         </div>
 
         <div class="min-w-0 space-y-6">
+            {#if bounty && (bounty.programa_tiene_recompensas || bounty.monto || bounty.estado === 'pagado')}
+                <BountyReporte
+                    reporteId={reporte.id}
+                    {bounty}
+                    puedeAsignar={Boolean(accionesDisponibles.asignar_bounty)}
+                    puedePagar={Boolean(accionesDisponibles.pagar_bounty)}
+                    esInvestigador={auth?.user?.id === reporte.investigador_id}
+                    severidad={reporte.severidad}
+                />
+            {/if}
+
             <Card>
                 <CardHeader>
                     <CardTitle>Detalles</CardTitle>

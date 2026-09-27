@@ -7,6 +7,7 @@ use App\Enums\EstadoPrograma;
 use App\Http\Requests\StoreProgramaRequest;
 use App\Http\Requests\UpdateProgramaRequest;
 use App\Models\Auditoria;
+use App\Models\Empresa;
 use App\Models\InvitacionPrograma;
 use App\Models\ObjetivoPrograma;
 use App\Models\Programa;
@@ -177,15 +178,23 @@ class ProgramaController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ProgramaCrear]);
 
-        return Inertia::render('programas/gestion/Create');
+        $empresa = $request->user()?->empresas()->wherePivot('estado', 'activo')->first();
+
+        return Inertia::render('programas/gestion/Create', [
+            'empresaPlan' => [
+                'plan' => $empresa instanceof Empresa ? $empresa->plan : 'comunitario',
+                'es_profesional' => $empresa instanceof Empresa ? $empresa->puedeAccederElite() : false,
+            ],
+        ]);
     }
 
-    public function edit(Programa $programa, PgpService $pgp): InertiaResponse
+    public function edit(Request $request, Programa $programa, PgpService $pgp): InertiaResponse
     {
         $this->authorizeProgramAction(AccionesAbac::ProgramaEditar, $programa);
         $programa->load(['objetivos']);
 
         $alcance = $this->alcanceDescifrado($programa, $pgp);
+        $empresa = $request->user()?->empresas()->wherePivot('estado', 'activo')->first();
 
         return Inertia::render('programas/gestion/Edit', [
             'programa' => [
@@ -193,6 +202,10 @@ class ProgramaController extends Controller
                 'descripcion' => $alcance['descripcion'],
                 'bugs_buscados' => $alcance['bugs_buscados'],
                 'objetivos' => $alcance['objetivos'],
+            ],
+            'empresaPlan' => [
+                'plan' => $empresa instanceof Empresa ? $empresa->plan : 'comunitario',
+                'es_profesional' => $empresa instanceof Empresa ? $empresa->puedeAccederElite() : false,
             ],
             'cifradoIndisponible' => $alcance['cifrado_indisponible'],
         ]);

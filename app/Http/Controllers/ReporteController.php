@@ -16,6 +16,7 @@ use App\Models\Reporte;
 use App\Models\User;
 use App\Rules\PocCumpleSchema;
 use App\Services\Adjuntos\AdjuntoService;
+use App\Services\Bounties\BountyBlockchainService;
 use App\Services\Certificados\CertificadoService;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
@@ -222,11 +223,13 @@ class ReporteController extends Controller
         $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteRevisar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
         $puedePedirInfo = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'needs_info');
         $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
-        $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
+        $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'duplicado');
         // Marcar en reparación y cerrar corresponden a la empresa dueña del programa (y al admin),
         // por eso se evalúan con el contexto de la empresa.
         $puedeMarcarEnReparacion = Gate::allows('abac', [AccionesAbac::ReporteMarcarEnReparacion, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'en_reparacion');
         $puedeCerrar = Gate::allows('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'cerrado');
+        $puedeAsignarBounty = Gate::allows('abac', [AccionesAbac::ReporteAsignarBounty, $reporte, $this->empresaContexto()]);
+        $puedePagarBounty = Gate::allows('abac', [AccionesAbac::ReportePagarBounty, $reporte, $this->empresaContexto()]) && (float) ($reporte->bounty_monto ?? 0) > 0 && $reporte->bounty_estado !== 'pagado';
 
         // Orden de llegada: la misma regla que aplican validar(), reparacion() y cerrar(), para no
         // ofrecer un botón que el servidor rechazaría. Se explica por qué hay que esperar.
@@ -282,6 +285,18 @@ class ReporteController extends Controller
                 'investigador' => $investigadorPayload,
                 'asignadoA' => $reporte->asignadoA?->only(['id', 'name']),
                 'duplicadoDe' => $reporte->duplicadoDe?->only(['id', 'numero_reporte', 'titulo']),
+                'bounty' => [
+                    'monto' => $reporte->bounty_monto,
+                    'moneda' => $reporte->bounty_moneda ?? 'USDC',
+                    'estado' => $reporte->bounty_estado ?? 'sin_asignar',
+                    'tx_hash' => $reporte->bounty_tx_hash,
+                    'red' => $reporte->bounty_red ?? 'Polygon',
+                    'pagado_en' => $reporte->bounty_pagado_en?->toIso8601String(),
+                    'investigador_wallet' => $reporte->investigador->wallet_address,
+                    'investigador_wallet_red' => $reporte->investigador->wallet_red ?? 'Polygon',
+                    'programa_tiene_recompensas' => (bool) $reporte->programa->tiene_recompensas,
+                    'programa_tabla_recompensas' => $reporte->programa->tabla_recompensas,
+                ],
                 'eventos' => $eventos,
             ],
             'cifradoIndisponible' => $cifradoIndisponible,
@@ -293,7 +308,7 @@ class ReporteController extends Controller
             'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
             'posiblesDuplicados' => $posiblesDuplicados,
-            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedePedirInfo || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar,
+            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedePedirInfo || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar || $puedeAsignarBounty || $puedePagarBounty,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
                 'revisar' => $puedeRevisar,
@@ -303,6 +318,8 @@ class ReporteController extends Controller
                 'marcar_duplicado' => $puedeMarcarDuplicado,
                 'reparacion' => $puedeMarcarEnReparacion,
                 'cerrar' => $puedeCerrar,
+                'asignar_bounty' => $puedeAsignarBounty,
+                'pagar_bounty' => $puedePagarBounty,
             ],
             'moderadoresAsignables' => $moderadoresAsignables,
             'esperaTurno' => $esperaTurno,
@@ -1119,6 +1136,116 @@ class ReporteController extends Controller
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Informe cerrado como resuelto. El investigador recibió sus puntos de reputación.');
+    }
+
+    public function asignarBounty(Request $request, Reporte $reporte): RedirectResponse
+    {
+        $this->asegurarAcceso($reporte);
+        Gate::authorize('abac', [AccionesAbac::ReporteAsignarBounty, $reporte, $this->empresaContexto()]);
+
+        abort_unless(in_array($reporte->estado->value, ['validado', 'en_reparacion', 'cerrado'], true), 422, 'Solo se pueden asignar recompensas a informes validados o resueltos.');
+
+        $validated = $request->validate([
+            'monto' => ['required', 'numeric', 'min:1', 'max:1000000'],
+            'moneda' => ['nullable', 'string', 'max:10'],
+        ]);
+
+        $moneda = $validated['moneda'] ?? $reporte->programa->moneda ?? 'USDC';
+
+        $reporte->update([
+            'bounty_monto' => $validated['monto'],
+            'bounty_moneda' => $moneda,
+            'bounty_estado' => 'asignado',
+        ]);
+
+        $reporte->eventos()->create([
+            'actor_id' => $request->user()->id,
+            'tipo' => 'cambio_estado',
+            'nota' => "Recompensa de {$validated['monto']} {$moneda} asignada al informe.",
+            'datos' => [
+                'bounty_monto' => (float) $validated['monto'],
+                'bounty_moneda' => $moneda,
+            ],
+        ]);
+
+        Auditoria::registrar('reportes.bounty_asignado', $reporte, [
+            'monto' => (float) $validated['monto'],
+            'moneda' => $moneda,
+        ], $request->user()->id);
+
+        return redirect()->route('reportes.show', $reporte)
+            ->with('success', "Recompensa de {$validated['monto']} {$moneda} asignada exitosamente.");
+    }
+
+    public function pagarBounty(Request $request, Reporte $reporte, BountyBlockchainService $bountyService): RedirectResponse
+    {
+        $this->asegurarAcceso($reporte);
+        Gate::authorize('abac', [AccionesAbac::ReportePagarBounty, $reporte, $this->empresaContexto()]);
+
+        abort_unless(in_array($reporte->estado->value, ['validado', 'en_reparacion', 'cerrado'], true), 422, 'Solo se pueden liquidar recompensas de informes validados o resueltos.');
+
+        $reporte->loadMissing('investigador');
+        $walletInvestigador = $reporte->investigador->wallet_address;
+
+        if (empty($walletInvestigador)) {
+            throw ValidationException::withMessages([
+                'tx_hash' => 'El investigador aún no ha configurado una dirección de billetera en su perfil para recibir la recompensa.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'tx_hash' => ['required', 'string', 'max:120'],
+            'red' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $monto = (float) ($reporte->bounty_monto ?? 0.0);
+        abort_if($monto <= 0, 422, 'Debe asignar primero un monto de recompensa antes de liquidarlo.');
+
+        $red = $validated['red'] ?? $reporte->investigador->wallet_red ?? 'Polygon';
+
+        try {
+            $resultado = $bountyService->verificarYProcesar(
+                $reporte,
+                $validated['tx_hash'],
+                $monto,
+                $walletInvestigador,
+                $red
+            );
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages([
+                'tx_hash' => $e->getMessage(),
+            ]);
+        }
+
+        $reporte->update([
+            'bounty_tx_hash' => $resultado['tx_hash'],
+            'bounty_red' => $resultado['red'],
+            'bounty_estado' => 'pagado',
+            'bounty_pagado_en' => now(),
+        ]);
+
+        $reporte->eventos()->create([
+            'actor_id' => $request->user()->id,
+            'tipo' => 'cambio_estado',
+            'nota' => "Bounty de {$monto} {$reporte->bounty_moneda} pagado en blockchain ({$resultado['red']}).",
+            'datos' => [
+                'bounty_tx_hash' => $resultado['tx_hash'],
+                'bounty_red' => $resultado['red'],
+                'bounty_monto' => $monto,
+                'bounty_moneda' => $reporte->bounty_moneda,
+                'explorer_url' => $resultado['explorer_url'],
+                'wallet_destino' => $walletInvestigador,
+            ],
+        ]);
+
+        Auditoria::registrar('reportes.bounty_pagado', $reporte, [
+            'tx_hash' => $resultado['tx_hash'],
+            'red' => $resultado['red'],
+            'monto' => $monto,
+        ], $request->user()->id);
+
+        return redirect()->route('reportes.show', $reporte)
+            ->with('success', "Pago confirmado y registrado exitosamente en blockchain ({$resultado['red']}).");
     }
 
     /**
