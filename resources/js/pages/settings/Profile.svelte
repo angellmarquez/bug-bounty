@@ -109,6 +109,13 @@
                         class="mt-1 block w-full font-mono text-xs"
                         value={user.wallet_address ?? ''}
                         placeholder="0x71C...3974"
+                        autocomplete="off"
+                        spellcheck="false"
+                        oninput={(e) => {
+                            // Al copiar de una wallet suele venir un espacio o salto de línea invisible.
+                            const limpia = e.currentTarget.value.replace(/\s+/g, '');
+                            if (limpia !== e.currentTarget.value) e.currentTarget.value = limpia;
+                        }}
                         pattern="^0x[a-fA-F0-9]{40}$"
                         title="Debe ser una dirección válida que empiece por 0x y tenga 40 caracteres hexadecimales"
                     />
