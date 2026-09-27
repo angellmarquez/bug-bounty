@@ -120,6 +120,27 @@ return [
             'entorno' => [],
             'decision' => 'denegar',
         ],
+        // Fuera del periodo del programa (antes de su inicio o después de su fin) no se reciben
+        // informes aunque el programa siga "activo": el estado se actualiza con el scheduler, pero
+        // la fecha manda desde el primer momento.
+        [
+            'id' => 'denegar-reportar-programa-fuera-de-fechas',
+            'prioridad' => 5,
+            'acciones' => ['reportes.crear'],
+            'sujeto' => ['autenticado' => ['=' => true]],
+            'objeto' => ['fuera_de_fechas' => ['=' => true]],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
+            'id' => 'denegar-enviar-informe-a-programa-fuera-de-fechas',
+            'prioridad' => 5,
+            'acciones' => ['reportes.enviar'],
+            'sujeto' => ['autenticado' => ['=' => true]],
+            'objeto' => ['programa.fuera_de_fechas' => ['=' => true]],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
         // Empresa: denegación global — la empresa es la contraparte pagadora;
         // nunca puede reportar vulnerabilidades en ningún programa (SoD absoluto).
 

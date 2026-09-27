@@ -191,6 +191,9 @@
 
     const urlReportar = $derived(`/reportes/crear?programa=${programa.id}`);
     const enPausa = $derived(programa.estado === 'en_pausa');
+    // El periodo del programa: fuera de él no se aceptan informes aunque siga "activo".
+    const aunNoEmpieza = $derived(programa.inicia_en !== null && new Date(programa.inicia_en) > new Date());
+    const yaTermino = $derived(programa.termina_en !== null && new Date(`${programa.termina_en.slice(0, 10)}T23:59:59`) < new Date());
 </script>
 
 <AppHead title={programa.nombre} />
@@ -337,7 +340,7 @@
                     <CardContent class="space-y-4">
                         <form class="flex gap-2" onsubmit={(e) => { e.preventDefault(); invitarHacker(); }}>
                             <Input
-                                type="email"
+                                type="email" maxlength={255}
                                 bind:value={emailHacker}
                                 placeholder="Correo del investigador registrado..."
                                 required
@@ -413,6 +416,14 @@
                             investigadores.
                         </CardDescription>
                     </CardHeader>
+                </Card></div>
+            {:else if (aunNoEmpieza || yaTermino) && !puedeGestionar}
+                <div data-test="aviso-fechas"><Card>
+                    <CardContent class="text-sm text-muted-foreground">
+                        {yaTermino
+                            ? `Este programa terminó el ${formatearFecha(programa.termina_en)}: ya no acepta nuevos reportes.`
+                            : `Este programa empieza el ${formatearFecha(programa.inicia_en)}: podrás reportar a partir de ese día.`}
+                    </CardContent>
                 </Card></div>
             {:else if enPausa && !puedeGestionar}
                 <Card>

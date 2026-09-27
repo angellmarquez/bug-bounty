@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('apelaciones:auditar-sla')->hourly();
 Schedule::command('bounties:verificar-pendientes')->everyMinute()->withoutOverlapping();
+Schedule::command('programas:pausar-vencidos')->hourly();

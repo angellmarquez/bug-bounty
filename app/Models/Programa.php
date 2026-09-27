@@ -155,6 +155,23 @@ class Programa extends Model
             ->all();
     }
 
+    /**
+     * ¿Está hoy fuera del periodo del programa (aún no empieza o ya terminó)? Fuera de fechas
+     * no se aceptan informes, aunque el estado siga siendo "activo".
+     * ($P.fuera_de_fechas para ABAC).
+     */
+    public function getFueraDeFechasAttribute(): bool
+    {
+        return ($this->inicia_en !== null && $this->inicia_en->isFuture())
+            || $this->haTerminado();
+    }
+
+    /** La fecha de fin se cuenta completa: termina al acabar ese día. */
+    public function haTerminado(): bool
+    {
+        return $this->termina_en !== null && $this->termina_en->copy()->endOfDay()->isPast();
+    }
+
     protected static function boot(): void
     {
         parent::boot();

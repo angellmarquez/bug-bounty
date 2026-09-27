@@ -49,7 +49,7 @@
 
             <div class="grid gap-2">
                 <Label for="email">Correo electrónico</Label>
-                <Input id="email" type="email" required autocomplete="email" name="email" placeholder="tu@correo.com" />
+                <Input id="email" type="email" maxlength={255} required autocomplete="email" name="email" placeholder="tu@correo.com" />
                 <InputError message={errors.email} />
             </div>
 
