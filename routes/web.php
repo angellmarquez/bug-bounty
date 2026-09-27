@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\AbacSimuladorController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ApelacionController;
+use App\Http\Controllers\CertificadoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpresaAuthController;
 use App\Http\Controllers\EmpresaController;
@@ -22,6 +24,7 @@ Route::inertia('terminos', 'legal/Terminos', ['legal' => config('legal')])->name
 Route::inertia('privacidad', 'legal/Privacidad', ['legal' => config('legal')])->name('legal.privacidad');
 Route::inertia('politica-de-divulgacion', 'legal/Divulgacion', ['legal' => config('legal')])->name('legal.divulgacion');
 Route::get('hall-of-fame', LeaderboardController::class)->name('hall-of-fame');
+Route::get('verificar/{codigo}', [CertificadoController::class, 'verificar'])->name('certificados.verificar');
 
 Route::get('empresa/login', [EmpresaAuthController::class, 'login'])->name('empresa.login');
 Route::get('empresa/registro', [EmpresaAuthController::class, 'create'])->name('empresa.register');
@@ -66,6 +69,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('reportes/{reporte}/comentar', [ReporteController::class, 'comentar'])->name('reportes.comentar')->middleware('throttle:interacciones');
 
     Route::get('reportes/{reporte}', [ReporteController::class, 'show'])->name('reportes.show');
+    Route::get('reportes/{reporte}/certificado', [CertificadoController::class, 'show'])->name('certificados.show');
 
     // Programas (Slice 5.5)
     Route::get('moderacion', [ModeracionController::class, 'index'])->name('moderacion.index');
@@ -108,6 +112,8 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('moderacion/apelaciones/{apelacion}', [ApelacionController::class, 'show'])->name('apelaciones.show');
     Route::post('moderacion/apelaciones/{apelacion}/resolver', [ApelacionController::class, 'resolver'])->name('apelaciones.resolver');
     Route::get('admin/auditoria', [AdminController::class, 'auditoria'])->name('admin.auditoria');
+    Route::get('admin/abac/simulador', [AbacSimuladorController::class, 'index'])->name('admin.abac.simulador');
+    Route::post('admin/abac/simular', [AbacSimuladorController::class, 'simular'])->name('admin.abac.simular');
 
     // Config reputacion
     Route::get('admin/config/reputacion', [AdminController::class, 'configReputacion'])->name('admin.config.reputacion');
