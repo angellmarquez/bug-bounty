@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 
 test('la empresa puede crear un programa privado con es_publico en 0', function () {
     $propietario = propietarioDeEmpresa();
+    $propietario->empresas()->firstOrFail()->update(['plan' => 'profesional']);
 
     $response = $this->actingAs($propietario)->post(route('programas.store'), [
         'nombre' => 'Programa Secreto Alpha',
@@ -24,6 +25,7 @@ test('la empresa puede crear un programa privado con es_publico en 0', function 
 
 test('la empresa puede editar un programa para cambiar su visibilidad a privada o publica', function () {
     $propietario = propietarioDeEmpresa();
+    $propietario->empresas()->firstOrFail()->update(['plan' => 'profesional']);
     $programa = programaDeEmpresa($propietario, ['es_publico' => true]);
 
     $this->actingAs($propietario)->put(route('programas.update', $programa), [

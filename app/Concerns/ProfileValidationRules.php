@@ -31,6 +31,7 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
+            'wallet_address' => ['nullable', 'string', 'regex:/^0x[a-fA-F0-9]{40}$/'],
         ];
     }
 
@@ -74,6 +75,7 @@ trait ProfileValidationRules
             'name.regex' => 'El nombre solo puede tener letras y espacios (también tildes, ñ, apóstrofo o guion). Sin números ni símbolos.',
             'name.min' => 'El nombre debe tener al menos 2 letras.',
             'email.email' => 'Escribe un correo electrónico válido.',
+            'wallet_address.regex' => 'La dirección de billetera debe ser una dirección EVM válida (ej: 0x... con 40 caracteres hexadecimales).',
         ];
     }
 }

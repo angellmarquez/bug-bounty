@@ -32,6 +32,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $tema
  * @property Carbon|null $terminos_aceptados_en
  * @property string|null $terminos_version
+ * @property string|null $wallet_address
+ * @property string|null $wallet_red
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, Rol> $roles
@@ -47,7 +49,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property-read Collection<int, Programa> $programasModerados
  * @property-read int|null $programas_activos_count
  */
-#[Fillable(['name', 'email', 'password', 'is_active', 'tema', 'terminos_aceptados_en', 'terminos_version'])]
+#[Fillable(['name', 'email', 'password', 'is_active', 'tema', 'terminos_aceptados_en', 'terminos_version', 'wallet_address', 'wallet_red'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
@@ -261,5 +263,43 @@ class User extends Authenticatable implements PasskeyUser
     public function auditorias(): HasMany
     {
         return $this->hasMany(Auditoria::class, 'usuario_id');
+    }
+
+    /**
+     * Cantidad de reportes aprobados/validados por moderación sin descartar.
+     */
+    public function cantidadReportesValidados(): int
+    {
+        return $this->reportes()
+            ->whereIn('estado', ['validado', 'en_reparacion', 'cerrado'])
+            ->count();
+    }
+
+    /**
+     * Un investigador se considera verificado (Proof of Competence) si ha completado
+     * al menos 3 reportes validados y no cuenta con suspensiones activas.
+     */
+    public function esVerificado(): bool
+    {
+        return $this->cantidadReportesValidados() >= 3 && $this->suspensionActiva() === null;
+    }
+
+    /**
+     * Progreso hacia la verificación de investigador para la interfaz.
+     *
+     * @return array{es_verificado: bool, reportes_validados: int, meta: int, porcentaje: int, faltantes: int}
+     */
+    public function progresoVerificacion(): array
+    {
+        $validados = $this->cantidadReportesValidados();
+        $meta = 3;
+
+        return [
+            'es_verificado' => $validados >= $meta && $this->suspensionActiva() === null,
+            'reportes_validados' => $validados,
+            'meta' => $meta,
+            'porcentaje' => min(100, (int) round(($validados / $meta) * 100)),
+            'faltantes' => max(0, $meta - $validados),
+        ];
     }
 }

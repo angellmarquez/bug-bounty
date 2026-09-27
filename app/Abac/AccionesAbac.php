@@ -39,6 +39,10 @@ final class AccionesAbac
 
     public const ReporteDecryptPoc = 'reportes.decrypt_poc';
 
+    public const ReporteAsignarBounty = 'reportes.asignar_bounty';
+
+    public const ReportePagarBounty = 'reportes.pagar_bounty';
+
     public const ProgramaInvitarHacker = 'programas.invitar_hacker';
 
     public const ProgramaVer = 'programas.ver';
@@ -66,6 +70,9 @@ final class AccionesAbac
     public const EmpresaSuspender = 'empresas.suspender';
 
     public const EmpresaReactivar = 'empresas.reactivar';
+
+    /** Activar o quitar el Plan Profesional de una empresa (solo el administrador). */
+    public const EmpresaCambiarPlan = 'empresas.cambiar_plan';
 
     public const EmpresaGestionarMiembros = 'empresas.gestionar_miembros';
 

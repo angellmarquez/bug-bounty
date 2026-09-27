@@ -8,6 +8,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreProgramaRequest extends FormRequest
 {
@@ -20,6 +21,8 @@ class StoreProgramaRequest extends FormRequest
     {
         $this->merge([
             'es_publico' => $this->has('es_publico') ? $this->boolean('es_publico') : true,
+            'tiene_recompensas' => $this->has('tiene_recompensas') ? $this->boolean('tiene_recompensas') : false,
+            'solo_verificados' => $this->has('solo_verificados') ? $this->boolean('solo_verificados') : false,
         ]);
     }
 
@@ -33,6 +36,12 @@ class StoreProgramaRequest extends FormRequest
             'descripcion' => ['required', 'string', 'max:5000'],
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'es_publico' => ['boolean'],
+            'tiene_recompensas' => ['boolean'],
+            'solo_verificados' => ['boolean'],
+            'recompensa_min' => ['nullable', 'numeric', 'min:0'],
+            'recompensa_max' => ['nullable', 'numeric', 'gte:recompensa_min'],
+            'moneda' => ['nullable', 'string', 'max:10'],
+            'tabla_recompensas' => ['nullable', 'array'],
             'nivel_acceso' => ['sometimes', Rule::enum(NivelAcceso::class)],
             'poc_schema' => ['nullable', 'array'],
             'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
@@ -57,6 +66,25 @@ class StoreProgramaRequest extends FormRequest
             'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255'],
             'objetivos.*.descripcion' => ['nullable', 'string', 'max:500'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $empresa = $this->user()?->empresas()->wherePivot('estado', 'activo')->first();
+            if ($empresa !== null && ! $empresa->puedeAccederElite()) {
+                if ($this->boolean('es_publico') === false) {
+                    $validator->errors()->add('es_publico', 'Los programas privados son exclusivos del Plan Profesional. Actualiza tu suscripción para invitar a investigadores seleccionados.');
+                }
+                if ($this->boolean('solo_verificados') === true) {
+                    $validator->errors()->add('solo_verificados', 'El filtro de Investigadores Verificados es exclusivo del Plan Profesional.');
+                }
+                $nivel = $this->input('nivel_acceso');
+                if (in_array($nivel, ['medio', 'alto'], true)) {
+                    $validator->errors()->add('nivel_acceso', 'Restringir programas a investigadores de élite (Plata u Oro) requiere el Plan Profesional.');
+                }
+            }
+        });
     }
 
     public function messages(): array

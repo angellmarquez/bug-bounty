@@ -11,4 +11,6 @@ enum TipoEventoReporte: string
     case MarcadoDuplicado = 'marcado_duplicado';
     case Sancion = 'sancion';
     case Asignacion = 'asignacion';
+    // Asignación, pago y verificación en la blockchain de la recompensa (bounty).
+    case Bounty = 'bounty';
 }

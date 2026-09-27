@@ -45,6 +45,11 @@
         router.post(`/admin/empresas/${empresaId}/${accion}`, { motivo }, { preserveState: true });
     }
 
+    function cambiarPlan(empresa: Empresa) {
+        const plan = empresa.plan === 'profesional' ? 'comunitario' : 'profesional';
+        router.post(`/admin/empresas/${empresa.id}/plan`, { plan }, { preserveState: true, preserveScroll: true });
+    }
+
     function estadoLabel(estado: Empresa['estado']): string {
         return { pendiente: 'Pendiente', aprobada: 'Aprobada', rechazada: 'Rechazada', suspendida: 'Suspendida' }[estado];
     }
@@ -80,6 +85,18 @@
                     <CardContent class="space-y-4">
                         <p class="text-sm text-muted-foreground">{empresa.email}</p>
                         {#if empresa.motivo_estado}<p class="text-xs text-muted-foreground">{empresa.motivo_estado}</p>{/if}
+                        <div class="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-xs" data-test="plan-empresa">
+                            <span>
+                                Plan
+                                <strong class={empresa.plan === 'profesional' ? 'text-primary' : ''}>{empresa.plan === 'profesional' ? 'Profesional' : 'Comunitario'}</strong>
+                                {#if empresa.plan === 'profesional' && empresa.plan_expira_en}
+                                    <span class="text-muted-foreground">hasta {new Intl.DateTimeFormat('es-ES').format(new Date(empresa.plan_expira_en))}</span>
+                                {/if}
+                            </span>
+                            <Button size="sm" variant="outline" class="h-7 text-xs" onclick={() => cambiarPlan(empresa)}>
+                                {empresa.plan === 'profesional' ? 'Quitar Profesional' : 'Activar Profesional'}
+                            </Button>
+                        </div>
                         <div class="flex flex-wrap gap-2">
                             {#if empresa.estado === 'pendiente'}
                                 <Button size="sm" onclick={() => cambiarEstado(empresa.id, 'aprobar')}>Aprobar</Button>

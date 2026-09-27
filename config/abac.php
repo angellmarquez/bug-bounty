@@ -137,6 +137,20 @@ return [
         // 2. Investigador / Hacker: reportes propios y programas con acceso
         // ------------------------------------------------------------------
         [
+            'id' => 'denegar-no-verificado-en-programa-premium',
+            'prioridad' => 15,
+            'acciones' => ['reportes.crear'],
+            'sujeto' => [
+                'roles' => ['contains' => 'investigador'],
+                'es_verificado' => ['=' => false],
+            ],
+            'objeto' => [
+                'solo_verificados' => ['=' => true],
+            ],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
             'id' => 'inv-crear-reporte-en-programa-publico-activo',
             'prioridad' => 20,
             'acciones' => ['reportes.crear'],
@@ -372,6 +386,19 @@ return [
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
             'objeto' => [
                 'estado' => ['in' => ['validado', 'en_reparacion']],
+                'programa.empresa_id' => ['=' => '@sujeto.empresa_id'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        // Gestionar y pagar recompensas (bounties) por la empresa dueña del programa
+        [
+            'id' => 'empresa-gestionar-y-pagar-bounties',
+            'prioridad' => 35,
+            'acciones' => ['reportes.asignar_bounty', 'reportes.pagar_bounty'],
+            'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
+            'objeto' => [
+                'estado' => ['in' => ['validado', 'en_reparacion', 'cerrado']],
                 'programa.empresa_id' => ['=' => '@sujeto.empresa_id'],
             ],
             'entorno' => [],

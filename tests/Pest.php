@@ -28,7 +28,7 @@ pest()->extend(TestCase::class)
 // El contenido de los reportes se cifra con la clave PGP activa de la plataforma.
 // asegurarClave reutiliza la clave existente en vez de regenerar un par completo en cada test.
 pest()->beforeEach(fn () => app(PgpService::class)->asegurarClave())
-    ->in('Feature/Reportes', 'Feature/Reputacion');
+    ->in('Feature/Reportes', 'Feature/Reputacion', 'Feature/Bounties');
 
 /*
 |--------------------------------------------------------------------------

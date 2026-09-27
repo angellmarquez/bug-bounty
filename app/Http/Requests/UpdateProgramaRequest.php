@@ -9,6 +9,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateProgramaRequest extends FormRequest
 {
@@ -36,6 +37,16 @@ class UpdateProgramaRequest extends FormRequest
                 'es_publico' => $this->boolean('es_publico'),
             ]);
         }
+        if ($this->has('tiene_recompensas')) {
+            $this->merge([
+                'tiene_recompensas' => $this->boolean('tiene_recompensas'),
+            ]);
+        }
+        if ($this->has('solo_verificados')) {
+            $this->merge([
+                'solo_verificados' => $this->boolean('solo_verificados'),
+            ]);
+        }
     }
 
     /**
@@ -48,6 +59,12 @@ class UpdateProgramaRequest extends FormRequest
             'descripcion' => ['sometimes', 'required', 'string', 'max:5000'],
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'es_publico' => ['boolean'],
+            'tiene_recompensas' => ['boolean'],
+            'solo_verificados' => ['boolean'],
+            'recompensa_min' => ['nullable', 'numeric', 'min:0'],
+            'recompensa_max' => ['nullable', 'numeric', 'gte:recompensa_min'],
+            'moneda' => ['nullable', 'string', 'max:10'],
+            'tabla_recompensas' => ['nullable', 'array'],
             'nivel_acceso' => ['sometimes', 'required', Rule::enum(NivelAcceso::class)],
             'poc_schema' => ['nullable', 'array'],
             'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
@@ -67,6 +84,34 @@ class UpdateProgramaRequest extends FormRequest
             'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255'],
             'objetivos.*.descripcion' => ['nullable', 'string', 'max:500'],
         ];
+    }
+
+    /**
+     * Sin Plan Profesional no se puede SUBIR la exigencia de un programa (hacerlo privado,
+     * solo para verificados o de nivel élite), pero sí editar uno que ya lo era: así una
+     * empresa que perdió el plan no queda sin poder corregir sus programas.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $empresa = $this->user()?->empresas()->wherePivot('estado', 'activo')->first();
+            $programa = $this->route('programa');
+
+            if ($empresa === null || $empresa->puedeAccederElite() || ! $programa instanceof Programa) {
+                return;
+            }
+
+            if ($this->has('es_publico') && $this->boolean('es_publico') === false && $programa->es_publico) {
+                $validator->errors()->add('es_publico', 'Los programas privados son exclusivos del Plan Profesional. Actualiza tu suscripción para invitar a investigadores seleccionados.');
+            }
+            if ($this->has('solo_verificados') && $this->boolean('solo_verificados') === true && ! $programa->solo_verificados) {
+                $validator->errors()->add('solo_verificados', 'El filtro de Investigadores Verificados es exclusivo del Plan Profesional.');
+            }
+            $nivel = $this->input('nivel_acceso');
+            if (in_array($nivel, ['medio', 'alto'], true) && $nivel !== $programa->nivel_acceso->value) {
+                $validator->errors()->add('nivel_acceso', 'Restringir programas a investigadores de élite (Plata u Oro) requiere el Plan Profesional.');
+            }
+        });
     }
 
     public function messages(): array

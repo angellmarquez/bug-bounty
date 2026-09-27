@@ -27,6 +27,7 @@
     import { AYUDA_NOMBRE, PATRON_NOMBRE } from '@/lib/validacion';
 
     const user = $derived(page.props.auth.user);
+    const redPagos = $derived(page.props.redPagos as string | null | undefined);
 </script>
 
 <AppHead title="Perfil" />
@@ -86,6 +87,45 @@
                     placeholder="Correo electrónico"
                 />
                 <InputError class="mt-2" message={errors.email} />
+            </div>
+
+            <!-- Billetera para Bounties -->
+            <div class="rounded-lg border border-border/70 bg-card/60 p-4 space-y-4">
+                <div>
+                    <h3 class="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <span class="inline-block h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+                        Billetera para cobro de recompensas (Bounties)
+                    </h3>
+                    <p class="text-xs text-muted-foreground mt-1">
+                        Si reportas vulnerabilidades en programas con recompensas, las empresas te transferirán directamente en <strong>USDC</strong> a esta dirección.
+                    </p>
+                </div>
+
+                <div class="grid gap-2">
+                    <Label for="wallet_address">Dirección de billetera (EVM / Polygon / Arbitrum / Base)</Label>
+                    <Input
+                        id="wallet_address"
+                        name="wallet_address"
+                        class="mt-1 block w-full font-mono text-xs"
+                        value={user.wallet_address ?? ''}
+                        placeholder="0x71C...3974"
+                        autocomplete="off"
+                        spellcheck="false"
+                        oninput={(e) => {
+                            // Al copiar de una wallet suele venir un espacio o salto de línea invisible.
+                            const limpia = e.currentTarget.value.replace(/\s+/g, '');
+                            if (limpia !== e.currentTarget.value) e.currentTarget.value = limpia;
+                        }}
+                        pattern={'^0x[a-fA-F0-9]{40}$'}
+                        title="Debe ser una dirección válida que empiece por 0x y tenga 40 caracteres hexadecimales"
+                    />
+                    <InputError class="mt-1" message={errors.wallet_address} />
+                </div>
+
+                <p class="text-xs text-muted-foreground" data-test="red-pagos">
+                    Los pagos se hacen en <strong>USDC</strong> sobre <strong>{redPagos ?? 'la red de la plataforma'}</strong>. Usa una wallet que controles
+                    (por ejemplo, MetaMask): una dirección de un exchange puede no recibir tokens de esa red.
+                </p>
             </div>
 
             {#if Boolean(page.props.mustVerifyEmail) && !user.email_verified_at}

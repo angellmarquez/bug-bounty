@@ -135,6 +135,7 @@ class HandleInertiaRequests extends Middleware
                 ->where('investigador_id', $usuario->id)
                 ->where('estado', 'pendiente')
                 ->count(),
+            'verificacion' => $usuario->progresoVerificacion(),
         ];
     }
 

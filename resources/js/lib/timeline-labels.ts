@@ -8,6 +8,7 @@ const tipoEventoLabelMap: Record<TipoEventoReporte, string> = {
     marcado_duplicado: 'Marcado como duplicado',
     sancion: 'Sanción aplicada',
     asignacion: 'Asignado a analista',
+    bounty: 'Recompensa',
 };
 
 export function tipoEventoLabel(tipo: TipoEventoReporte): string {

@@ -74,7 +74,7 @@ test('el formulario de reporte solo ofrece los programas accesibles', function (
 });
 
 test('la empresa elige el nivel de acceso al crear y editar un programa', function () {
-    $empresa = Empresa::factory()->aprobada()->create();
+    $empresa = Empresa::factory()->aprobada()->create(['plan' => 'profesional']);
     $this->actingAs(miembroDeEmpresa($empresa));
     $datos = [
         'nombre' => 'Programa con nivel',
@@ -102,13 +102,11 @@ test('un programa sin nivel indicado queda con acceso bajo y un nivel inválido 
     $this->post(route('programas.store'), [...$datos, 'nombre' => 'Nivel raro', 'nivel_acceso' => 'legendario'])->assertSessionHasErrors('nivel_acceso');
 });
 
-test('ya no existen las rutas ni los campos de pago', function () {
+test('ya no existen las rutas ni los campos de pago legacy', function () {
     expect(Route::has('reportes.pagar'))->toBeFalse();
 
     $this->actingAs(administrador());
     $this->post('/reportes/1/pagar', ['recompensa' => 100])->assertNotFound();
     expect(Schema::hasColumn('reportes', 'recompensa'))->toBeFalse()
-        ->and(Schema::hasColumn('programas', 'recompensa_min'))->toBeFalse()
-        ->and(Schema::hasColumn('programas', 'moneda'))->toBeFalse()
         ->and(Schema::hasColumn('programas', 'reputacion_minima'))->toBeFalse();
 });

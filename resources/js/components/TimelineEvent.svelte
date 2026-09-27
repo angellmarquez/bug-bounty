@@ -6,6 +6,7 @@
     import Copy from '@lucide/svelte/icons/copy';
     import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
     import UserPlus from '@lucide/svelte/icons/user-plus';
+    import Coins from '@lucide/svelte/icons/coins';
     import type { EventoReporte } from '@/types/domain';
     import { TipoEventoReporte } from '@/types/enums';
     import { tipoEventoLabel } from '@/lib/timeline-labels';
@@ -23,6 +24,7 @@
         [TipoEventoReporte.MarcadoDuplicado]: Copy,
         [TipoEventoReporte.Sancion]: AlertTriangle,
         [TipoEventoReporte.Asignacion]: UserPlus,
+        [TipoEventoReporte.Bounty]: Coins,
     };
 
     const dotColorMap: Record<TipoEventoReporte, string> = {
@@ -33,6 +35,7 @@
         [TipoEventoReporte.MarcadoDuplicado]: 'bg-chart-4',
         [TipoEventoReporte.Sancion]: 'bg-chart-3',
         [TipoEventoReporte.Asignacion]: 'bg-chart-5',
+        [TipoEventoReporte.Bounty]: 'bg-chart-1',
     };
 
     const Icon = $derived(iconMap[evento.tipo] ?? FilePlus);

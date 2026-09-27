@@ -71,6 +71,10 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('reportes/{reporte}/marcar-duplicado', [ReporteController::class, 'marcarDuplicado'])->name('reportes.marcar-duplicado');
     Route::post('reportes/{reporte}/reparacion', [ReporteController::class, 'reparacion'])->name('reportes.reparacion');
     Route::post('reportes/{reporte}/cerrar', [ReporteController::class, 'cerrar'])->name('reportes.cerrar');
+    // Recompensas en USDC: la empresa paga desde su wallet y la plataforma verifica en la blockchain.
+    Route::post('reportes/{reporte}/bounty/asignar', [ReporteController::class, 'asignarBounty'])->name('reportes.bounty.asignar');
+    Route::post('reportes/{reporte}/bounty/transaccion', [ReporteController::class, 'registrarTransaccionBounty'])->name('reportes.bounty.transaccion')->middleware('throttle:interacciones');
+    Route::post('reportes/{reporte}/bounty/comprobar', [ReporteController::class, 'comprobarBounty'])->name('reportes.bounty.comprobar')->middleware('throttle:60,1');
     Route::post('reportes/{reporte}/comentar', [ReporteController::class, 'comentar'])->name('reportes.comentar')->middleware('throttle:interacciones');
 
     Route::get('reportes/{reporte}', [ReporteController::class, 'show'])->name('reportes.show');
@@ -104,6 +108,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::post('admin/empresas/{empresa}/rechazar', [AdminController::class, 'rechazarEmpresa'])->name('admin.empresas.rechazar');
     Route::post('admin/empresas/{empresa}/suspender', [AdminController::class, 'suspenderEmpresa'])->name('admin.empresas.suspender');
     Route::post('admin/empresas/{empresa}/reactivar', [AdminController::class, 'reactivarEmpresa'])->name('admin.empresas.reactivar');
+    Route::post('admin/empresas/{empresa}/plan', [AdminController::class, 'cambiarPlanEmpresa'])->name('admin.empresas.plan');
     Route::get('admin/moderadores', [AdminController::class, 'moderadores'])->name('admin.moderadores');
     Route::post('admin/moderadores/{user}', [AdminController::class, 'asignarModerador'])->name('admin.moderadores.asignar');
     Route::delete('admin/moderadores/{user}', [AdminController::class, 'revocarModerador'])->name('admin.moderadores.revocar');

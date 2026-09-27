@@ -21,6 +21,8 @@
     import Settings from '@lucide/svelte/icons/settings';
     import Edit from '@lucide/svelte/icons/edit';
     import CheckCircle from '@lucide/svelte/icons/check-circle';
+    import ShieldCheck from '@lucide/svelte/icons/shield-check';
+    import Coins from '@lucide/svelte/icons/coins';
     import AppHead from '@/components/AppHead.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
@@ -41,8 +43,20 @@
     import InformesDelPrograma from '@/components/InformesDelPrograma.svelte';
     import type { Programa, ObjetivoPrograma, ReporteCompacto } from '@/types/domain';
 
+    interface CuentaProps {
+        suspension?: unknown;
+        verificacion?: {
+            es_verificado: boolean;
+            reportes_validados: number;
+            meta: number;
+            porcentaje: number;
+            faltantes: number;
+        };
+    }
+
     // Una suspensión vigente oculta el botón de reportar: se explica el motivo.
-    const suspension = $derived((page.props.cuenta as { suspension: unknown } | null | undefined)?.suspension ?? null);
+    const suspension = $derived((page.props.cuenta as CuentaProps | null | undefined)?.suspension ?? null);
+    const verificacion = $derived((page.props.cuenta as CuentaProps | null | undefined)?.verificacion ?? null);
 
     let {
         programa,
@@ -196,6 +210,11 @@
                 description={programa.empresa ? `Programa de ${programa.empresa.nombre}` : undefined}
             />
             <ProgramaStateBadge estado={programa.estado} />
+            {#if programa.solo_verificados}
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary border border-primary/20">
+                    <ShieldCheck class="h-3.5 w-3.5" /> Exclusivo Verificados
+                </span>
+            {/if}
         </div>
     </div>
 
@@ -401,6 +420,60 @@
                         Este programa está en pausa: por ahora no acepta nuevos reportes.
                     </CardContent>
                 </Card>
+            {:else if programa.solo_verificados && verificacion && !verificacion.es_verificado}
+                <Card class="border-aviso/30 bg-aviso/5">
+                    <CardHeader class="pb-3">
+                        <div class="flex items-center gap-2">
+                            <ShieldCheck class="h-5 w-5 text-aviso" />
+                            <CardTitle class="text-base text-aviso">Programa Exclusivo para Verificados</CardTitle>
+                        </div>
+                        <CardDescription class="text-xs">
+                            Este programa requiere al menos {verificacion.meta} reportes validados por la plataforma para prevenir duplicados y reportes inválidos.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-muted-foreground">Progreso de verificación</span>
+                                <span class="font-medium text-aviso">{verificacion.reportes_validados} de {verificacion.meta} validados</span>
+                            </div>
+                            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div class="h-full bg-aviso transition-all duration-300" style={`width: ${verificacion.porcentaje}%`}></div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Te faltan {verificacion.faltantes} {verificacion.faltantes === 1 ? 'reporte validado' : 'reportes validados'} en otros programas para desbloquear el envío de reportes a este programa.
+                        </p>
+                    </CardContent>
+                </Card>
+            {/if}
+
+            {#if programa.tiene_recompensas}
+                <Card>
+                    <CardHeader class="pb-3">
+                        <div class="flex items-center gap-2">
+                            <Coins class="h-4 w-4 text-primary" />
+                            <CardTitle class="text-base">Recompensas</CardTitle>
+                        </div>
+                        <CardDescription class="text-xs">
+                            Se pagan en USDC directo a tu wallet cuando la empresa valida el hallazgo.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-3 text-sm">
+                        {#if programa.recompensa_min != null || programa.recompensa_max != null}
+                            <p class="font-mono text-lg font-bold">
+                                {programa.recompensa_min ?? 0} – {programa.recompensa_max ?? '∞'} <span class="text-xs text-muted-foreground">USDC</span>
+                            </p>
+                        {/if}
+                        {#if programa.tabla_recompensas}
+                            <ul class="space-y-1 text-xs">
+                                {#each Object.entries(programa.tabla_recompensas) as [nivel, monto] (nivel)}
+                                    <li class="flex justify-between"><span class="capitalize text-muted-foreground">{nivel}</span><span class="font-mono">{monto} USDC</span></li>
+                                {/each}
+                            </ul>
+                        {/if}
+                    </CardContent>
+                </Card>
             {/if}
 
             <Card>
@@ -419,6 +492,16 @@
                         <span class="text-sm text-muted-foreground">Nivel de acceso</span>
                         <NivelAccesoBadge nivel={programa.nivel_acceso} />
                     </div>
+
+                    {#if programa.solo_verificados}
+                        <Separator />
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Acceso de hackers</span>
+                            <span class="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary border border-primary/20">
+                                <ShieldCheck class="h-3 w-3" /> Solo Verificados
+                            </span>
+                        </div>
+                    {/if}
 
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-muted-foreground">Reportes recibidos</span>

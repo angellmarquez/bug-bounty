@@ -44,6 +44,7 @@
     import RangoBadge from '@/components/RangoBadge.svelte';
     import EstadoProgreso from '@/components/EstadoProgreso.svelte';
     import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
+    import BountyReporte from '@/components/BountyReporte.svelte';
     import {
         Card,
         CardContent,
@@ -94,6 +95,7 @@
 
     // Derivado: tras cada acción de triaje Inertia entrega props nuevas a esta misma instancia.
     const reporte = $derived(initialReporte);
+    const bounty = $derived(reporte.bounty ?? null);
     const auth = $derived(page.props.auth);
 
     let transitionOpen = $state(false);
@@ -359,6 +361,17 @@
         </div>
 
         <div class="min-w-0 space-y-6">
+            {#if bounty && (bounty.programa_tiene_recompensas || bounty.monto || bounty.estado === 'pagado')}
+                <BountyReporte
+                    reporteId={reporte.id}
+                    {bounty}
+                    puedeAsignar={Boolean(accionesDisponibles.asignar_bounty)}
+                    puedePagar={Boolean(accionesDisponibles.pagar_bounty)}
+                    esInvestigador={auth?.user?.id === reporte.investigador_id}
+                    severidad={reporte.severidad}
+                />
+            {/if}
+
             <Card>
                 <CardHeader>
                     <CardTitle>Detalles</CardTitle>
