@@ -90,4 +90,10 @@ final class AccionesAbac
     public const ConfigReputacionActualizar = 'config_reputacion.actualizar';
 
     public const ClavePgpPlataformaVer = 'claves_pgp_plataforma.ver';
+
+    /** Ver (y emitir, si aún no existe) el certificado de divulgación de un informe cerrado. */
+    public const CertificadoVer = 'certificados.ver';
+
+    /** Evaluar peticiones arbitrarias contra la política en el simulador visual. */
+    public const AbacSimular = 'abac.simular';
 }

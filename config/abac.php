@@ -504,6 +504,49 @@ return [
             'entorno' => [],
             'decision' => 'denegar',
         ],
+
+        // ------------------------------------------------------------------
+        // 7. Certificados de divulgación (objeto: el informe)
+        // ------------------------------------------------------------------
+        // Solo existen para informes cerrados como resueltos: antes la vulnerabilidad no está
+        // mitigada y un informe validado todavía puede acabar rechazado o duplicado.
+        // El administrador entra por admin-bypass-total; el simulador no tiene más regla que esa.
+        [
+            'id' => 'inv-ver-certificado-propio',
+            'prioridad' => 20,
+            'acciones' => ['certificados.ver'],
+            'sujeto' => ['roles' => ['contains' => 'investigador']],
+            'objeto' => [
+                'investigador_id' => ['=' => '@sujeto.id'],
+                'estado' => ['=' => 'cerrado'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'empresa-ver-certificados-de-sus-programas',
+            'prioridad' => 35,
+            'acciones' => ['certificados.ver'],
+            'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
+            'objeto' => [
+                'estado' => ['=' => 'cerrado'],
+                'programa.empresa_id' => ['=' => '@sujeto.empresa_id'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
+        [
+            'id' => 'moderador-ver-certificados-de-sus-programas',
+            'prioridad' => 35,
+            'acciones' => ['certificados.ver'],
+            'sujeto' => ['roles' => ['contains' => 'moderador']],
+            'objeto' => [
+                'estado' => ['=' => 'cerrado'],
+                'programa_id' => ['in' => '@sujeto.programas_moderados'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
     ],
 
 ];

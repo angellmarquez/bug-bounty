@@ -58,6 +58,7 @@
     let {
         reporte: initialReporte,
         puedeVerNotasInternas,
+        puedeVerCertificado = false,
         puedeTriar = false,
         puedeModerar = false,
         cifradoIndisponible = false,
@@ -71,6 +72,7 @@
     }: {
         reporte: Reporte;
         puedeVerNotasInternas: boolean;
+        puedeVerCertificado?: boolean;
         puedeTriar?: boolean;
         puedeModerar?: boolean;
         cifradoIndisponible?: boolean;
@@ -152,10 +154,10 @@
             />
         </div>
         <div class="flex items-center gap-2">
-            {#if ['validado', 'en_reparacion', 'pagado', 'cerrado'].includes(reporte.estado)}
+            {#if puedeVerCertificado}
                 <Button variant="outline" href={`/reportes/${reporte.id}/certificado`} class="border-primary/40 text-primary hover:bg-primary/10">
                     <Award class="mr-2 h-4 w-4" />
-                    Certificado Oficial
+                    Certificado de divulgación
                 </Button>
             {/if}
             {#if (reporte.estado === 'borrador' || reporte.estado === 'needs_info') && auth?.user?.id === reporte.investigador_id}

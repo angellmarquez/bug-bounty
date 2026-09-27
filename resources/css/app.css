@@ -364,6 +364,27 @@
         opacity: 1;
         transform: none;
     }
+
+    /* El papel es claro: con el tema oscuro, Chrome pintaría también de oscuro los márgenes de la hoja. */
+    :root {
+        color-scheme: light !important;
+    }
+
+    /* Al imprimir solo sale el contenido: sin menú lateral, cabecera ni avisos flotantes. */
+    [data-slot='sidebar'],
+    [data-slot='sidebar-inset'] > header,
+    [data-sonner-toaster] {
+        display: none !important;
+    }
+
+    [data-slot='sidebar-wrapper'],
+    [data-slot='sidebar-inset'] {
+        min-height: 0 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: white !important;
+    }
 }
 
 /* Quien pide menos movimiento en su sistema no ve animaciones. */

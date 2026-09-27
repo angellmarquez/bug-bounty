@@ -103,6 +103,21 @@ class Notificador
         }
     }
 
+    /** Al cerrarse el informe como resuelto su autor recibe el certificado de divulgación. */
+    public function certificadoEmitido(Reporte $reporte, ?User $actor = null): void
+    {
+        $this->seguro(fn () => $this->enviar(
+            [$reporte->investigador],
+            new AvisoPlataforma(
+                'informe',
+                'Tu certificado de divulgación está listo',
+                "{$reporte->numero_reporte} · {$reporte->titulo}: descárgalo o comparte su enlace de verificación.",
+                "/reportes/{$reporte->id}/certificado",
+            ),
+            $actor,
+        ));
+    }
+
     /**
      * El autor se entera de que su informe es duplicado; la empresa, de que quedó descartado.
      *

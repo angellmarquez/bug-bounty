@@ -16,6 +16,7 @@ use App\Models\Reporte;
 use App\Models\User;
 use App\Rules\PocCumpleSchema;
 use App\Services\Adjuntos\AdjuntoService;
+use App\Services\Certificados\CertificadoService;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reportes\ColaDeValidacion;
@@ -304,6 +305,7 @@ class ReporteController extends Controller
             // Las fotos son evidencia como la PoC: solo las ve quien puede descifrar la PoC.
             'fotos' => $puedeDescifrarPoc ? $this->fotosDe($reporte) : [],
             'puedeVerNotasInternas' => $puedeVerNotasInternas,
+            'puedeVerCertificado' => $reporte->admiteCertificado() && Gate::allows('abac', [AccionesAbac::CertificadoVer, $reporte]),
             'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
             'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedePedirInfo || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar,
@@ -1083,7 +1085,7 @@ class ReporteController extends Controller
                 : 'Informe marcado en reparación.');
     }
 
-    public function cerrar(Reporte $reporte, ReputationService $reputacion, ColaDeValidacion $cola): RedirectResponse
+    public function cerrar(Reporte $reporte, ReputationService $reputacion, ColaDeValidacion $cola, CertificadoService $certificados): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
         Gate::authorize('abac', [AccionesAbac::ReporteCerrar, $reporte, $this->empresaContexto()]);
@@ -1115,6 +1117,14 @@ class ReporteController extends Controller
 
         // La recompensa por un informe válido es la reputación: se otorga al resolverlo.
         $reputacion->otorgarPuntosEvento($reporte->investigador_id, 'reporte_resuelto', $reporte);
+
+        // Resuelto el informe, su autor recibe el certificado de divulgación. Si la firma falla
+        // (GnuPG caído) el cierre sigue valiendo: el certificado se emitirá al abrirlo.
+        try {
+            $certificados->obtenerOCrear($reporte, request()->user());
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Informe cerrado como resuelto. El investigador recibió sus puntos de reputación.');
