@@ -51,7 +51,7 @@ class CertificadoController extends Controller
                 'reporte_id' => $reporte->id,
                 'numero_reporte' => $datos['numero_reporte'] ?? $reporte->numero_reporte,
                 'titulo' => $datos['titulo'] ?? $reporte->titulo,
-                'severidad' => $datos['severidad'] ?? $reporte->severidad->value,
+                'severidad' => $datos['severidad'] ?? $reporte->severidad?->value,
                 'cvss_score' => (float) ($datos['cvss_score'] ?? $reporte->puntuacion_cvss ?? 0),
                 'programa_nombre' => $datos['programa_nombre'] ?? $reporte->programa->nombre,
                 'empresa_nombre' => $datos['empresa_nombre'] ?? null,
