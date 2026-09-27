@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Abac\AbacEngine;
+use App\Abac\AccionesAbac;
 use App\Http\Controllers\Controller;
 use App\Models\Apelacion;
 use App\Models\Programa;
@@ -10,6 +11,7 @@ use App\Models\Reporte;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -18,12 +20,9 @@ class AbacSimuladorController extends Controller
     /**
      * Muestra la interfaz del simulador visual de políticas ABAC.
      */
-    public function index(Request $request): InertiaResponse
+    public function index(): InertiaResponse
     {
-        $user = $request->user();
-        if (! $user->tieneRol('administrador')) {
-            abort(403, 'Solo los administradores pueden acceder al simulador de políticas ABAC.');
-        }
+        Gate::authorize('abac', [AccionesAbac::AbacSimular]);
 
         $usuarios = User::query()
             ->with('roles:id,slug,nombre')
@@ -58,6 +57,7 @@ class AbacSimuladorController extends Controller
             'programas.editar' => 'Editar alcance de programa',
             'programas.cambiar_estado' => 'Cambiar estado del programa',
             'programas.invitar_hacker' => 'Invitar hacker a programa privado',
+            'certificados.ver' => 'Ver certificado de divulgación',
             'apelaciones.crear' => 'Presentar apelación contra sanción',
             'apelaciones.resolver' => 'Resolver apelación (exclusivo admin)',
             'moderacion.ver' => 'Acceder al panel de moderación',
@@ -119,10 +119,7 @@ class AbacSimuladorController extends Controller
      */
     public function simular(Request $request, AbacEngine $engine): JsonResponse
     {
-        $user = $request->user();
-        if (! $user->tieneRol('administrador')) {
-            abort(403);
-        }
+        Gate::authorize('abac', [AccionesAbac::AbacSimular]);
 
         $request->validate([
             'usuario_id' => 'nullable|exists:users,id',

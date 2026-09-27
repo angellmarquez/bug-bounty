@@ -18,7 +18,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $emitido_por_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Reporte $reporte
+ * @property-read Reporte|null $reporte null si el informe se retiró (borrado lógico)
  * @property-read User|null $emitidoPor
  */
 #[Fillable([

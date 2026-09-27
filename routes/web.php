@@ -24,7 +24,12 @@ Route::inertia('terminos', 'legal/Terminos', ['legal' => config('legal')])->name
 Route::inertia('privacidad', 'legal/Privacidad', ['legal' => config('legal')])->name('legal.privacidad');
 Route::inertia('politica-de-divulgacion', 'legal/Divulgacion', ['legal' => config('legal')])->name('legal.divulgacion');
 Route::get('hall-of-fame', LeaderboardController::class)->name('hall-of-fame');
-Route::get('verificar/{codigo}', [CertificadoController::class, 'verificar'])->name('certificados.verificar');
+// Verificación pública de certificados (sin sesión); limitada para frenar la enumeración de códigos.
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('verificar/{codigo}', [CertificadoController::class, 'verificar'])->name('certificados.verificar');
+    Route::get('verificar/{codigo}/firma.asc', [CertificadoController::class, 'firma'])->name('certificados.firma');
+    Route::get('verificar/{codigo}/clave.asc', [CertificadoController::class, 'clave'])->name('certificados.clave');
+});
 
 Route::get('empresa/login', [EmpresaAuthController::class, 'login'])->name('empresa.login');
 Route::get('empresa/registro', [EmpresaAuthController::class, 'create'])->name('empresa.register');

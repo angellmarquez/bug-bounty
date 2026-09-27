@@ -12,6 +12,8 @@ void createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
+            // Verificación pública de certificados: la abre gente sin cuenta, con la cabecera del sitio.
+            case name === 'VerificarCertificado':
             case name.startsWith('legal/'):
                 return null;
             // La página de error elige su propio diseño: con menú si hay sesión, a pantalla completa si no.

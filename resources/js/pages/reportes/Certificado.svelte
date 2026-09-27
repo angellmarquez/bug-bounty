@@ -7,6 +7,7 @@
 
 <script lang="ts">
     import AppHead from '@/components/AppHead.svelte';
+    import AppLogoIcon from '@/components/AppLogoIcon.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
     import SeverityBadge from '@/components/SeverityBadge.svelte';
     import { Button } from '@/components/ui/button';
@@ -63,34 +64,30 @@
         });
     }
 
-    function imprimir() {
-        window.print();
-    }
-
     function formatearFecha(iso?: string | null): string {
         if (!iso) return 'N/A';
         try {
-            return new Intl.DateTimeFormat('es-ES', {
-                dateStyle: 'long',
-                timeStyle: 'short',
-            }).format(new Date(iso));
+            return new Intl.DateTimeFormat('es-ES', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(iso));
         } catch {
             return iso;
         }
     }
+
+    // La huella en grupos de 8 se lee y se compara mejor (y parte bien en el papel).
+    const huellaAgrupada = $derived(certificado.huella.match(/.{1,8}/g)?.join(' ') ?? certificado.huella);
 </script>
 
 <AppHead title={`Certificado ${certificado.codigo}`} />
 
-<div class="flex h-full flex-1 flex-col gap-6 p-4">
+<div class="flex h-full flex-1 flex-col gap-6 p-4 print:gap-0 print:p-0">
     <!-- Barra de acciones (oculta al imprimir) -->
-    <div class="print:hidden flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4 print:hidden">
         <div class="flex items-center gap-3">
             <BotonVolver href={`/reportes/${reporteId}`} etiqueta="Volver al informe" />
             <div>
-                <h1 class="text-xl font-bold flex items-center gap-2">
+                <h1 class="flex items-center gap-2 text-xl font-bold">
                     <Award class="size-5 text-primary" />
-                    Certificado Oficial de Hallazgo
+                    Certificado de divulgación
                 </h1>
                 <p class="text-xs text-muted-foreground">
                     Código de verificación: <span class="font-mono font-semibold text-foreground">{certificado.codigo}</span>
@@ -114,67 +111,73 @@
                 Verificador público
             </Button>
 
-            <Button size="sm" onclick={imprimir} class="bg-primary text-primary-foreground font-semibold">
+            <Button size="sm" onclick={() => window.print()}>
                 <Printer class="mr-1.5 size-4" />
                 Imprimir / Guardar PDF
             </Button>
         </div>
     </div>
 
-    <!-- DOCUMENTO DEL CERTIFICADO (Estilo oficial de Seguridad Ofensiva) -->
-    <div class="mx-auto w-full max-w-4xl">
-        <div class="relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-card p-8 md:p-12 shadow-2xl print:border-2 print:border-black print:bg-white print:p-8 print:text-black print:shadow-none">
-            
+    <!-- Documento del certificado -->
+    <div class="mx-auto w-full max-w-4xl print:max-w-none">
+        <article
+            class="certificado relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-card p-8 shadow-2xl md:p-12 print:rounded-none print:border-2 print:border-black print:p-7 print:shadow-none"
+        >
             <!-- Sello decorativo de fondo -->
-            <div class="pointer-events-none absolute -right-16 -top-16 opacity-5 print:opacity-10">
-                <ShieldCheck class="size-80 text-primary print:text-black" />
+            <div class="pointer-events-none absolute -top-16 -right-16 opacity-5 print:hidden">
+                <ShieldCheck class="size-80 text-primary" />
             </div>
 
-            <!-- Encabezado del Certificado -->
-            <div class="flex flex-col items-center text-center gap-2 border-b border-border/80 pb-6 print:border-black">
-                <div class="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary print:border print:border-black print:text-black">
+            <!-- Encabezado -->
+            <header class="flex flex-col items-center gap-2 border-b border-border/80 pb-6 text-center print:pb-4">
+                <div class="flex items-center gap-2">
+                    <span class="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground print:size-7">
+                        <AppLogoIcon class="size-5 print:size-4" />
+                    </span>
+                    <span class="font-display text-lg font-semibold tracking-tight">huella</span>
+                </div>
+                <div class="mt-1 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold tracking-wider text-primary uppercase">
                     <ShieldCheck class="size-4" />
-                    Divulgación Coordinada de Vulnerabilidades
+                    Divulgación coordinada de vulnerabilidades
                 </div>
-                <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground print:text-black mt-2">
-                    CERTIFICADO OFICIAL DE MITIGACIÓN ÉTICA
+                <h2 class="mt-2 text-2xl font-extrabold tracking-tight md:text-3xl print:text-2xl">
+                    CERTIFICADO DE DIVULGACIÓN RESPONSABLE
                 </h2>
-                <p class="text-xs md:text-sm text-muted-foreground print:text-gray-700 max-w-xl">
-                    Se certifica que la vulnerabilidad de seguridad descrita en este documento fue reportada responsablemente,
-                    validada técnicamente y mitigada conforme a las directrices de seguridad de la plataforma.
+                <p class="max-w-xl text-xs text-muted-foreground md:text-sm print:text-xs">
+                    Se certifica que la vulnerabilidad descrita fue reportada de forma responsable, validada por la moderación
+                    de la plataforma y corregida por la organización afectada, que cerró el informe como resuelto.
                 </p>
-                <div class="mt-2 font-mono text-xs text-primary font-bold tracking-widest bg-muted/60 px-3 py-1 rounded border border-primary/20 print:border-black">
-                    ID OFICIAL: {certificado.codigo}
+                <div class="mt-2 rounded border border-primary/30 bg-background px-3 py-1 font-mono text-xs font-bold tracking-widest text-foreground">
+                    ID OFICIAL: <span class="text-primary">{certificado.codigo}</span>
                 </div>
-            </div>
+            </header>
 
-            <!-- Cuerpo de Datos del Hallazgo -->
-            <div class="my-8 grid gap-6 md:grid-cols-2 text-sm">
-                <!-- Columna Izquierda: Informe y Hallazgo -->
-                <div class="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-5 print:border-gray-300 print:bg-transparent">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-primary print:text-black flex items-center gap-1.5">
+            <!-- Datos del hallazgo -->
+            <div class="my-8 grid gap-6 text-sm md:grid-cols-2 print:my-5 print:grid-cols-2 print:gap-4">
+                <section class="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-5 print:space-y-3 print:p-4">
+                    <h3 class="flex items-center gap-1.5 text-xs font-bold tracking-wider text-primary uppercase">
                         <Lock class="size-3.5" />
-                        Detalles de la Vulnerabilidad
+                        Detalles de la vulnerabilidad
                     </h3>
 
                     <div>
-                        <span class="text-xs text-muted-foreground print:text-gray-600 block">Número de informe y título</span>
-                        <span class="font-semibold text-foreground print:text-black">{certificado.datos.numero_reporte} — {certificado.datos.titulo}</span>
+                        <span class="block text-xs text-muted-foreground">Número de informe y título</span>
+                        <span class="font-semibold">{certificado.datos.numero_reporte} — {certificado.datos.titulo}</span>
                     </div>
 
                     <div>
-                        <span class="text-xs text-muted-foreground print:text-gray-600 block">Categoría de seguridad</span>
-                        <span class="font-medium text-foreground print:text-black">{certificado.datos.categoria ?? 'Seguridad de Aplicación'}</span>
+                        <span class="block text-xs text-muted-foreground">Categoría</span>
+                        <span class="font-medium">{certificado.datos.categoria ?? 'Seguridad de aplicación'}</span>
                     </div>
 
-                    <div class="flex items-center gap-4">
+                    <div class="flex flex-wrap items-center gap-4">
                         <div>
-                            <span class="text-xs text-muted-foreground print:text-gray-600 block mb-1">Severidad</span>
+                            <span class="mb-1 block text-xs text-muted-foreground">Severidad</span>
                             <SeverityBadge severidad={certificado.datos.severidad as Severidad} />
                         </div>
                         <div>
-                            <span class="text-xs text-muted-foreground print:text-gray-600 block mb-1">Puntuación CVSS v3.1</span>
-                            <Badge variant="outline" class="font-mono font-bold text-sm bg-background print:border-black">
+                            <span class="mb-1 block text-xs text-muted-foreground">Puntuación CVSS v3.1</span>
+                            <Badge variant="outline" class="bg-background font-mono text-sm font-bold">
                                 {Number(certificado.datos.cvss_score).toFixed(1)} / 10.0
                             </Badge>
                         </div>
@@ -182,115 +185,131 @@
 
                     {#if certificado.datos.cvss_vector}
                         <div>
-                            <span class="text-xs text-muted-foreground print:text-gray-600 block">Vector CVSS Oficial</span>
-                            <code class="text-[11px] font-mono break-all text-primary/90 print:text-black">{certificado.datos.cvss_vector}</code>
+                            <span class="block text-xs text-muted-foreground">Vector CVSS</span>
+                            <code class="font-mono text-[11px] break-all">{certificado.datos.cvss_vector}</code>
                         </div>
                     {/if}
-                </div>
+                </section>
 
-                <!-- Columna Derecha: Autoridad y Fechas -->
-                <div class="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-5 print:border-gray-300 print:bg-transparent">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-primary print:text-black flex items-center gap-1.5">
+                <section class="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-5 print:space-y-3 print:p-4">
+                    <h3 class="flex items-center gap-1.5 text-xs font-bold tracking-wider text-primary uppercase">
                         <Award class="size-3.5" />
-                        Atribución y Trazabilidad
+                        Atribución y trazabilidad
                     </h3>
 
                     <div>
-                        <span class="text-xs text-muted-foreground print:text-gray-600 block">Investigador Ético</span>
-                        <span class="font-semibold text-foreground print:text-black">{certificado.datos.investigador_alias}</span>
+                        <span class="block text-xs text-muted-foreground">Investigador</span>
+                        <span class="font-semibold">{certificado.datos.investigador_alias}</span>
                     </div>
 
                     <div>
-                        <span class="text-xs text-muted-foreground print:text-gray-600 block">Organización Afectada</span>
-                        <span class="font-medium text-foreground print:text-black">{certificado.datos.empresa_nombre}</span>
+                        <span class="block text-xs text-muted-foreground">Organización afectada</span>
+                        <span class="font-medium">{certificado.datos.empresa_nombre}</span>
                     </div>
 
                     <div>
-                        <span class="text-xs text-muted-foreground print:text-gray-600 block">Programa de Divulgación</span>
-                        <span class="font-medium text-foreground print:text-black">{certificado.datos.programa_nombre}</span>
+                        <span class="block text-xs text-muted-foreground">Programa</span>
+                        <span class="font-medium">{certificado.datos.programa_nombre}</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-border/40 print:border-gray-300">
+                    <div class="grid grid-cols-2 gap-3 border-t border-border/40 pt-3">
                         <div>
-                            <span class="text-[11px] text-muted-foreground print:text-gray-600 block">Reportado el</span>
-                            <span class="text-xs font-mono">{formatearFecha(certificado.datos.fecha_reporte)}</span>
+                            <span class="block text-[11px] text-muted-foreground">Reportado el</span>
+                            <span class="font-mono text-xs">{formatearFecha(certificado.datos.fecha_reporte)}</span>
                         </div>
                         <div>
-                            <span class="text-[11px] text-muted-foreground print:text-gray-600 block">Mitigado el</span>
-                            <span class="text-xs font-mono font-medium text-primary print:text-black">{formatearFecha(certificado.datos.fecha_resolucion)}</span>
+                            <span class="block text-[11px] text-muted-foreground">Resuelto el</span>
+                            <span class="font-mono text-xs font-medium text-primary">{formatearFecha(certificado.datos.fecha_resolucion)}</span>
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
 
-            <!-- Bloque Criptográfico: Huella SHA-256 y Firma PGP -->
-            <div class="rounded-xl border border-primary/30 bg-muted/40 p-5 space-y-3 print:border-black print:bg-transparent">
-                <div class="flex items-center justify-between">
+            <!-- Sello criptográfico -->
+            <section class="space-y-3 rounded-xl border border-primary/30 bg-muted/40 p-5 print:p-4">
+                <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
-                        <Key class="size-4 text-primary print:text-black" />
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-foreground print:text-black">
-                            Sello Criptográfico de Integridad Inmutable
-                        </h4>
+                        <Key class="size-4 text-primary" />
+                        <h4 class="text-xs font-bold tracking-wider uppercase">Sello criptográfico de integridad</h4>
                     </div>
-                    <Badge variant="outline" class="text-[10px] uppercase font-mono border-primary/40 text-primary print:border-black print:text-black">
-                        SHA-256 + PGP
-                    </Badge>
+                    <Badge variant="outline" class="border-primary/40 font-mono text-[10px] text-primary uppercase">SHA-256 + PGP</Badge>
                 </div>
 
                 <div>
-                    <span class="text-[11px] text-muted-foreground print:text-gray-600 block mb-0.5">Huella Digital del Registro (SHA-256)</span>
-                    <div class="font-mono text-xs break-all bg-background/80 p-2 rounded border border-border/60 text-primary font-semibold select-all print:border-black print:text-black">
-                        {certificado.huella}
+                    <span class="mb-0.5 block text-[11px] text-muted-foreground">Huella digital del registro (SHA-256)</span>
+                    <div class="rounded border border-border/60 bg-background p-2 font-mono text-xs font-semibold break-all text-foreground select-all">
+                        {huellaAgrupada}
                     </div>
                 </div>
 
                 {#if certificado.clave_huella}
-                    <div class="flex items-center justify-between text-xs pt-1">
-                        <span class="text-muted-foreground print:text-gray-600">Huella Clave PGP de Custodia:</span>
-                        <span class="font-mono font-medium">{certificado.clave_huella}</span>
+                    <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+                        <span class="text-muted-foreground">Huella de la clave PGP de la plataforma</span>
+                        <span class="font-mono font-medium break-all">{certificado.clave_huella}</span>
                     </div>
                 {/if}
 
-                <!-- Detalle de Firma PGP desplegable -->
-                <div class="pt-2">
+                <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+                    <span class="text-muted-foreground">Verificación pública</span>
+                    <span class="font-mono font-medium break-all">{urlVerificacion}</span>
+                </div>
+
+                <div class="pt-1 print:hidden">
                     <button
                         type="button"
-                        class="print:hidden text-xs text-primary hover:underline flex items-center gap-1 font-medium"
-                        onclick={() => mostrandoFirma = !mostrandoFirma}
+                        class="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                        onclick={() => (mostrandoFirma = !mostrandoFirma)}
                     >
-                        {mostrandoFirma ? 'Ocultar bloque de firma digital PGP ▲' : 'Ver firma digital ASCII-armored PGP ▼'}
+                        {mostrandoFirma ? 'Ocultar firma digital PGP ▲' : 'Ver firma digital PGP (ASCII-armored) ▼'}
                     </button>
 
                     {#if mostrandoFirma}
-                        <pre class="mt-2 text-[10px] font-mono leading-tight bg-background/90 p-3 rounded border border-border/60 overflow-x-auto text-muted-foreground print:text-black">{certificado.firma_pgp}</pre>
+                        <pre class="mt-2 overflow-x-auto rounded border border-border/60 bg-background p-3 font-mono text-[10px] leading-tight text-muted-foreground">{certificado.firma_pgp}</pre>
                     {/if}
                 </div>
-            </div>
+            </section>
 
-            <!-- Pie de Certificado -->
-            <div class="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-border/80 pt-6 text-xs text-muted-foreground print:border-black print:text-gray-700">
-                <div class="text-center md:text-left">
-                    <p class="font-semibold text-foreground print:text-black">Plataforma de Divulgación Coordinada de Vulnerabilidades</p>
-                    <p class="text-[11px]">Validación matemática bajo estándares RFC 4880 (OpenPGP) y FIPS PUB 180-4 (SHA-256).</p>
+            <!-- Pie -->
+            <footer class="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border/80 pt-6 text-xs text-muted-foreground md:flex-row print:mt-5 print:flex-row print:pt-4">
+                <div class="text-center md:text-left print:text-left">
+                    <p class="font-semibold text-foreground">Huella · Plataforma de divulgación coordinada de vulnerabilidades</p>
+                    <p class="text-[11px]">Integridad SHA-256 (FIPS 180-4) y firma OpenPGP (RFC 4880).</p>
                 </div>
-
-                <div class="text-center md:text-right font-mono text-[11px]">
-                    <span>Emitido: {formatearFecha(certificado.emitido_en)}</span>
+                <div class="text-center font-mono text-[11px] md:text-right print:text-right">
+                    Emitido: {formatearFecha(certificado.emitido_en)}
                 </div>
-            </div>
-
-        </div>
+            </footer>
+        </article>
     </div>
 </div>
 
 <style>
     @media print {
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+
+        /* En papel siempre en claro, sea cual sea el tema: se redefinen los tokens dentro del documento. */
+        :global(html),
         :global(body) {
             background: white !important;
-            color: black !important;
         }
-        :global(aside), :global(nav), :global(header) {
-            display: none !important;
+
+        .certificado {
+            --background: hsl(0 0% 100%);
+            --foreground: hsl(240 6% 10%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(240 6% 10%);
+            --muted: hsl(240 5% 96%);
+            --muted-foreground: hsl(240 4% 38%);
+            --border: hsl(240 5% 82%);
+            --primary: hsl(152 76% 26%);
+            --primary-foreground: hsl(0 0% 100%);
+            color: var(--foreground);
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+            break-inside: avoid;
         }
     }
 </style>

@@ -205,11 +205,12 @@ class Reporte extends Model
     }
 
     /**
-     * Indica si el informe fue aprobado en el flujo (validado, en reparación, pagado o cerrado).
+     * Solo un informe cerrado como resuelto lleva certificado: es un estado final y la
+     * vulnerabilidad ya está mitigada (uno validado aún puede acabar rechazado o duplicado).
      */
-    public function estaAprobado(): bool
+    public function admiteCertificado(): bool
     {
-        return in_array($this->estado->value, self::ESTADOS_APROBADOS, true);
+        return $this->estado === EstadoReporte::Cerrado;
     }
 
     /**
