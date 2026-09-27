@@ -278,7 +278,7 @@ test('la pagina solo ofrece las acciones validas para el estado actual', functio
     'en_reparacion' => ['en_reparacion', ['validar' => false, 'reparacion' => false, 'cerrar' => false]],
 ]);
 
-test('la empresa duena del programa solo puede marcar en reparacion y cerrar', function () {
+test('la empresa duena del programa puede marcar en reparacion, cerrar y marcar duplicado', function () {
     $empresa = Empresa::factory()->aprobada()->create();
     $programa = Programa::factory()->create(['empresa_id' => $empresa->id]);
     $this->actingAs(miembroDeEmpresa($empresa));
@@ -290,7 +290,7 @@ test('la empresa duena del programa solo puede marcar en reparacion y cerrar', f
         'revisar' => false,
         'validar' => false,
         'rechazar' => false,
-        'marcar_duplicado' => false,
+        'marcar_duplicado' => true,
         'asignar' => false,
         'reparacion' => true,
         'cerrar' => true,

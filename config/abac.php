@@ -377,6 +377,20 @@ return [
             'entorno' => [],
             'decision' => 'permitir',
         ],
+        // Marcar duplicado por la empresa: cuando un reporte está validado, si la empresa
+        // detecta que la vulnerabilidad ya había sido reportada con anterioridad en su programa.
+        [
+            'id' => 'empresa-marcar-duplicado-reporte-validado',
+            'prioridad' => 35,
+            'acciones' => ['reportes.marcar_duplicado'],
+            'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
+            'objeto' => [
+                'estado' => ['in' => ['validado']],
+                'programa.empresa_id' => ['=' => '@sujeto.empresa_id'],
+            ],
+            'entorno' => [],
+            'decision' => 'permitir',
+        ],
 
         // ------------------------------------------------------------------
         // 5. Moderador: Programas y Triaje

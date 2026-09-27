@@ -41,7 +41,18 @@
         reporteId: number;
         estadoActual: EstadoReporte;
         moderadoresAsignables?: { id: number; name: string }[];
-        candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
+        candidatosDuplicado?: {
+            id: number;
+            numero_reporte: string;
+            titulo: string;
+            categoria?: string | null;
+            severidad?: string | null;
+            estado: string;
+            coincide_categoria?: boolean;
+            similitud_titulo?: boolean;
+            es_sugerido?: boolean;
+            created_at?: string;
+        }[];
         onsuccess?: () => void;
     } = $props();
 
@@ -52,6 +63,10 @@
     let gravedadSancion = $state('leve');
     let motivoRechazo = $state('');
     let processing = $state(false);
+
+    const selectedCandidato = $derived(
+        candidatosDuplicado.find((c) => String(c.id) === reporteDuplicadoId),
+    );
 
     const MOTIVOS_RECHAZO_TEXTO: Record<string, string> = {
         falso_positivo: 'El reporte corresponde a un falso positivo o salida de escáner automatizado sin explotación real.',
@@ -187,7 +202,7 @@
             {/if}
 
             {#if accion === 'marcar_duplicado'}
-                <div class="space-y-2">
+                <div class="space-y-3">
                     <Label for="reporte_duplicado_id">Informe original</Label>
                     {#if candidatosDuplicado.length === 0}
                         <p class="text-sm text-muted-foreground">
@@ -197,15 +212,35 @@
                         <select
                             id="reporte_duplicado_id"
                             bind:value={reporteDuplicadoId}
-                            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                         >
                             <option value="">Seleccionar el informe original...</option>
                             {#each candidatosDuplicado as candidato (candidato.id)}
                                 <option value={String(candidato.id)}>
-                                    {candidato.numero_reporte} · {candidato.titulo}
+                                    {candidato.es_sugerido ? '⭐ [Sugerido] ' : ''}{candidato.numero_reporte} · {candidato.titulo} {candidato.categoria ? `(${candidato.categoria})` : ''} · [{candidato.estado}]
                                 </option>
                             {/each}
                         </select>
+
+                        {#if selectedCandidato}
+                            <div class="rounded-md border border-border/80 bg-muted/30 p-3 text-xs space-y-1.5 animate-in fade-in duration-200">
+                                <div class="font-semibold text-foreground flex items-center justify-between">
+                                    <span class="font-mono text-primary">{selectedCandidato.numero_reporte}</span>
+                                    <span class="font-mono text-[10px] uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                                        {selectedCandidato.estado}
+                                    </span>
+                                </div>
+                                <p class="text-muted-foreground leading-relaxed">{selectedCandidato.titulo}</p>
+                                <div class="flex items-center gap-3 pt-1 text-[11px] text-muted-foreground">
+                                    {#if selectedCandidato.categoria}
+                                        <span>Categoría: <strong class="text-foreground">{selectedCandidato.categoria}</strong></span>
+                                    {/if}
+                                    {#if selectedCandidato.severidad}
+                                        <span>• Severidad: <strong class="text-foreground">{selectedCandidato.severidad}</strong></span>
+                                    {/if}
+                                </div>
+                            </div>
+                        {/if}
                     {/if}
                 </div>
             {/if}

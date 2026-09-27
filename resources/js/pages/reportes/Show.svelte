@@ -67,6 +67,7 @@
         accionesDisponibles = {},
         moderadoresAsignables = [],
         candidatosDuplicado = [],
+        posiblesDuplicados = [],
         esperaTurno = null,
         avisoCola = null,
     }: {
@@ -85,7 +86,30 @@
         } | null;
         accionesDisponibles?: Record<string, boolean>;
         moderadoresAsignables?: { id: number; name: string }[];
-        candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
+        candidatosDuplicado?: {
+            id: number;
+            numero_reporte: string;
+            titulo: string;
+            categoria?: string | null;
+            severidad?: string | null;
+            estado: string;
+            coincide_categoria?: boolean;
+            similitud_titulo?: boolean;
+            es_sugerido?: boolean;
+            created_at?: string;
+        }[];
+        posiblesDuplicados?: {
+            id: number;
+            numero_reporte: string;
+            titulo: string;
+            categoria?: string | null;
+            severidad?: string | null;
+            estado: string;
+            coincide_categoria?: boolean;
+            similitud_titulo?: boolean;
+            es_sugerido?: boolean;
+            created_at?: string;
+        }[];
         esperaTurno?: string | null;
         avisoCola?: string | null;
     } = $props();
@@ -276,7 +300,47 @@
                     <CardHeader>
                         <CardTitle>Acciones de triaje</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent class="space-y-4">
+                        {#if posiblesDuplicados.length > 0}
+                            <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 text-amber-200 space-y-2">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 font-semibold text-amber-400 text-xs sm:text-sm">
+                                        <Copy class="size-4 shrink-0" />
+                                        <span>Posible reporte duplicado detectado</span>
+                                    </div>
+                                    {#if accionesDisponibles.marcar_duplicado}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            class="h-7 text-xs border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                                            onclick={() => openTransition('marcar_duplicado')}
+                                        >
+                                            Comparar / Marcar
+                                        </Button>
+                                    {/if}
+                                </div>
+                                <p class="text-xs text-amber-200/80">
+                                    Se {posiblesDuplicados.length === 1 ? 'ha detectado 1 informe anterior' : `han detectado ${posiblesDuplicados.length} informes anteriores`} en este programa con coincidencia temática o de categoría:
+                                </p>
+                                <ul class="text-xs space-y-1">
+                                    {#each posiblesDuplicados as pos}
+                                        <li class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="font-mono font-semibold text-amber-300">{pos.numero_reporte}</span>:
+                                            <span class="text-foreground/90">{pos.titulo}</span>
+                                            {#if pos.categoria}
+                                                <span class="opacity-75">({pos.categoria})</span>
+                                            {/if}
+                                            {#if pos.coincide_categoria}
+                                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                                                    Misma categoría
+                                                </span>
+                                            {/if}
+                                        </li>
+                                    {/each}
+                                </ul>
+                            </div>
+                        {/if}
+
                         <div class="flex flex-wrap gap-2">
                             {#if accionesDisponibles.revisar}
                                 <Button size="sm" onclick={iniciarRevision}>

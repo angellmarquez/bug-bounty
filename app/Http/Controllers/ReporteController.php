@@ -221,7 +221,7 @@ class ReporteController extends Controller
         $puedeRevisar = Gate::allows('abac', [AccionesAbac::ReporteRevisar, $reporte]) && $this->transicionPosible($reporte, 'en_revision');
         $puedePedirInfo = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'needs_info');
         $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
-        $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
+        $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'duplicado');
         // Marcar en reparación y cerrar corresponden a la empresa dueña del programa (y al admin),
         // por eso se evalúan con el contexto de la empresa.
         $puedeMarcarEnReparacion = Gate::allows('abac', [AccionesAbac::ReporteMarcarEnReparacion, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'en_reparacion');
@@ -243,6 +243,7 @@ class ReporteController extends Controller
         }
 
         // Capa 2: Candidatos a duplicado restringidos a reportes anteriores en el tiempo (prioridad temporal anti-robo)
+        // con detección asistida por similitud de categoría y título para facilitar la identificación
         $candidatosDuplicado = $puedeMarcarDuplicado
             ? Reporte::query()
                 ->where('programa_id', $reporte->programa_id)
@@ -252,18 +253,40 @@ class ReporteController extends Controller
                 ->orderByRaw('COALESCE(enviado_en, created_at) asc')
                 ->orderBy('id')
                 ->limit(100)
-                ->get(['id', 'numero_reporte', 'titulo', 'estado', 'enviado_en', 'created_at'])
+                ->get(['id', 'numero_reporte', 'titulo', 'categoria', 'severidad', 'estado', 'enviado_en', 'created_at'])
                 ->filter(fn (Reporte $candidato): bool => ColaDeValidacion::llegoAntes($candidato, $reporte))
                 ->values()
-                ->map(fn (Reporte $candidato) => [
-                    'id' => $candidato->id,
-                    'numero_reporte' => $candidato->numero_reporte,
-                    'titulo' => $candidato->titulo,
-                    'estado' => $candidato->estado->value,
-                    'created_at' => $candidato->created_at?->toISOString(),
-                ])
+                ->map(function (Reporte $candidato) use ($reporte) {
+                    $coincideCategoria = ! empty($reporte->categoria)
+                        && ! empty($candidato->categoria)
+                        && strcasecmp((string) $candidato->categoria, (string) $reporte->categoria) === 0;
+
+                    $similitudTitulo = $this->calcularSimilitudTitulos((string) $candidato->titulo, (string) $reporte->titulo);
+                    $esSugerido = $coincideCategoria || $similitudTitulo;
+
+                    return [
+                        'id' => $candidato->id,
+                        'numero_reporte' => $candidato->numero_reporte,
+                        'titulo' => $candidato->titulo,
+                        'categoria' => $candidato->categoria,
+                        'severidad' => $candidato->severidad?->value,
+                        'estado' => $candidato->estado->value,
+                        'coincide_categoria' => $coincideCategoria,
+                        'similitud_titulo' => $similitudTitulo,
+                        'es_sugerido' => $esSugerido,
+                        'created_at' => $candidato->created_at?->toISOString(),
+                    ];
+                })
+                ->sortByDesc(fn ($c) => $c['es_sugerido'] ? 1 : 0)
+                ->values()
                 ->all()
             : [];
+
+        $posiblesDuplicados = collect($candidatosDuplicado)
+            ->where('es_sugerido', true)
+            ->take(3)
+            ->values()
+            ->all();
 
         $moderadoresAsignables = [];
         if ($puedeAsignar) {
@@ -308,6 +331,7 @@ class ReporteController extends Controller
             'puedeVerCertificado' => $reporte->admiteCertificado() && Gate::allows('abac', [AccionesAbac::CertificadoVer, $reporte]),
             'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
+            'posiblesDuplicados' => $posiblesDuplicados,
             'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedePedirInfo || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
@@ -842,6 +866,49 @@ class ReporteController extends Controller
     }
 
     /**
+     * Evalúa si dos títulos de reportes comparten términos de seguridad relevantes
+     * o tienen una similitud léxica significativa.
+     */
+    private function calcularSimilitudTitulos(string $tituloA, string $tituloB): bool
+    {
+        $limpiar = fn (string $texto) => array_values(array_filter(
+            preg_split('/[\s,\.\-_:\/\(\)\[\]]+/', mb_strtolower($texto)) ?: [],
+            fn (string $palabra) => mb_strlen($palabra) >= 3
+        ));
+
+        $palabrasA = $limpiar($tituloA);
+        $palabrasB = $limpiar($tituloB);
+
+        if ($palabrasA === [] || $palabrasB === []) {
+            return false;
+        }
+
+        // Palabras clave de seguridad altamente significativas
+        $terminosSeguridad = [
+            'sql', 'sqli', 'xss', 'csrf', 'ssrf', 'idor', 'rce', 'lfi', 'rfi', 'xxe',
+            'auth', 'bypass', 'token', 'jwt', 'injection', 'inyeccion', 'upload',
+            'redirect', 'cors', 'oauth', 'deserialization', 'deserializacion',
+        ];
+
+        $comunes = array_intersect($palabrasA, $palabrasB);
+        $clavesComunes = array_intersect($comunes, $terminosSeguridad);
+
+        if ($clavesComunes !== []) {
+            return true;
+        }
+
+        // Si comparten 2 o más palabras descriptivas de 4+ letras
+        $palabrasLargasComunes = array_filter($comunes, fn (string $p) => mb_strlen($p) >= 4);
+        if (count($palabrasLargasComunes) >= 2) {
+            return true;
+        }
+
+        similar_text(mb_strtolower($tituloA), mb_strtolower($tituloB), $porcentaje);
+
+        return $porcentaje >= 55.0;
+    }
+
+    /**
      * El revisor toma el informe: pasa a "en revisión" y queda asignado a él
      * (si nadie lo tenía), lo que se refleja en la línea de tiempo del investigador.
      */
@@ -1020,7 +1087,7 @@ class ReporteController extends Controller
     public function marcarDuplicado(TransitionReporteRequest $request, Reporte $reporte): RedirectResponse
     {
         $this->asegurarAcceso($reporte);
-        Gate::authorize('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]);
+        Gate::authorize('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte, $this->empresaContexto()]);
 
         $validated = $request->validated();
 
@@ -1029,6 +1096,7 @@ class ReporteController extends Controller
         $original = Reporte::find($validated['reporte_duplicado_id']);
         abort_unless($original instanceof Reporte, 404, 'El reporte original no existe.');
         abort_if($original->id === $reporte->id, 422, 'Un reporte no puede ser duplicado de sí mismo.');
+        abort_if((int) $original->programa_id !== (int) $reporte->programa_id, 422, 'El reporte original debe pertenecer al mismo programa.');
         abort_unless(ColaDeValidacion::llegoAntes($original, $reporte), 422, 'Un reporte solo puede ser marcado como duplicado de otro reporte enviado con anterioridad.');
 
         $this->validarTransicion($reporte, 'duplicado');
