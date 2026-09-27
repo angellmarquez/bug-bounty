@@ -103,6 +103,12 @@ export async function asegurarRed(
             },
         ]);
     }
+    const final = await llamar<string>(eth, 'eth_chainId');
+    if (final?.toLowerCase() !== chainId) {
+        throw new ErrorPagoWallet(
+            `La wallet sigue en otra red. Cámbiala a ${red.nombre} en MetaMask y vuelve a intentarlo.`,
+        );
+    }
 }
 
 export async function saldoUsdc(
@@ -134,6 +140,11 @@ export async function transferirUsdc(
             value: '0x0',
         },
     ]);
+}
+
+/** 0x3532…8f1D */
+export function direccionCorta(direccion: string): string {
+    return `${direccion.slice(0, 6)}…${direccion.slice(-4)}`;
 }
 
 export function formatearUsdc(unidades: bigint): string {

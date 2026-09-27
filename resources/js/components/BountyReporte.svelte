@@ -16,6 +16,7 @@
         ErrorPagoWallet,
         asegurarRed,
         conectar,
+        direccionCorta,
         formatearUsdc,
         proveedor,
         saldoUsdc,
@@ -122,6 +123,12 @@
         try {
             paso = 'Conectando con tu wallet…';
             const cuenta = await conectar(eth);
+            // MetaMask recuerda qué cuenta está conectada a cada web, aunque en la extensión se vea otra.
+            if (cuenta.toLowerCase() === bounty.wallet_destino.toLowerCase()) {
+                throw new ErrorPagoWallet(
+                    `La wallet conectada a esta página (${direccionCorta(cuenta)}) es la del investigador. En MetaMask conecta la cuenta de la empresa a este sitio y vuelve a intentarlo.`,
+                );
+            }
 
             paso = `Cambiando la wallet a ${red.nombre}…`;
             await asegurarRed(eth, red);
@@ -130,7 +137,8 @@
             const saldo = await saldoUsdc(eth, red, cuenta);
             if (saldo < BigInt(bounty.monto_unidades)) {
                 throw new ErrorPagoWallet(
-                    `Tu wallet tiene ${formatearUsdc(saldo)} USDC y el bounty es de ${bounty.monto} USDC.` +
+                    `La cuenta conectada a esta página (${direccionCorta(cuenta)}) tiene ${formatearUsdc(saldo)} USDC y el bounty es de ${bounty.monto} USDC. ` +
+                        'Si tus fondos están en otra cuenta, conéctala a este sitio en MetaMask.' +
                         (red.testnet && red.faucets.usdc ? ` Consigue USDC de prueba en ${red.faucets.usdc}.` : ''),
                 );
             }
