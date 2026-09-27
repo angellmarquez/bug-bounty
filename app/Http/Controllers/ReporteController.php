@@ -20,6 +20,7 @@ use App\Services\Certificados\CertificadoService;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reportes\ColaDeValidacion;
+use App\Services\Reportes\DetectorDuplicados;
 use App\Services\Reportes\LimiteDeEnvios;
 use App\Services\Reputacion\Rangos;
 use App\Services\Reputacion\ReputationService;
@@ -242,28 +243,11 @@ class ReporteController extends Controller
             $esperaTurno = $this->mensajeDeTurno($anterior);
         }
 
-        // Capa 2: Candidatos a duplicado restringidos a reportes anteriores en el tiempo (prioridad temporal anti-robo)
-        $candidatosDuplicado = $puedeMarcarDuplicado
-            ? Reporte::query()
-                ->where('programa_id', $reporte->programa_id)
-                ->where('id', '!=', $reporte->id)
-                ->where('estado', '!=', 'borrador')
-                ->whereRaw('COALESCE(enviado_en, created_at) <= ?', [ColaDeValidacion::prioridad($reporte)])
-                ->orderByRaw('COALESCE(enviado_en, created_at) asc')
-                ->orderBy('id')
-                ->limit(100)
-                ->get(['id', 'numero_reporte', 'titulo', 'estado', 'enviado_en', 'created_at'])
-                ->filter(fn (Reporte $candidato): bool => ColaDeValidacion::llegoAntes($candidato, $reporte))
-                ->values()
-                ->map(fn (Reporte $candidato) => [
-                    'id' => $candidato->id,
-                    'numero_reporte' => $candidato->numero_reporte,
-                    'titulo' => $candidato->titulo,
-                    'estado' => $candidato->estado->value,
-                    'created_at' => $candidato->created_at?->toISOString(),
-                ])
-                ->all()
-            : [];
+        // Capa 2: candidatos a original de un duplicado. Solo informes anteriores (prioridad temporal
+        // anti-robo) y no descartados, como ficha comparativa sin datos del autor, y con los más
+        // parecidos sugeridos primero. Solo los recibe quien puede marcar el duplicado (moderación).
+        $candidatosDuplicado = $puedeMarcarDuplicado ? app(DetectorDuplicados::class)->candidatos($reporte)->all() : [];
+        $posiblesDuplicados = collect($candidatosDuplicado)->where('sugerido', true)->take(3)->values()->all();
 
         $moderadoresAsignables = [];
         if ($puedeAsignar) {
@@ -308,6 +292,7 @@ class ReporteController extends Controller
             'puedeVerCertificado' => $reporte->admiteCertificado() && Gate::allows('abac', [AccionesAbac::CertificadoVer, $reporte]),
             'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
+            'posiblesDuplicados' => $posiblesDuplicados,
             'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedePedirInfo || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
@@ -1029,6 +1014,12 @@ class ReporteController extends Controller
         $original = Reporte::find($validated['reporte_duplicado_id']);
         abort_unless($original instanceof Reporte, 404, 'El reporte original no existe.');
         abort_if($original->id === $reporte->id, 422, 'Un reporte no puede ser duplicado de sí mismo.');
+        abort_if((int) $original->programa_id !== (int) $reporte->programa_id, 422, 'El informe original debe ser del mismo programa.');
+        abort_if(
+            in_array($original->estado->value, DetectorDuplicados::ESTADOS_NO_ORIGINAL, true),
+            422,
+            'El informe original no puede estar descartado (rechazado, fuera de alcance o duplicado) ni ser un borrador.',
+        );
         abort_unless(ColaDeValidacion::llegoAntes($original, $reporte), 422, 'Un reporte solo puede ser marcado como duplicado de otro reporte enviado con anterioridad.');
 
         $this->validarTransicion($reporte, 'duplicado');

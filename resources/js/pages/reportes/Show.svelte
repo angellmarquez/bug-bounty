@@ -52,7 +52,7 @@
         CardTitle,
     } from '@/components/ui/card';
     import { index as reportesRoute } from '@/routes/reportes';
-    import type { FotoAdjunta, Programa, Reporte } from '@/types/domain';
+    import type { CandidatoDuplicado, FotoAdjunta, Programa, Reporte } from '@/types/domain';
     import type { EstadoReporte } from '@/types/enums';
 
     let {
@@ -67,6 +67,7 @@
         accionesDisponibles = {},
         moderadoresAsignables = [],
         candidatosDuplicado = [],
+        posiblesDuplicados = [],
         esperaTurno = null,
         avisoCola = null,
     }: {
@@ -85,7 +86,8 @@
         } | null;
         accionesDisponibles?: Record<string, boolean>;
         moderadoresAsignables?: { id: number; name: string }[];
-        candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
+        candidatosDuplicado?: CandidatoDuplicado[];
+        posiblesDuplicados?: CandidatoDuplicado[];
         esperaTurno?: string | null;
         avisoCola?: string | null;
     } = $props();
@@ -276,7 +278,31 @@
                     <CardHeader>
                         <CardTitle>Acciones de triaje</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent class="space-y-4">
+                        {#if posiblesDuplicados.length > 0}
+                            <div class="space-y-2 rounded-md border border-aviso/40 bg-aviso/10 p-3 text-sm" role="status" data-test="aviso-posible-duplicado">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <p class="flex items-center gap-2 font-medium">
+                                        <Copy class="size-4 shrink-0 text-aviso" />
+                                        Posible duplicado de un informe anterior
+                                    </p>
+                                    {#if accionesDisponibles.marcar_duplicado}
+                                        <Button size="sm" variant="outline" onclick={() => openTransition('marcar_duplicado')}>
+                                            Comparar
+                                        </Button>
+                                    {/if}
+                                </div>
+                                <ul class="space-y-1 text-xs">
+                                    {#each posiblesDuplicados as posible (posible.id)}
+                                        <li>
+                                            <span class="font-mono font-semibold">{posible.numero_reporte}</span>
+                                            · {posible.titulo}
+                                            <span class="text-muted-foreground">— {posible.motivos.join(' · ')}</span>
+                                        </li>
+                                    {/each}
+                                </ul>
+                            </div>
+                        {/if}
                         <div class="flex flex-wrap gap-2">
                             {#if accionesDisponibles.revisar}
                                 <Button size="sm" onclick={iniciarRevision}>
@@ -509,5 +535,6 @@
     estadoActual={reporte.estado}
     {moderadoresAsignables}
     {candidatosDuplicado}
+    reporteActual={{ titulo: reporte.titulo, categoria: reporte.categoria ?? null, severidad: reporte.severidad, vector_cvss: reporte.vector_cvss ?? null }}
     onsuccess={recargar}
 />

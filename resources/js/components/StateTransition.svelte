@@ -16,7 +16,10 @@
         SelectTrigger,
     } from '@/components/ui/select';
     import Input from '@/components/ui/input/Input.svelte';
-    import type { EstadoReporte } from '@/types/enums';
+    import SeverityBadge from '@/components/SeverityBadge.svelte';
+    import StateBadge from '@/components/StateBadge.svelte';
+    import type { CandidatoDuplicado } from '@/types/domain';
+    import type { EstadoReporte, Severidad } from '@/types/enums';
 
     type TransicionAccion =
         | 'asignar'
@@ -34,6 +37,7 @@
         estadoActual,
         moderadoresAsignables = [],
         candidatosDuplicado = [],
+        reporteActual = null,
         onsuccess,
     }: {
         open: boolean;
@@ -41,7 +45,9 @@
         reporteId: number;
         estadoActual: EstadoReporte;
         moderadoresAsignables?: { id: number; name: string }[];
-        candidatosDuplicado?: { id: number; numero_reporte: string; titulo: string; estado: string }[];
+        candidatosDuplicado?: CandidatoDuplicado[];
+        /** El informe que se revisa, para compararlo con el original elegido. */
+        reporteActual?: { titulo: string; categoria: string | null; severidad: Severidad | null; vector_cvss: string | null } | null;
         onsuccess?: () => void;
     } = $props();
 
@@ -52,6 +58,8 @@
     let gravedadSancion = $state('leve');
     let motivoRechazo = $state('');
     let processing = $state(false);
+
+    const candidatoElegido = $derived(candidatosDuplicado.find((c) => String(c.id) === reporteDuplicadoId) ?? null);
 
     const MOTIVOS_RECHAZO_TEXTO: Record<string, string> = {
         falso_positivo: 'El reporte corresponde a un falso positivo o salida de escáner automatizado sin explotación real.',
@@ -187,11 +195,11 @@
             {/if}
 
             {#if accion === 'marcar_duplicado'}
-                <div class="space-y-2">
+                <div class="space-y-3">
                     <Label for="reporte_duplicado_id">Informe original</Label>
                     {#if candidatosDuplicado.length === 0}
                         <p class="text-sm text-muted-foreground">
-                            No hay otros informes enviados en este programa con los que compararlo.
+                            No hay informes anteriores de este programa que puedan ser el original (los rechazados, fuera de alcance o ya duplicados no cuentan).
                         </p>
                     {:else}
                         <select
@@ -202,10 +210,63 @@
                             <option value="">Seleccionar el informe original...</option>
                             {#each candidatosDuplicado as candidato (candidato.id)}
                                 <option value={String(candidato.id)}>
-                                    {candidato.numero_reporte} · {candidato.titulo}
+                                    {candidato.sugerido ? '★ ' : ''}{candidato.numero_reporte} · {candidato.titulo}
                                 </option>
                             {/each}
                         </select>
+                        <p class="text-xs text-muted-foreground">★ Sugerido por parecido. Solo se listan informes anteriores y nunca se muestra su autor.</p>
+
+                        {#if candidatoElegido}
+                            <div class="rounded-md border border-border bg-muted/30 p-3 text-xs" data-test="ficha-duplicado">
+                                <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                    <span class="font-mono font-semibold">{candidatoElegido.numero_reporte}</span>
+                                    <StateBadge estado={candidatoElegido.estado} />
+                                </div>
+                                {#if candidatoElegido.motivos.length > 0}
+                                    <ul class="mb-2 flex flex-wrap gap-1.5">
+                                        {#each candidatoElegido.motivos as motivo (motivo)}
+                                            <li class="rounded bg-aviso/15 px-1.5 py-0.5 text-[11px] font-medium text-foreground">{motivo}</li>
+                                        {/each}
+                                    </ul>
+                                {/if}
+                                <table class="w-full table-fixed border-separate border-spacing-y-1">
+                                    <thead class="text-muted-foreground">
+                                        <tr>
+                                            <th class="w-24 text-left font-normal"><span class="sr-only">Dato</span></th>
+                                            {#if reporteActual}<th class="text-left font-normal">Este informe</th>{/if}
+                                            <th class="text-left font-normal">Posible original</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="align-top">
+                                        <tr>
+                                            <td class="text-muted-foreground">Título</td>
+                                            {#if reporteActual}<td class="pr-2">{reporteActual.titulo}</td>{/if}
+                                            <td>{candidatoElegido.titulo}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted-foreground">Categoría</td>
+                                            {#if reporteActual}<td class="pr-2">{reporteActual.categoria ?? '—'}</td>{/if}
+                                            <td>{candidatoElegido.categoria ?? '—'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted-foreground">Severidad</td>
+                                            {#if reporteActual}<td class="pr-2">{#if reporteActual.severidad}<SeverityBadge severidad={reporteActual.severidad} />{:else}—{/if}</td>{/if}
+                                            <td>{#if candidatoElegido.severidad}<SeverityBadge severidad={candidatoElegido.severidad} />{:else}—{/if}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted-foreground">Vector CVSS</td>
+                                            {#if reporteActual}<td class="pr-2 font-mono break-all">{reporteActual.vector_cvss ?? '—'}</td>{/if}
+                                            <td class="font-mono break-all">{candidatoElegido.vector_cvss ?? '—'}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                {#if !candidatoElegido.aprobado}
+                                    <p class="mt-2 text-muted-foreground">
+                                        Este original aún no está validado: si después se rechaza, habrá que revisar este duplicado.
+                                    </p>
+                                {/if}
+                            </div>
+                        {/if}
                     {/if}
                 </div>
             {/if}
