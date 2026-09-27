@@ -416,3 +416,23 @@ export type LimitesFotos = {
     max_total_kb: number;
     mimes: string[];
 };
+
+/**
+ * Posible original de un informe duplicado: ficha comparativa para moderación, sin datos
+ * del autor ni contenido cifrado. `motivos` explica en qué se parece al informe revisado.
+ */
+export type CandidatoDuplicado = {
+    id: number;
+    numero_reporte: string;
+    titulo: string;
+    categoria: string | null;
+    severidad: Severidad | null;
+    puntuacion_cvss: number | null;
+    vector_cvss: string | null;
+    estado: EstadoReporte;
+    aprobado: boolean;
+    enviado_en: string | null;
+    puntuacion: number;
+    motivos: string[];
+    sugerido: boolean;
+};
