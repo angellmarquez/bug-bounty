@@ -21,7 +21,7 @@
     import Settings from '@lucide/svelte/icons/settings';
     import Edit from '@lucide/svelte/icons/edit';
     import CheckCircle from '@lucide/svelte/icons/check-circle';
-    import Coins from '@lucide/svelte/icons/coins';
+    import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import AppHead from '@/components/AppHead.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
@@ -42,8 +42,20 @@
     import InformesDelPrograma from '@/components/InformesDelPrograma.svelte';
     import type { Programa, ObjetivoPrograma, ReporteCompacto } from '@/types/domain';
 
+    interface CuentaProps {
+        suspension?: unknown;
+        verificacion?: {
+            es_verificado: boolean;
+            validados: number;
+            requeridos: number;
+            porcentaje: number;
+            faltantes: number;
+        };
+    }
+
     // Una suspensión vigente oculta el botón de reportar: se explica el motivo.
-    const suspension = $derived((page.props.cuenta as { suspension: unknown } | null | undefined)?.suspension ?? null);
+    const suspension = $derived((page.props.cuenta as CuentaProps | null | undefined)?.suspension ?? null);
+    const verificacion = $derived((page.props.cuenta as CuentaProps | null | undefined)?.verificacion ?? null);
 
     let {
         programa,
@@ -197,6 +209,11 @@
                 description={programa.empresa ? `Programa de ${programa.empresa.nombre}` : undefined}
             />
             <ProgramaStateBadge estado={programa.estado} />
+            {#if programa.solo_verificados}
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                    <ShieldCheck class="h-3.5 w-3.5" /> Exclusivo Verificados
+                </span>
+            {/if}
         </div>
     </div>
 
@@ -259,70 +276,6 @@
                     {/if}
                 </CardContent>
             </Card>
-
-            {#if programa.tiene_recompensas}
-                <Card class="border-emerald-500/30 bg-emerald-500/5">
-                    <CardHeader class="pb-3">
-                        <div class="flex items-center justify-between">
-                            <CardTitle class="flex items-center gap-2 text-foreground">
-                                <Coins class="h-5 w-5 text-emerald-400" />
-                                Recompensas Económicas (Bounties)
-                            </CardTitle>
-                            <span class="rounded-md bg-emerald-500/10 px-2.5 py-1 font-mono text-sm font-bold text-emerald-400 border border-emerald-500/20">
-                                {#if programa.recompensa_min && programa.recompensa_max}
-                                    ${Number(programa.recompensa_min).toLocaleString()} - ${Number(programa.recompensa_max).toLocaleString()} {programa.moneda ?? 'USDC'}
-                                {:else if programa.recompensa_max}
-                                    Hasta ${Number(programa.recompensa_max).toLocaleString()} {programa.moneda ?? 'USDC'}
-                                {:else}
-                                    En {programa.moneda ?? 'USDC'}
-                                {/if}
-                            </span>
-                        </div>
-                        <CardDescription>
-                            Este programa recompensa a los investigadores por reportes válidos con pagos directos en stablecoins.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent class="space-y-4">
-                        {#if programa.tabla_recompensas}
-                            <div>
-                                <h4 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                                    Tabla orientativa por severidad
-                                </h4>
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    <div class="rounded-lg border border-destructive/30 bg-background/80 p-3 text-center space-y-1">
-                                        <span class="text-xs font-medium text-destructive">Crítica</span>
-                                        <p class="font-mono text-base font-bold text-foreground">
-                                            ${Number(programa.tabla_recompensas.critica ?? 0).toLocaleString()} <span class="text-xs text-muted-foreground">{programa.moneda ?? 'USDC'}</span>
-                                        </p>
-                                    </div>
-                                    <div class="rounded-lg border border-chart-4/30 bg-background/80 p-3 text-center space-y-1">
-                                        <span class="text-xs font-medium text-chart-4">Alta</span>
-                                        <p class="font-mono text-base font-bold text-foreground">
-                                            ${Number(programa.tabla_recompensas.alta ?? 0).toLocaleString()} <span class="text-xs text-muted-foreground">{programa.moneda ?? 'USDC'}</span>
-                                        </p>
-                                    </div>
-                                    <div class="rounded-lg border border-chart-2/30 bg-background/80 p-3 text-center space-y-1">
-                                        <span class="text-xs font-medium text-chart-2">Media</span>
-                                        <p class="font-mono text-base font-bold text-foreground">
-                                            ${Number(programa.tabla_recompensas.media ?? 0).toLocaleString()} <span class="text-xs text-muted-foreground">{programa.moneda ?? 'USDC'}</span>
-                                        </p>
-                                    </div>
-                                    <div class="rounded-lg border border-chart-1/30 bg-background/80 p-3 text-center space-y-1">
-                                        <span class="text-xs font-medium text-chart-1">Baja</span>
-                                        <p class="font-mono text-base font-bold text-foreground">
-                                            ${Number(programa.tabla_recompensas.baja ?? 0).toLocaleString()} <span class="text-xs text-muted-foreground">{programa.moneda ?? 'USDC'}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        {/if}
-                        <p class="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                            Los pagos se transfieren directo a tu billetera configurada en tu perfil una vez que la empresa valide el reporte.
-                        </p>
-                    </CardContent>
-                </Card>
-            {/if}
 
             {#if programa.objetivos && programa.objetivos.length > 0}
                 <Card>
@@ -466,6 +419,32 @@
                         Este programa está en pausa: por ahora no acepta nuevos reportes.
                     </CardContent>
                 </Card>
+            {:else if programa.solo_verificados && verificacion && !verificacion.es_verificado}
+                <Card class="border-amber-500/30 bg-amber-500/5">
+                    <CardHeader class="pb-3">
+                        <div class="flex items-center gap-2">
+                            <ShieldCheck class="h-5 w-5 text-amber-400" />
+                            <CardTitle class="text-base text-amber-300">Programa Exclusivo para Verificados</CardTitle>
+                        </div>
+                        <CardDescription class="text-xs">
+                            Este programa requiere al menos {verificacion.requeridos} reportes validados por la plataforma para prevenir duplicados y reportes inválidos.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-3">
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-muted-foreground">Progreso de verificación</span>
+                                <span class="font-medium text-amber-400">{verificacion.validados} de {verificacion.requeridos} validados</span>
+                            </div>
+                            <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div class="h-full bg-amber-400 transition-all duration-300" style={`width: ${verificacion.porcentaje}%`}></div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Te faltan {verificacion.faltantes} {verificacion.faltantes === 1 ? 'reporte validado' : 'reportes validados'} en otros programas para desbloquear el envío de reportes a este programa.
+                        </p>
+                    </CardContent>
+                </Card>
             {/if}
 
             <Card>
@@ -484,6 +463,16 @@
                         <span class="text-sm text-muted-foreground">Nivel de acceso</span>
                         <NivelAccesoBadge nivel={programa.nivel_acceso} />
                     </div>
+
+                    {#if programa.solo_verificados}
+                        <Separator />
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-muted-foreground">Acceso de hackers</span>
+                            <span class="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                                <ShieldCheck class="h-3 w-3" /> Solo Verificados
+                            </span>
+                        </div>
+                    {/if}
 
                     <div class="flex items-center justify-between">
                         <span class="text-sm text-muted-foreground">Reportes recibidos</span>

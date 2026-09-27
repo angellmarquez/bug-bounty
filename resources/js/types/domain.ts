@@ -33,8 +33,6 @@ export type Empresa = {
     sitio_web: string | null;
     estado: 'pendiente' | 'aprobada' | 'rechazada' | 'suspendida';
     motivo_estado: string | null;
-    plan?: 'comunitario' | 'profesional';
-    plan_expira_en?: string | null;
     aprobado_por: number | null;
     aprobado_en: string | null;
     created_at: string;
@@ -82,6 +80,7 @@ export type Programa = {
     es_publico: boolean;
     nivel_acceso: NivelAcceso;
     tiene_recompensas?: boolean;
+    solo_verificados?: boolean;
     recompensa_min?: number | null;
     recompensa_max?: number | null;
     moneda?: string | null;
@@ -100,8 +99,6 @@ export type Programa = {
         id: number;
         razon_social: string;
         nombre_comercial: string | null;
-        sitio_web?: string | null;
-        plan?: 'comunitario' | 'profesional';
     } | null;
 };
 
@@ -121,12 +118,6 @@ export type Reporte = {
     estado: EstadoReporte;
     es_duplicado_de: number | null;
     notas_internas: string | null;
-    bounty_monto?: number | null;
-    bounty_moneda?: string | null;
-    bounty_estado?: 'sin_asignar' | 'asignado' | 'pagado';
-    bounty_tx_hash?: string | null;
-    bounty_red?: string | null;
-    bounty_pagado_en?: string | null;
     enviado_en: string | null;
     cerrado_en: string | null;
     created_at: string;

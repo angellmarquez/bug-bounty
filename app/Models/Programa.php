@@ -28,6 +28,12 @@ use Illuminate\Support\Str;
  * @property EstadoPrograma $estado
  * @property bool $es_publico
  * @property NivelAcceso $nivel_acceso
+ * @property bool $tiene_recompensas
+ * @property bool $solo_verificados
+ * @property float|null $recompensa_min
+ * @property float|null $recompensa_max
+ * @property string $moneda
+ * @property array<string, mixed>|null $tabla_recompensas
  * @property array<int, array<string, mixed>>|null $poc_schema
  * @property int|null $creado_por
  * @property Carbon|null $inicia_en
@@ -41,7 +47,7 @@ use Illuminate\Support\Str;
  * @property-read Collection<int, Reporte> $reportes
  * @property-read Collection<int, User> $moderadores
  */
-#[Fillable(['nombre', 'slug', 'descripcion', 'bugs_buscados', 'estado', 'es_publico', 'tiene_recompensas', 'recompensa_min', 'recompensa_max', 'moneda', 'tabla_recompensas', 'nivel_acceso', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
+#[Fillable(['nombre', 'slug', 'descripcion', 'bugs_buscados', 'estado', 'es_publico', 'nivel_acceso', 'tiene_recompensas', 'solo_verificados', 'recompensa_min', 'recompensa_max', 'moneda', 'tabla_recompensas', 'poc_schema', 'creado_por', 'empresa_id', 'inicia_en', 'termina_en'])]
 class Programa extends Model
 {
     /** @use HasFactory<ProgramaFactory> */
@@ -57,11 +63,12 @@ class Programa extends Model
         return [
             'estado' => EstadoPrograma::class,
             'es_publico' => 'boolean',
+            'nivel_acceso' => NivelAcceso::class,
             'tiene_recompensas' => 'boolean',
+            'solo_verificados' => 'boolean',
             'recompensa_min' => 'float',
             'recompensa_max' => 'float',
             'tabla_recompensas' => 'array',
-            'nivel_acceso' => NivelAcceso::class,
             'poc_schema' => 'array',
             'inicia_en' => 'datetime',
             'termina_en' => 'datetime',

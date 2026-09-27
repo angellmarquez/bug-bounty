@@ -183,7 +183,7 @@ class ProgramaController extends Controller
         return Inertia::render('programas/gestion/Create', [
             'empresaPlan' => [
                 'plan' => $empresa instanceof Empresa ? $empresa->plan : 'comunitario',
-                'es_profesional' => $empresa instanceof Empresa ? $empresa->puedeAccederElite() : false,
+                'es_profesional' => $empresa instanceof Empresa && $empresa->puedeAccederElite(),
             ],
         ]);
     }
@@ -205,7 +205,7 @@ class ProgramaController extends Controller
             ],
             'empresaPlan' => [
                 'plan' => $empresa instanceof Empresa ? $empresa->plan : 'comunitario',
-                'es_profesional' => $empresa instanceof Empresa ? $empresa->puedeAccederElite() : false,
+                'es_profesional' => $empresa instanceof Empresa && $empresa->puedeAccederElite(),
             ],
             'cifradoIndisponible' => $alcance['cifrado_indisponible'],
         ]);

@@ -37,6 +37,7 @@
     import { TIPOS_OBJETIVO } from '@/lib/tipo-objetivo';
     import Coins from '@lucide/svelte/icons/coins';
     import Sparkles from '@lucide/svelte/icons/sparkles';
+    import ShieldCheck from '@lucide/svelte/icons/shield-check';
 
     interface Props {
         empresaPlan?: {
@@ -55,6 +56,7 @@
     const niveles = $derived((page.props.reputacionConfig as ReputacionConfig).niveles);
 
     let esPublico = $state(true);
+    let soloVerificados = $state(false);
     let tieneRecompensas = $state(false);
     let recompensaMin = $state('50');
     let recompensaMax = $state('2000');
@@ -258,6 +260,42 @@
                             {/if}
                         </p>
                         <InputError message={errors.nivel_acceso} />
+                    </div>
+
+                    <!-- Filtro Investigadores Verificados -->
+                    <div class="rounded-lg border p-4 transition-colors {!esProfesional ? 'opacity-60 bg-muted/20' : 'bg-card border-border'}">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-start gap-3">
+                                <ShieldCheck class="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="text-sm font-medium text-foreground">
+                                            Exclusivo para Investigadores Verificados (Filtro Anti-Spam)
+                                        </p>
+                                        {#if !esProfesional}
+                                            <span class="text-[10px] uppercase font-bold bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">Pro</span>
+                                        {/if}
+                                    </div>
+                                    <p class="text-xs text-muted-foreground leading-relaxed">
+                                        Solo investigadores con al menos 3 reportes validados por la plataforma podrán enviar vulnerabilidades a este programa.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <label class="relative inline-flex items-center cursor-pointer ml-4">
+                                <input
+                                    type="checkbox"
+                                    name="solo_verificados"
+                                    value="1"
+                                    disabled={!esProfesional}
+                                    class="sr-only peer"
+                                    checked={soloVerificados}
+                                    onchange={(e) => { if (esProfesional) soloVerificados = e.currentTarget.checked; }}
+                                />
+                                <div class="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 {!esProfesional ? 'cursor-not-allowed' : ''}"></div>
+                            </label>
+                        </div>
+                        <InputError message={errors.solo_verificados} />
                     </div>
                 </CardContent>
             </Card>

@@ -42,6 +42,11 @@ class UpdateProgramaRequest extends FormRequest
                 'tiene_recompensas' => $this->boolean('tiene_recompensas'),
             ]);
         }
+        if ($this->has('solo_verificados')) {
+            $this->merge([
+                'solo_verificados' => $this->boolean('solo_verificados'),
+            ]);
+        }
     }
 
     /**
@@ -55,6 +60,7 @@ class UpdateProgramaRequest extends FormRequest
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'es_publico' => ['boolean'],
             'tiene_recompensas' => ['boolean'],
+            'solo_verificados' => ['boolean'],
             'recompensa_min' => ['nullable', 'numeric', 'min:0'],
             'recompensa_max' => ['nullable', 'numeric', 'gte:recompensa_min'],
             'moneda' => ['nullable', 'string', 'max:10'],
@@ -87,6 +93,9 @@ class UpdateProgramaRequest extends FormRequest
             if ($empresa !== null && ! $empresa->puedeAccederElite()) {
                 if ($this->has('es_publico') && $this->boolean('es_publico') === false) {
                     $validator->errors()->add('es_publico', 'Los programas privados son exclusivos del Plan Profesional. Actualiza tu suscripción para invitar a investigadores seleccionados.');
+                }
+                if ($this->has('solo_verificados') && $this->boolean('solo_verificados') === true) {
+                    $validator->errors()->add('solo_verificados', 'El filtro de Investigadores Verificados es exclusivo del Plan Profesional.');
                 }
                 $nivel = $this->input('nivel_acceso');
                 if ($nivel && in_array($nivel, ['medio', 'alto'], true)) {

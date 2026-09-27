@@ -137,6 +137,20 @@ return [
         // 2. Investigador / Hacker: reportes propios y programas con acceso
         // ------------------------------------------------------------------
         [
+            'id' => 'denegar-no-verificado-en-programa-premium',
+            'prioridad' => 15,
+            'acciones' => ['reportes.crear'],
+            'sujeto' => [
+                'roles' => ['contains' => 'investigador'],
+                'es_verificado' => ['=' => false],
+            ],
+            'objeto' => [
+                'solo_verificados' => ['=' => true],
+            ],
+            'entorno' => [],
+            'decision' => 'denegar',
+        ],
+        [
             'id' => 'inv-crear-reporte-en-programa-publico-activo',
             'prioridad' => 20,
             'acciones' => ['reportes.crear'],
