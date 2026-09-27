@@ -11,9 +11,62 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Throwable;
 
 class CertificadoController extends Controller
 {
+    /**
+     * «Mis certificados»: todos los del investigador en un solo lugar, para descargarlos cuando
+     * quiera (también estando suspendido: son logros pasados y la suspensión no los bloquea).
+     * Los informes cerrados que aún no tenían certificado lo reciben ahora.
+     */
+    public function index(Request $request, CertificadoService $service): InertiaResponse
+    {
+        $user = $request->user();
+
+        $reportes = Reporte::query()
+            ->where('investigador_id', $user->id)
+            ->where('estado', 'cerrado')
+            ->with(['certificado', 'programa.empresa', 'investigador'])
+            ->orderByDesc('cerrado_en')
+            ->orderByDesc('id')
+            ->get()
+            ->filter(fn (Reporte $reporte): bool => Gate::allows('abac', [AccionesAbac::CertificadoVer, $reporte]));
+
+        $certificados = $reportes->map(function (Reporte $reporte) use ($service, $user): array {
+            $certificado = $reporte->certificado;
+
+            if ($certificado === null) {
+                try {
+                    $certificado = $service->obtenerOCrear($reporte, $user);
+                } catch (Throwable $e) {
+                    // Sin firma disponible (GnuPG caído) se lista igual; se emitirá al abrirlo.
+                    report($e);
+                }
+            }
+
+            $datos = $certificado->datos ?? [];
+
+            return [
+                'reporte_id' => $reporte->id,
+                'numero_reporte' => $datos['numero_reporte'] ?? $reporte->numero_reporte,
+                'titulo' => $datos['titulo'] ?? $reporte->titulo,
+                'severidad' => $datos['severidad'] ?? $reporte->severidad->value,
+                'cvss_score' => (float) ($datos['cvss_score'] ?? $reporte->puntuacion_cvss ?? 0),
+                'programa_nombre' => $datos['programa_nombre'] ?? $reporte->programa->nombre,
+                'empresa_nombre' => $datos['empresa_nombre'] ?? null,
+                'fecha_resolucion' => $datos['fecha_resolucion'] ?? $reporte->cerrado_en?->toIso8601String(),
+                'codigo' => $certificado?->codigo,
+                'emitido_en' => $certificado?->created_at?->toISOString(),
+                'url_verificacion' => $certificado === null ? null : route('certificados.verificar', ['codigo' => $certificado->codigo]),
+            ];
+        })->values();
+
+        return Inertia::render('certificados/Index', [
+            'certificados' => $certificados,
+        ]);
+    }
+
     /**
      * Muestra el certificado oficial de un informe cerrado como resuelto.
      * Normalmente ya se emitió al cerrarlo; si no (informes cerrados antes), se emite ahora.

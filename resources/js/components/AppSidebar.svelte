@@ -16,6 +16,7 @@
     import Trophy from '@lucide/svelte/icons/trophy';
     import Mail from '@lucide/svelte/icons/mail';
     import Cpu from '@lucide/svelte/icons/cpu';
+    import FileBadge from '@lucide/svelte/icons/file-badge';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
     import NavMain from '@/components/NavMain.svelte';
@@ -137,6 +138,11 @@
                 title: 'Mi reputación',
                 href: '/reputacion',
                 icon: Award,
+            });
+            items.push({
+                title: 'Mis certificados',
+                href: '/certificados',
+                icon: FileBadge,
             });
         }
 

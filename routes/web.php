@@ -75,6 +75,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
 
     Route::get('reportes/{reporte}', [ReporteController::class, 'show'])->name('reportes.show');
     Route::get('reportes/{reporte}/certificado', [CertificadoController::class, 'show'])->name('certificados.show');
+    Route::get('certificados', [CertificadoController::class, 'index'])->name('certificados.index');
 
     // Programas (Slice 5.5)
     Route::get('moderacion', [ModeracionController::class, 'index'])->name('moderacion.index');
