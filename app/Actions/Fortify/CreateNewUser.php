@@ -6,6 +6,7 @@ use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
 use App\Models\Rol;
 use App\Models\User;
+use App\Services\Reputacion\ReputationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
@@ -53,6 +54,8 @@ class CreateNewUser implements CreatesNewUsers
             );
 
             $user->roles()->attach($rolInvestigador);
+
+            app(ReputationService::class)->otorgarPuntosIniciales($user);
 
             return $user;
         });

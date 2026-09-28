@@ -39,6 +39,17 @@ class ReputationService
     }
 
     /**
+     * Asienta los puntos con los que arranca un investigador recién registrado (configurables
+     * en /admin/config/reputacion). Con 0 no hay asiento: el ledger no admite movimientos vacíos.
+     */
+    public function otorgarPuntosIniciales(User $usuario): ?EntradaReputacion
+    {
+        $puntos = $this->puntosInicial();
+
+        return $puntos > 0 ? $this->asentar((int) $usuario->id, $puntos, 'puntos_iniciales') : null;
+    }
+
+    /**
      * Saldo actual según el ledger (fuente de verdad), sin depender de la
      * columna sincronizada.
      */

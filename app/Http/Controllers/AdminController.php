@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
 use App\Enums\EstadoEmpresa;
+use App\Enums\Severidad;
 use App\Mail\EmpresaEstadoMail;
 use App\Models\Auditoria;
 use App\Models\ClavePgpPlataforma;
@@ -538,12 +539,22 @@ class AdminController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ConfigReputacionActualizar]);
 
+        $severidades = array_map(fn (Severidad $s): string => $s->value, Severidad::cases());
+
         $validated = $request->validate([
             'puntos_inicial' => ['required', 'integer', 'min:0'],
+            // Lo que de verdad reparte los puntos: casi todo informe tiene severidad CVSS.
+            'puntos_por_severidad' => ['required', 'array:'.implode(',', $severidades)],
+            ...collect($severidades)->flatMap(fn (string $s): array => [
+                "puntos_por_severidad.{$s}" => ['required', 'array:reporte_validado,reporte_resuelto'],
+                "puntos_por_severidad.{$s}.reporte_validado" => ['required', 'integer', 'min:0'],
+                "puntos_por_severidad.{$s}.reporte_resuelto" => ['required', 'integer', 'min:0'],
+            ])->all(),
+            // Para informes sin severidad calculada.
             'puntos.reporte_validado' => ['required', 'integer', 'min:0'],
             'puntos.reporte_resuelto' => ['required', 'integer', 'min:0'],
-            'puntos.calidad_documentacion' => ['required', 'integer', 'min:0'],
-            'puntos.participacion' => ['required', 'integer', 'min:0'],
+            'puntos.calidad_documentacion' => ['sometimes', 'integer', 'min:0'],
+            'puntos.participacion' => ['sometimes', 'integer', 'min:0'],
             // Una "penalización" positiva sería en realidad un premio: se exige <= 0.
             'penalizacion.leve' => ['required', 'integer', 'max:0'],
             'penalizacion.media' => ['required', 'integer', 'max:0'],
