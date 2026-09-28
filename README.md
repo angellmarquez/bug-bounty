@@ -30,12 +30,12 @@ Todo el contenido sensible se guarda **cifrado con PGP**, cada permiso lo decide
 
 ## 1. Roles
 
-| Rol | Qué hace | Qué **no** puede hacer |
-| --- | --- | --- |
-| **Investigador** | Busca vulnerabilidades, envía informes, gana reputación y recompensas, apela sanciones | Revisar informes ni crear programas |
-| **Empresa** | Crea y publica programas, recibe los informes ya verificados, los repara, los cierra y paga las recompensas | Reportar vulnerabilidades en ningún programa |
-| **Moderador** | Revisa los informes de los programas que tiene asignados, sin saber quién los envió | Reportar, crear programas ni resolver apelaciones |
-| **Administrador** | Supervisa la plataforma: usuarios, empresas, sanciones, apelaciones, configuración y registros | Participar en el trabajo diario: no crea, revisa ni cierra informes, ni edita programas |
+| Rol               | Qué hace                                                                                                    | Qué **no** puede hacer                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **Investigador**  | Busca vulnerabilidades, envía informes, gana reputación y recompensas, apela sanciones                      | Revisar informes ni crear programas                                                     |
+| **Empresa**       | Crea y publica programas, recibe los informes ya verificados, los repara, los cierra y paga las recompensas | Reportar vulnerabilidades en ningún programa                                            |
+| **Moderador**     | Revisa los informes de los programas que tiene asignados, sin saber quién los envió                         | Reportar, crear programas ni resolver apelaciones                                       |
+| **Administrador** | Supervisa la plataforma: usuarios, empresas, sanciones, apelaciones, configuración y registros              | Participar en el trabajo diario: no crea, revisa ni cierra informes, ni edita programas |
 
 **Solo la empresa crea y publica programas.** Un investigador nunca forma parte de una empresa: lo único que puede recibir de ella es una invitación a un programa privado, para reportar en él.
 
@@ -57,16 +57,16 @@ Investigador recibe reputación, un certificado firmado y, si corresponde, su re
 
 ### Estados de un informe
 
-| Estado | Qué significa |
-| --- | --- |
-| **Borrador** | Solo lo ve su autor. Puede guardarse a medias |
-| **Enviado** | Entró en la fila de revisión del programa |
-| **En revisión** | Un moderador lo tomó y queda a su cargo |
-| **Necesita información** | El moderador pidió aclaraciones; el investigador puede editarlo y reenviarlo |
-| **Validado** | La vulnerabilidad es real. Desde ahora la empresa puede verlo |
-| **En reparación** | La empresa confirmó el hallazgo y lo está corrigiendo |
-| **Cerrado** | El fallo está resuelto |
-| **Rechazado / Duplicado / Fuera de alcance** | El informe se descartó |
+| Estado                                       | Qué significa                                                                |
+| -------------------------------------------- | ---------------------------------------------------------------------------- |
+| **Borrador**                                 | Solo lo ve su autor. Puede guardarse a medias                                |
+| **Enviado**                                  | Entró en la fila de revisión del programa                                    |
+| **En revisión**                              | Un moderador lo tomó y queda a su cargo                                      |
+| **Necesita información**                     | El moderador pidió aclaraciones; el investigador puede editarlo y reenviarlo |
+| **Validado**                                 | La vulnerabilidad es real. Desde ahora la empresa puede verlo                |
+| **En reparación**                            | La empresa confirmó el hallazgo y lo está corrigiendo                        |
+| **Cerrado**                                  | El fallo está resuelto                                                       |
+| **Rechazado / Duplicado / Fuera de alcance** | El informe se descartó                                                       |
 
 Un informe solo puede pasar de un estado a otro por los caminos permitidos. Si dos personas intentan cambiarlo a la vez, la segunda recibe un aviso para recargar.
 
@@ -152,24 +152,24 @@ La prueba de concepto se guarda **cifrada** y solo la pueden leer el autor, el m
 
 La severidad de cada vulnerabilidad se mide con **CVSS versión 3.1** (Common Vulnerability Scoring System), el estándar internacional que usan los catálogos públicos de vulnerabilidades y las principales plataformas de bug bounty. Se usan las **métricas base**:
 
-| Métrica | Pregunta que responde |
-| --- | --- |
-| Vector de ataque | ¿Desde dónde se ataca? (Internet, red local, acceso local, físico) |
-| Complejidad | ¿Es fácil o difícil de explotar? |
-| Privilegios requeridos | ¿Hace falta una cuenta o permisos? |
-| Interacción del usuario | ¿La víctima tiene que hacer algo? |
-| Alcance | ¿El daño sale del componente vulnerable? |
-| Confidencialidad, integridad y disponibilidad | ¿Cuánto daño causa en cada una? |
+| Métrica                                       | Pregunta que responde                                              |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| Vector de ataque                              | ¿Desde dónde se ataca? (Internet, red local, acceso local, físico) |
+| Complejidad                                   | ¿Es fácil o difícil de explotar?                                   |
+| Privilegios requeridos                        | ¿Hace falta una cuenta o permisos?                                 |
+| Interacción del usuario                       | ¿La víctima tiene que hacer algo?                                  |
+| Alcance                                       | ¿El daño sale del componente vulnerable?                           |
+| Confidencialidad, integridad y disponibilidad | ¿Cuánto daño causa en cada una?                                    |
 
 La calculadora aplica la fórmula oficial de la especificación 3.1 y guarda el **vector** (por ejemplo `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`), la **puntuación** y la **severidad**:
 
 | Puntuación | Severidad |
-| --- | --- |
-| 0.0 | Ninguna |
-| 0.1 – 3.9 | Baja |
-| 4.0 – 6.9 | Media |
-| 7.0 – 8.9 | Alta |
-| 9.0 – 10.0 | Crítica |
+| ---------- | --------- |
+| 0.0        | Ninguna   |
+| 0.1 – 3.9  | Baja      |
+| 4.0 – 6.9  | Media     |
+| 7.0 – 8.9  | Alta      |
+| 9.0 – 10.0 | Crítica   |
 
 La severidad se usa para ordenar y filtrar informes, calcular los **puntos de reputación**, detectar **informes inflados** y ayudar a encontrar **duplicados**.
 
@@ -198,10 +198,10 @@ La plataforma usa **GnuPG**, la implementación libre y auditada de OpenPGP, en 
 
 **1. Las claves se crean solas.** La plataforma genera y administra todas las claves. Ni las empresas ni los investigadores tienen que crear, subir ni custodiar nada. Existen dos tipos:
 
-| Clave | Cuántas hay | Para qué sirve |
-| --- | --- | --- |
+| Clave                 | Cuántas hay                 | Para qué sirve                                                                                    |
+| --------------------- | --------------------------- | ------------------------------------------------------------------------------------------------- |
 | **Clave de custodia** | Una para toda la plataforma | Permite a moderación y administración leer los informes para revisarlos, y firma los certificados |
-| **Clave de empresa** | Una por cada empresa | Permite a esa empresa, y solo a ella, leer los informes y datos de sus programas |
+| **Clave de empresa**  | Una por cada empresa        | Permite a esa empresa, y solo a ella, leer los informes y datos de sus programas                  |
 
 Cuando hace falta una clave que todavía no existe, se crea en ese momento. Un mecanismo de bloqueo impide que dos peticiones simultáneas creen dos claves distintas. Cada vez que se genera una clave, se avisa a los administradores y queda registrado.
 
@@ -209,13 +209,13 @@ Cuando hace falta una clave que todavía no existe, se crea en ese momento. Un m
 
 **3. Qué se cifra.**
 
-| Se cifra | Se deja legible, y por qué |
-| --- | --- |
-| Descripción de la vulnerabilidad | Título, estado y severidad: hacen falta para listar y ordenar informes, y no explican cómo explotar el fallo |
-| Prueba de concepto | La categoría del informe |
-| Descripción del programa y los fallos que busca la empresa | Nombre y estado del programa: necesarios para el listado público |
-| Los objetivos exactos (dominios, direcciones, APIs) | El tipo de objetivo (web, API, móvil): solo una categoría |
-| Las fotos de evidencia | — |
+| Se cifra                                                   | Se deja legible, y por qué                                                                                   |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Descripción de la vulnerabilidad                           | Título, estado y severidad: hacen falta para listar y ordenar informes, y no explican cómo explotar el fallo |
+| Prueba de concepto                                         | La categoría del informe                                                                                     |
+| Descripción del programa y los fallos que busca la empresa | Nombre y estado del programa: necesarios para el listado público                                             |
+| Los objetivos exactos (dominios, direcciones, APIs)        | El tipo de objetivo (web, API, móvil): solo una categoría                                                    |
+| Las fotos de evidencia                                     | —                                                                                                            |
 
 **4. El descifrado ocurre solo en el servidor, y solo con permiso.** El navegador nunca recibe contenido cifrado ni claves. Cuando alguien abre un informe, el servidor primero comprueba sus permisos y solo entonces descifra y le envía el texto legible. Cada descifrado queda registrado con quién lo pidió, cuándo y desde qué dirección.
 
@@ -248,11 +248,11 @@ En un sistema clásico por roles, los permisos son fijos: "el moderador puede va
 
 Por eso se construyó un motor propio de **control de acceso basado en atributos (ABAC)**. Cada permiso se decide mirando:
 
-| Qué mira | Ejemplos |
-| --- | --- |
-| **El usuario** | Su rol, si está suspendido, si está verificado, su rango, qué programas modera, a qué empresa pertenece |
-| **El recurso** | Estado del informe, quién es el autor, a quién está asignado, nivel de acceso del programa, si el programa está dentro de fechas |
-| **El contexto** | La fecha y hora actual, la empresa con la que está trabajando el usuario |
+| Qué mira        | Ejemplos                                                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **El usuario**  | Su rol, si está suspendido, si está verificado, su rango, qué programas modera, a qué empresa pertenece                          |
+| **El recurso**  | Estado del informe, quién es el autor, a quién está asignado, nivel de acceso del programa, si el programa está dentro de fechas |
+| **El contexto** | La fecha y hora actual, la empresa con la que está trabajando el usuario                                                         |
 
 Así se pueden expresar reglas como: "el moderador puede validar un informe **solo si** es de un programa que modera, está asignado a él y no lo escribió él mismo".
 
@@ -343,24 +343,24 @@ La reputación funciona como un **libro contable**: cada suma o resta de puntos 
 Los puntos se calculan **automáticamente según la severidad CVSS**, sin decisiones personales:
 
 | Severidad | Al confirmarlo la empresa | Al cerrarlo como resuelto |
-| --- | --- | --- |
-| Crítica | 100 | 200 |
-| Alta | 50 | 100 |
-| Media | 25 | 50 |
-| Baja | 10 | 20 |
-| Ninguna | 5 | 10 |
+| --------- | ------------------------- | ------------------------- |
+| Crítica   | 100                       | 200                       |
+| Alta      | 50                        | 100                       |
+| Media     | 25                        | 50                        |
+| Baja      | 10                        | 20                        |
+| Ninguna   | 5                         | 10                        |
 
 Los puntos **no** se dan cuando el moderador valida, sino cuando la **empresa confirma** el hallazgo. Así nadie puede regalar puntos por su cuenta.
 
 ### Rangos
 
-| Rango | Puntos | Acceso |
-| --- | --- | --- |
-| Bronce | 0 | Programas de nivel bajo |
-| Plata | 100 | Hasta nivel medio |
-| Oro | 300 | Todos los niveles |
-| Platino | 700 | Todos los niveles |
-| Diamante | 1500 | Todos los niveles |
+| Rango    | Puntos | Acceso                  |
+| -------- | ------ | ----------------------- |
+| Bronce   | 0      | Programas de nivel bajo |
+| Plata    | 100    | Hasta nivel medio       |
+| Oro      | 300    | Todos los niveles       |
+| Platino  | 700    | Todos los niveles       |
+| Diamante | 1500   | Todos los niveles       |
 
 Los mejores investigadores aparecen en un **salón de la fama** público.
 
@@ -371,10 +371,10 @@ Un investigador es **verificado** si tiene al menos 3 informes confirmados por e
 Si un informe es falso o fabricado, el moderador puede sancionar al rechazarlo:
 
 | Gravedad | Puntos que resta | Suspensión |
-| --- | --- | --- |
-| Leve | 25 | No |
-| Media | 80 | 7 días |
-| Grave | 250 | 30 días |
+| -------- | ---------------- | ---------- |
+| Leve     | 25               | No         |
+| Media    | 80               | 7 días     |
+| Grave    | 250              | 30 días    |
 
 **Reincidencia:** cada sanción vigente aumenta la siguiente un 50 %, hasta el triple. Por ejemplo, una sanción grave con dos sanciones previas vigentes resta 500 puntos.
 
@@ -400,30 +400,30 @@ El análisis evita sancionar dos veces por la misma conducta.
 
 ### Tareas que se ejecutan solas cada cierto tiempo
 
-| Tarea | Cada cuánto | Qué hace |
-| --- | --- | --- |
+| Tarea                          | Cada cuánto | Qué hace                                                                                                       |
+| ------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------- |
 | Verificar pagos de recompensas | Cada minuto | Comprueba en la blockchain si el pago llegó; si la transacción no aparece en 30 minutos, lo marca como fallido |
-| Verificar pagos de planes | Cada minuto | Comprueba los pagos del Plan Profesional y lo activa |
-| Pausar programas vencidos | Cada hora | Pausa los programas cuya fecha terminó, avisa a la empresa y libera a sus moderadores |
-| Vigilar apelaciones | Cada hora | Alerta de apelaciones demoradas y levanta suspensiones de forma provisional |
-| Revisar vencimiento de planes | Cada hora | Avisa de planes por vencer y pasa los vencidos al plan gratuito |
+| Verificar pagos de planes      | Cada minuto | Comprueba los pagos del Plan Profesional y lo activa                                                           |
+| Pausar programas vencidos      | Cada hora   | Pausa los programas cuya fecha terminó, avisa a la empresa y libera a sus moderadores                          |
+| Vigilar apelaciones            | Cada hora   | Alerta de apelaciones demoradas y levanta suspensiones de forma provisional                                    |
+| Revisar vencimiento de planes  | Cada hora   | Avisa de planes por vencer y pasa los vencidos al plan gratuito                                                |
 
 ### Automatizaciones que responden a una acción
 
-| Automatización | Qué hace |
-| --- | --- |
+| Automatización                | Qué hace                                                                                                                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Asignación de moderadores** | Asigna dos moderadores a cada programa publicado, eligiendo a los que tienen menos carga (máximo cinco programas cada uno) y descartando a suspendidos y a quien tenga conflicto de interés. Si no hay nadie libre, avisa al administrador |
-| **Límite de envíos** | Frena en el momento a quien envía más de 5 informes en 15 minutos, más de 3 al mismo programa en una hora o el mismo título dos veces en un día, y le dice cuánto esperar |
-| **Sugerencia de duplicados** | Compara cada informe con los anteriores del programa y sugiere al moderador los más parecidos |
-| **Orden de llegada** | Impide que un informe se adelante a otro anterior del mismo programa |
-| **Línea de tiempo** | Registra cada acción sobre el informe |
-| **Notificaciones** | Avisa a cada parte de lo que le afecta: nuevos informes, cambios de estado, sanciones, apelaciones, pagos, invitaciones y cambios de rango |
-| **Anulación de sanciones** | Si un informe sancionado se valida, la sanción se anula y los puntos vuelven |
-| **Puntos y rangos** | Suma los puntos según la severidad y avisa al subir de rango |
-| **Certificados** | Emite y firma el certificado al cerrar un informe |
-| **Claves de cifrado** | Crea las claves la primera vez que se necesitan |
-| **Limpieza de fotos** | Elimina ubicación y metadatos y cifra cada imagen |
-| **Auditoría** | Registra cada acción sensible |
+| **Límite de envíos**          | Frena en el momento a quien envía más de 5 informes en 15 minutos, más de 3 al mismo programa en una hora o el mismo título dos veces en un día, y le dice cuánto esperar                                                                  |
+| **Sugerencia de duplicados**  | Compara cada informe con los anteriores del programa y sugiere al moderador los más parecidos                                                                                                                                              |
+| **Orden de llegada**          | Impide que un informe se adelante a otro anterior del mismo programa                                                                                                                                                                       |
+| **Línea de tiempo**           | Registra cada acción sobre el informe                                                                                                                                                                                                      |
+| **Notificaciones**            | Avisa a cada parte de lo que le afecta: nuevos informes, cambios de estado, sanciones, apelaciones, pagos, invitaciones y cambios de rango                                                                                                 |
+| **Anulación de sanciones**    | Si un informe sancionado se valida, la sanción se anula y los puntos vuelven                                                                                                                                                               |
+| **Puntos y rangos**           | Suma los puntos según la severidad y avisa al subir de rango                                                                                                                                                                               |
+| **Certificados**              | Emite y firma el certificado al cerrar un informe                                                                                                                                                                                          |
+| **Claves de cifrado**         | Crea las claves la primera vez que se necesitan                                                                                                                                                                                            |
+| **Limpieza de fotos**         | Elimina ubicación y metadatos y cifra cada imagen                                                                                                                                                                                          |
+| **Auditoría**                 | Registra cada acción sensible                                                                                                                                                                                                              |
 
 ## 13. Recompensas y planes en USDC
 
@@ -460,13 +460,13 @@ php artisan schedule:work   # tareas automáticas, en otra terminal
 
 ### Usuarios de prueba
 
-| Rol | Email | Contraseña |
-| --- | --- | --- |
-| Administrador | `admin@bugbounty.local` | `admin` |
-| Moderador | `moderador@bugbounty.local` | `moderador` |
-| Investigador | `investigador@bugbounty.local` | `investigador` |
-| Empresa | `empresa@bugbounty.local` | `empresa` |
-| Empresa pendiente de aprobación | `pendiente@bugbounty.local` | `pendiente` |
+| Rol                             | Email                          | Contraseña     |
+| ------------------------------- | ------------------------------ | -------------- |
+| Administrador                   | `admin@bugbounty.local`        | `admin`        |
+| Moderador                       | `moderador@bugbounty.local`    | `moderador`    |
+| Investigador                    | `investigador@bugbounty.local` | `investigador` |
+| Empresa                         | `empresa@bugbounty.local`      | `empresa`      |
+| Empresa pendiente de aprobación | `pendiente@bugbounty.local`    | `pendiente`    |
 
 También hay investigadores de cada rango (`plata@`, `oro@`, `platino@` y `diamante@bugbounty.local`) y casos especiales (`suspendido@`, `sancionado@` y `desactivado@bugbounty.local`), todos con la contraseña `investigador`.
 
