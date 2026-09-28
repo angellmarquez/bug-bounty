@@ -34,9 +34,10 @@ Todo el contenido sensible se guarda **cifrado con PGP**, cada permiso lo decide
 | --- | --- | --- |
 | **Investigador** | Busca vulnerabilidades, envía informes, gana reputación y recompensas, apela sanciones | Revisar informes ni crear programas |
 | **Empresa** | Crea y publica programas, recibe los informes ya verificados, los repara, los cierra y paga las recompensas | Reportar vulnerabilidades en ningún programa |
-| **Publicador** | Investigador invitado por una empresa para ayudarla a crear y editar sus programas | Ver los informes recibidos ni gestionar a los miembros de la empresa |
 | **Moderador** | Revisa los informes de los programas que tiene asignados, sin saber quién los envió | Reportar, crear programas ni resolver apelaciones |
 | **Administrador** | Supervisa la plataforma: usuarios, empresas, sanciones, apelaciones, configuración y registros | Participar en el trabajo diario: no crea, revisa ni cierra informes, ni edita programas |
+
+**Solo la empresa crea y publica programas.** Un investigador nunca forma parte de una empresa: lo único que puede recibir de ella es una invitación a un programa privado, para reportar en él.
 
 Cualquier persona que se registra entra como **investigador**. Las empresas se registran aparte y un administrador debe **aprobarlas** antes de que puedan publicar.
 
