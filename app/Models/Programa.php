@@ -54,6 +54,9 @@ class Programa extends Model
     /** @use HasFactory<ProgramaFactory> */
     use HasFactory, SoftDeletes;
 
+    /** Días que, como mínimo, un programa publicado debe quedar abierto a informes. */
+    public const DURACION_MINIMA_DIAS = 3;
+
     /**
      * Get the attributes that should be cast.
      *
@@ -174,6 +177,55 @@ class Programa extends Model
     public function haTerminado(): bool
     {
         return $this->termina_en !== null && FechaCalendario::termino($this->termina_en);
+    }
+
+    /**
+     * Mensaje de error si el periodo inicio→fin dura menos de DURACION_MINIMA_DIAS, o null.
+     * Con una de las dos fechas vacía no hay periodo que medir (se exige al publicar).
+     */
+    public static function errorDeDuracion(?string $inicio, ?string $fin): ?string
+    {
+        if ($inicio === null || $inicio === '' || $fin === null || $fin === '') {
+            return null;
+        }
+
+        try {
+            $minimo = Carbon::parse($inicio)->startOfDay()->addDays(self::DURACION_MINIMA_DIAS);
+            $termina = Carbon::parse($fin)->startOfDay();
+        } catch (\Throwable) {
+            return null; // Fecha inválida: ya la rechaza la regla "date".
+        }
+
+        return $termina->lt($minimo)
+            ? 'El programa debe durar al menos '.self::DURACION_MINIMA_DIAS.' días: la fecha de fin tiene que ser el '.$minimo->format('d/m/Y').' o posterior.'
+            : null;
+    }
+
+    /**
+     * Por qué el programa todavía no se puede publicar (o reactivar) por sus fechas, o null si
+     * puede. Un programa publicado necesita un periodo definido y abierto al menos
+     * DURACION_MINIMA_DIAS días, contados desde el inicio o desde hoy si ya empezó: así los
+     * investigadores tienen tiempo real de trabajar en él.
+     */
+    public function motivoParaNoPublicarPorFechas(): ?string
+    {
+        if ($this->inicia_en === null || $this->termina_en === null) {
+            return 'Define la fecha de inicio y la de fin antes de publicar el programa.';
+        }
+
+        if ($this->haTerminado()) {
+            return 'El programa terminó el '.$this->termina_en->format('d/m/Y').'. Amplía la fecha de fin para volver a publicarlo.';
+        }
+
+        $desde = max($this->inicia_en->copy()->startOfDay(), today());
+        $minimo = $desde->copy()->addDays(self::DURACION_MINIMA_DIAS);
+
+        if ($this->termina_en->copy()->startOfDay()->lt($minimo)) {
+            return 'El programa debe quedar abierto al menos '.self::DURACION_MINIMA_DIAS.' días: '
+                .'la fecha de fin tiene que ser el '.$minimo->format('d/m/Y').' o posterior.';
+        }
+
+        return null;
     }
 
     protected static function boot(): void

@@ -40,6 +40,7 @@
     import Coins from '@lucide/svelte/icons/coins';
     import Sparkles from '@lucide/svelte/icons/sparkles';
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
+    import { DURACION_MINIMA_DIAS } from '@/lib/fechas-programa';
 
     interface Props {
         programa: Programa & {
@@ -180,6 +181,7 @@
                                 type="date"
                                 min={minimo(programa.inicia_en)}
                                 value={programa.inicia_en?.slice(0, 10) ?? ''}
+                                required={programa.estado === 'activo'}
                             />
                             <InputError message={errors.inicia_en} />
                         </div>
@@ -192,10 +194,15 @@
                                 type="date"
                                 min={minimo(programa.termina_en)}
                                 value={programa.termina_en?.slice(0, 10) ?? ''}
+                                required={programa.estado === 'activo'}
                             />
                             <InputError message={errors.termina_en} />
                         </div>
                     </div>
+                    <p class="-mt-2 text-xs text-muted-foreground">
+                        Para publicar o reactivar el programa necesita inicio y fin, y estar abierto al menos
+                        {DURACION_MINIMA_DIAS} días.
+                    </p>
 
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">

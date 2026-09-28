@@ -80,6 +80,8 @@
             creador?: { id: number; name: string } | null;
             objetivos?: ObjetivoPrograma[];
             reportes_count?: number;
+            aun_no_empieza: boolean;
+            ya_termino: boolean;
         };
         puedeReportar: boolean;
         puedeGestionar: boolean;
@@ -191,9 +193,10 @@
 
     const urlReportar = $derived(`/reportes/crear?programa=${programa.id}`);
     const enPausa = $derived(programa.estado === 'en_pausa');
-    // El periodo del programa: fuera de él no se aceptan informes aunque siga "activo".
-    const aunNoEmpieza = $derived(programa.inicia_en !== null && new Date(programa.inicia_en) > new Date());
-    const yaTermino = $derived(programa.termina_en !== null && new Date(`${programa.termina_en.slice(0, 10)}T23:59:59`) < new Date());
+    // El periodo del programa: fuera de él no se aceptan informes aunque siga "activo". Lo calcula
+    // el servidor con la misma regla que aplica al recibir el informe.
+    const aunNoEmpieza = $derived(programa.aun_no_empieza);
+    const yaTermino = $derived(programa.ya_termino);
 </script>
 
 <AppHead title={programa.nombre} />

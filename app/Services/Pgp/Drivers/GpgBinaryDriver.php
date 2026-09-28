@@ -302,12 +302,14 @@ class GpgBinaryDriver implements PgpDriver
     /**
      * {@inheritDoc}
      */
-    public function sign(string $message, ?string $privateKey = null): string
+    public function sign(string $message, ?string $privateKey = null, ?string $firmante = null): string
     {
         $this->assertAvailable();
 
         $dir = $this->homedir;
-        $localUser = null;
+        // El "!" obliga a gpg a usar exactamente esa clave: el llavero también guarda las de
+        // cada empresa y, sin indicarla, firmaría con la primera que encontrara.
+        $localUser = $firmante === null ? null : $this->normalizeFingerprint($firmante).'!';
         $esEfemero = false;
 
         try {
@@ -359,7 +361,25 @@ class GpgBinaryDriver implements PgpDriver
 
         if ($publicKey !== null) {
             $dir = $this->ephemeralHomedir();
-            $this->run(['--import'], $this->normalizeArmored($publicKey), $dir);
+
+            try {
+                return $this->verificarEn($dir, $message, $armoredSignature, $publicKey);
+            } finally {
+                $this->destruirHomedirEfemero($dir);
+            }
+        }
+
+        return $this->verificarEn($dir, $message, $armoredSignature, null);
+    }
+
+    private function verificarEn(string $dir, string $message, string $armoredSignature, ?string $publicKey): bool
+    {
+        if ($publicKey !== null) {
+            try {
+                $this->run(['--import'], $this->normalizeArmored($publicKey), $dir);
+            } catch (PgpException) {
+                return false;
+            }
         }
 
         $messageFile = tempnam(sys_get_temp_dir(), 'pgp_msj');
@@ -374,6 +394,10 @@ class GpgBinaryDriver implements PgpDriver
             file_put_contents($signatureFile, $this->normalizeArmored($armoredSignature));
 
             $result = $this->run(['--verify', $signatureFile, $messageFile], '', $dir);
+        } catch (PgpException) {
+            // gpg sale con error ante una firma que no cuadra o de una clave que no conoce: para
+            // quien verifica eso es "firma no válida", no un fallo de la aplicación.
+            return false;
         } finally {
             @unlink($messageFile);
             @unlink($signatureFile);

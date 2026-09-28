@@ -579,11 +579,14 @@ class PgpService
     }
 
     /**
-     * Firma un mensaje con la clave de la plataforma.
+     * Firma un mensaje con la clave de custodia de la plataforma (nunca con la de una empresa,
+     * que también está en el llavero).
      */
     public function sign(string $message): string
     {
-        return $this->driver->sign($message);
+        $clave = $this->platformKey() ?? $this->asegurarClave();
+
+        return $this->driver->sign($message, null, $clave->huella);
     }
 
     /**

@@ -86,9 +86,12 @@ interface PgpDriver
     /**
      * Firma un mensaje y devuelve la firma ASCII-armored.
      *
+     * @param  string|null  $firmante  huella de la clave del llavero con la que firmar; sin ella
+     *                                 gpg usaría la primera clave privada que encuentre
+     *
      * @throws PgpException si no puede firmarse
      */
-    public function sign(string $message, ?string $privateKey = null): string;
+    public function sign(string $message, ?string $privateKey = null, ?string $firmante = null): string;
 
     /**
      * Verifica una firma ASCII-armored contra un mensaje.

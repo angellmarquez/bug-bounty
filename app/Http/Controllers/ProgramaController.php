@@ -19,6 +19,7 @@ use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\Rangos;
+use App\Support\FechaCalendario;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -159,6 +160,10 @@ class ProgramaController extends Controller
                 // El autor solo es relevante para quien gestiona el programa.
                 'creador' => $puedeGestionar ? $programa->creador?->only(['id', 'name']) : null,
                 'objetivos' => $alcance['objetivos'],
+                // El periodo lo decide el servidor (el día cuenta en todas las zonas horarias, ver
+                // FechaCalendario): con la hora del navegador el aviso no coincidía con lo que ABAC permite.
+                'aun_no_empieza' => $programa->inicia_en !== null && ! FechaCalendario::empezo($programa->inicia_en),
+                'ya_termino' => $programa->haTerminado(),
             ],
             'cifradoIndisponible' => $alcance['cifrado_indisponible'],
             'puedeReportar' => $puedeReportar,
@@ -401,11 +406,10 @@ class ProgramaController extends Controller
             return $this->resolver($programa);
         }
 
-        // Un programa cuya fecha de fin ya pasó no se publica ni se reactiva: primero hay que ampliarla.
-        if ($estadoDestino === 'activo' && $programa->haTerminado()) {
-            throw ValidationException::withMessages([
-                'estado' => 'El programa terminó el '.$programa->termina_en?->format('d/m/Y').'. Amplía la fecha de fin para volver a publicarlo.',
-            ]);
+        // Publicar o reactivar exige fechas: definidas, sin haber terminado y con el mínimo de días
+        // abierto (ver Programa::motivoParaNoPublicarPorFechas).
+        if ($estadoDestino === 'activo' && ($motivo = $programa->motivoParaNoPublicarPorFechas()) !== null) {
+            throw ValidationException::withMessages(['estado' => $motivo]);
         }
 
         // Sin objetivos no hay alcance definido: los investigadores no sabrían qué investigar.

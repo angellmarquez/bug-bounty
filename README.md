@@ -76,7 +76,7 @@ Un programa es la invitación de una empresa a probar la seguridad de sus sistem
 
 - **Objetivos:** qué se puede atacar (sitios web, APIs, aplicaciones móviles u otros) y con qué detalle.
 - **Qué fallos busca la empresa** y cuáles quedan fuera.
-- **Fechas de inicio y fin.** Fuera de ese periodo no se aceptan informes, y al terminar el programa se pausa solo.
+- **Fechas de inicio y fin.** Un borrador puede guardarse sin fechas, pero **para publicarlo necesita las dos** y quedar abierto **al menos 3 días**, para que los investigadores tengan tiempo real de trabajar. Fuera de ese periodo no se aceptan informes, y al terminar el programa se pausa solo.
 - **Nivel de acceso** (bajo, medio o alto): exige un rango mínimo de reputación al investigador.
 - **Visibilidad:** público para todos, o privado solo para investigadores invitados.
 - **Solo verificados:** limita el programa a investigadores con historial comprobado.
@@ -128,7 +128,7 @@ Cada acción sobre un informe (envío, revisión, validación, comentario, sanci
 
 ### Certificado de divulgación
 
-Cuando un informe se cierra como resuelto, el investigador recibe un **certificado de divulgación responsable** sellado con una huella SHA-256 y **firmado con la clave PGP** de la plataforma. Cualquiera puede comprobar que es auténtico, sin cuenta, desde la página pública de verificación, e incluso descargar la firma y la clave pública para verificarlo por su cuenta con cualquier programa PGP.
+Cuando un informe se cierra como resuelto, el investigador recibe un **certificado de divulgación responsable** sellado con una huella SHA-256 y **firmado con la clave PGP** de la plataforma. Cualquiera puede comprobar que es auténtico, sin cuenta, desde la página pública de verificación: basta con **escanear el código QR** impreso en el certificado. También se pueden descargar la firma y la clave pública para verificarlo por su cuenta con cualquier programa PGP.
 
 ## 5. La prueba de concepto (PoC)
 

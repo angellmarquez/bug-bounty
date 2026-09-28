@@ -96,6 +96,7 @@ class CertificadoController extends Controller
             ],
             'reporteId' => $reporte->id,
             'urlVerificacion' => route('certificados.verificar', ['codigo' => $certificado->codigo]),
+            'qrVerificacion' => $service->qrVerificacion($certificado),
         ]);
     }
 

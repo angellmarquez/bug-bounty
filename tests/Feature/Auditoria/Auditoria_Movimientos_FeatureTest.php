@@ -48,6 +48,9 @@ test('las acciones de la empresa sobre su programa quedan auditadas', function (
         'nombre' => 'API de Pagos',
         'descripcion' => 'Descripcion',
         'objetivos' => [['tipo' => 'api', 'valor' => 'https://api.test']],
+        // Publicar exige fechas con al menos 3 días abiertos.
+        'inicia_en' => today()->toDateString(),
+        'termina_en' => today()->addMonth()->toDateString(),
     ])->assertRedirect();
 
     $programa = Programa::where('nombre', 'API de Pagos')->firstOrFail();

@@ -8,8 +8,15 @@ use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Notificaciones\Notificador;
 use App\Services\Pgp\PgpService;
+use BaconQrCode\Renderer\Color\Rgb;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\Fill;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * Servicio encargado de emitir y verificar criptográficamente los
@@ -116,7 +123,19 @@ class CertificadoService
         );
 
         $hashValido = hash_equals($huellaEsperada, $certificado->huella);
-        $firmaValida = $this->pgp->verify($certificado->huella, $certificado->firma_pgp);
+
+        // Primero con la clave pública que figura en el certificado (guardada en la base): así uno
+        // firmado con una clave ya reemplazada sigue verificándose. Los emitidos antes de fijar la
+        // clave firmante pudieron firmarse con otra clave del llavero de la plataforma: se aceptan
+        // si esa firma la reconoce el propio llavero (solo contiene claves de la plataforma).
+        try {
+            $clavePublica = $this->clavePublicaDe($certificado)?->clave_publica;
+            $firmaValida = ($clavePublica !== null && $this->pgp->verify($certificado->huella, $certificado->firma_pgp, $clavePublica))
+                || $this->pgp->verify($certificado->huella, $certificado->firma_pgp);
+        } catch (Throwable $e) {
+            report($e);
+            $firmaValida = false;
+        }
         $vigente = $certificado->reporte?->admiteCertificado() ?? false;
 
         return [
@@ -128,6 +147,24 @@ class CertificadoService
             'huella_calculada' => $huellaEsperada,
             'clave_huella' => $certificado->clave_huella,
         ];
+    }
+
+    /**
+     * Código QR (SVG) que lleva a la página pública de verificación del certificado: quien lo
+     * tenga impreso lo comprueba con la cámara del móvil. Negro sobre blanco para que se lea
+     * también en papel.
+     */
+    public function qrVerificacion(CertificadoDivulgacion $certificado): string
+    {
+        $url = route('certificados.verificar', ['codigo' => $certificado->codigo]);
+
+        $svg = (new Writer(new ImageRenderer(
+            new RendererStyle(160, 1, null, null, Fill::uniformColor(new Rgb(255, 255, 255), new Rgb(0, 0, 0))),
+            new SvgImageBackEnd,
+        )))->writeString($url);
+
+        // Sin la declaración XML: el SVG se incrusta tal cual en la página.
+        return trim(substr($svg, strpos($svg, "\n") + 1));
     }
 
     /**
