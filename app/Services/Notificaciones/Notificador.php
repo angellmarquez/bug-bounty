@@ -40,6 +40,11 @@ class Notificador
 
     public function desdeEventoDeInforme(EventoReporte $evento): void
     {
+        // Los eventos que no avisan a nadie no cargan el informe, el programa ni los destinatarios.
+        if (! $evento->tipo->generaAviso()) {
+            return;
+        }
+
         $this->seguro(function () use ($evento): void {
             $reporte = $evento->reporte()->with(['programa.empresa', 'investigador'])->first();
             if ($reporte === null) {

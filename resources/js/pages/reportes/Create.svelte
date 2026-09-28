@@ -54,6 +54,7 @@
     import { schemaEfectivo, schemaVacio, validarPoc } from '@/lib/poc-schema';
     import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
     import { errorDeFotos } from '@/lib/fotos';
+    import { erroresDelServidor, primerPasoConError } from '@/lib/wizard-reporte';
 
     let {
         programas = [],
@@ -152,6 +153,15 @@
             return false;
         }
     }
+
+    // Si el servidor rechaza un campo de un paso anterior, se vuelve a ese paso para corregirlo.
+    function alFallar(errores: Record<string, string>) {
+        const paso = primerPasoConError(errores, 4);
+
+        if (paso !== null) {
+            pasoActual = paso;
+        }
+    }
 </script>
 
 <AppHead title="Crear reporte" />
@@ -186,10 +196,21 @@
         class="space-y-6"
         transform={(data) => ({ ...data, ...construirPayload() })}
         onBefore={alEnviar}
+        onError={alFallar}
     >
         {#snippet children({ errors: formErrors, processing: formProcessing })}
             {#if formErrors.pgp}
                 <AlertError errors={[formErrors.pgp]} title="No se pudo guardar el reporte" />
+            {/if}
+            {#if erroresDelServidor(formErrors).length > 0}
+                <div data-test="errores-servidor">
+                    <AlertError errors={erroresDelServidor(formErrors)} title="Revisa estos datos antes de enviar el reporte" />
+                </div>
+            {/if}
+            {#if formProcessing}
+                <p class="flex items-center gap-2 text-sm text-muted-foreground" role="status" data-test="guardando-reporte">
+                    <Spinner /> Cifrando y guardando el reporte… puede tardar unos segundos.
+                </p>
             {/if}
             {#if formErrors.limite}
                 <div data-test="aviso-limite" class="rounded-md border border-aviso/40 bg-aviso/10 p-3 text-sm" role="alert">
@@ -243,6 +264,7 @@
                             <Input
                                 id="titulo"
                                 name="titulo"
+                                maxlength={255}
                                 bind:value={formulario.titulo}
                                 placeholder="Ej: XSS en formulario de login"
                                 required
@@ -329,7 +351,7 @@
                             </div>
                             <div>
                                 <p class="text-xs text-muted-foreground">Título</p>
-                                <p class="text-sm">{formulario.titulo || 'Sin título'}</p>
+                                <p class="text-sm wrap-anywhere">{formulario.titulo || 'Sin título'}</p>
                             </div>
                         </div>
 

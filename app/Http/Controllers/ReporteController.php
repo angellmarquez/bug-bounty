@@ -376,7 +376,7 @@ class ReporteController extends Controller
         $validated = $request->validated();
         $user = $request->user();
 
-        $programa = Programa::query()->where('id', (int) $validated['programa_id'])->first();
+        $programa = Programa::query()->with('empresa')->where('id', (int) $validated['programa_id'])->first();
         abort_if($programa === null, 404, 'Programa no encontrado.');
 
         Gate::authorize('abac', [AccionesAbac::ReporteCrear, $programa]);
@@ -398,9 +398,6 @@ class ReporteController extends Controller
         if (! is_array($poc)) {
             $poc = [];
         }
-
-        $programa = Programa::query()->with('empresa')->where('id', (int) $validated['programa_id'])->first();
-        abort_if($programa === null, 404, 'Programa no encontrado.');
 
         try {
             $cifrado = app(PgpService::class)->cifrarReporte($validated['descripcion'], $poc, $programa->empresa);
@@ -1358,10 +1355,7 @@ class ReporteController extends Controller
     /** @return array{empresa_id?: int} */
     private function empresaContexto(): array
     {
-        $user = request()->user();
-        $empresa = $user?->empresas()
-            ->where('empresa_usuario.estado', 'activo')
-            ->first();
+        $empresa = request()->user()?->empresaActiva();
 
         return $empresa === null ? [] : ['empresa_id' => $empresa->id];
     }

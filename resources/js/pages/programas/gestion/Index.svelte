@@ -208,8 +208,9 @@
                     </CardHeader>
                     <CardContent class="flex flex-1 flex-col justify-between space-y-3">
                         <div class="space-y-3">
-                            <p class="line-clamp-2 text-xs text-muted-foreground">
-                                {programa.descripcion}
+                            <!-- La descripción viaja cifrada y el listado no la descifra: se ve al abrir el programa. -->
+                            <p class="text-xs text-muted-foreground" data-test="visibilidad-programa">
+                                {programa.es_publico ? 'Programa público' : 'Programa privado · solo investigadores invitados'}
                             </p>
 
                             <div class="flex items-center gap-2">

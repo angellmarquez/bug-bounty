@@ -11,7 +11,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use RuntimeException;
-use Symfony\Component\Process\Process;
 use Throwable;
 
 /**
@@ -484,9 +483,9 @@ class GpgBinaryDriver implements PgpDriver
     /**
      * Ejecuta un comando simple para comprobar la disponibilidad del binario.
      */
-    private function runShell(string $binary, string $argument): Process
+    private function runShell(string $binary, string $argument): ProcesoGpg
     {
-        $process = new Process([$binary, $argument], null, self::entornoDelSistema());
+        $process = new ProcesoGpg([$binary, $argument], null, self::entornoDelSistema());
         $process->setTimeout(10);
         $process->run();
 
@@ -528,11 +527,11 @@ class GpgBinaryDriver implements PgpDriver
      * gpg en Windows (MSYS) no entienden rutas absolutas "C:\...". Fijar el cwd evita que
      * el llavero cambie de sitio según cómo se sirva la app (`artisan serve`/nginx usan public/).
      *
-     * @param  array<int, string>  $command
+     * @param  list<string>  $command
      */
-    private function gpgProcess(array $command): Process
+    private function gpgProcess(array $command): ProcesoGpg
     {
-        return new Process($command, function_exists('base_path') ? base_path() : null, self::entornoDelSistema());
+        return new ProcesoGpg($command, function_exists('base_path') ? base_path() : null, self::entornoDelSistema());
     }
 
     /**
@@ -775,7 +774,7 @@ class GpgBinaryDriver implements PgpDriver
         $gpgconf = (string) preg_replace('/gpg(\.exe)?$/i', 'gpgconf$1', $this->binary);
 
         try {
-            $p = new Process([$gpgconf, '--homedir', $homedir, '--kill', 'gpg-agent'], null, self::entornoDelSistema());
+            $p = new ProcesoGpg([$gpgconf, '--homedir', $homedir, '--kill', 'gpg-agent'], null, self::entornoDelSistema());
             $p->setTimeout(5);
             $p->run();
         } catch (Throwable) {

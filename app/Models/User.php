@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\CachePorPeticion;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -103,7 +104,10 @@ class User extends Authenticatable implements PasskeyUser
      */
     public function empresaActiva(): ?Empresa
     {
-        return $this->empresas()->wherePivot('estado', 'activo')->first();
+        return CachePorPeticion::recordar(
+            'usuario.empresa_activa:'.$this->id,
+            fn (): ?Empresa => $this->empresas()->wherePivot('estado', 'activo')->first(),
+        );
     }
 
     public function idEmpresaActiva(): ?int
@@ -197,7 +201,12 @@ class User extends Authenticatable implements PasskeyUser
      */
     public function tieneRol(string $slug): bool
     {
-        return $this->roles()->where('slug', $slug)->exists();
+        $slugs = CachePorPeticion::recordar(
+            'usuario.roles:'.$this->id,
+            fn (): array => $this->roles()->pluck('slug')->all(),
+        );
+
+        return in_array($slug, $slugs, true);
     }
 
     /**
@@ -305,11 +314,12 @@ class User extends Authenticatable implements PasskeyUser
      *
      * @return array{es_verificado: bool, reportes_validados: int, meta: int, porcentaje: int, faltantes: int, sancion_reciente: bool}
      */
-    public function progresoVerificacion(): array
+    public function progresoVerificacion(?bool $suspendido = null): array
     {
         $validados = $this->cantidadReportesValidados();
         $meta = self::INFORMES_PARA_VERIFICARSE;
-        $sancionado = $this->suspensionActiva() !== null || $this->tieneSancionReciente();
+        // Quien ya consultó la suspensión la pasa para no repetir la consulta.
+        $sancionado = ($suspendido ?? $this->suspensionActiva() !== null) || $this->tieneSancionReciente();
 
         return [
             'es_verificado' => $validados >= $meta && ! $sancionado,

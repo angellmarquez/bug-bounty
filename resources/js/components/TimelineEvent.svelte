@@ -93,7 +93,7 @@
         {/if}
         <p class="text-xs text-muted-foreground">{formatDate(evento.created_at)}</p>
         {#if evento.descripcion}
-            <p class="mt-1 text-sm text-muted-foreground">{evento.descripcion}</p>
+            <p class="mt-1 text-sm text-muted-foreground wrap-anywhere">{evento.descripcion}</p>
         {/if}
     </div>
 </div>

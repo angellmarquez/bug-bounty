@@ -19,6 +19,7 @@
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import InputError from '@/components/InputError.svelte';
+    import ContadorCaracteres from '@/components/ContadorCaracteres.svelte';
     import PocSchemaEditor from '@/components/PocSchemaEditor.svelte';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent } from '@/components/ui/card';
@@ -59,6 +60,9 @@
     const niveles = $derived((page.props.reputacionConfig as ReputacionConfig).niveles);
 
     let esPublico = $state(true);
+    // Textos largos: mismo límite que valida el servidor, con contador a la vista.
+    let descripcion = $state('');
+    let bugsBuscados = $state('');
     let soloVerificados = $state(false);
     let tieneRecompensas = $state(false);
     let recompensaMin = $state('50');
@@ -119,11 +123,14 @@
                         <textarea
                             id="descripcion"
                             name="descripcion"
+                            bind:value={descripcion}
+                            maxlength={5000}
                             placeholder="Describe el programa, alcance y reglas de participacion..."
                             rows="4"
                             required
                             class="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         ></textarea>
+                        <ContadorCaracteres actual={descripcion.length} maximo={5000} test="contador-descripcion" />
                         <InputError message={errors.descripcion} />
                     </div>
 
@@ -132,10 +139,13 @@
                         <textarea
                             id="bugs_buscados"
                             name="bugs_buscados"
+                            bind:value={bugsBuscados}
+                            maxlength={3000}
                             placeholder="Ej: inyección SQL, XSS, fallos de autenticación, exposición de datos personales..."
                             rows="3"
                             class="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         ></textarea>
+                        <ContadorCaracteres actual={bugsBuscados.length} maximo={3000} test="contador-bugs" />
                         <p class="text-xs text-muted-foreground">
                             Los investigadores lo verán antes de enviarte un reporte.
                         </p>

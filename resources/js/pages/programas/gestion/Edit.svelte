@@ -19,6 +19,7 @@
     import BotonVolver from '@/components/BotonVolver.svelte';
     import PageHeader from '@/components/PageHeader.svelte';
     import InputError from '@/components/InputError.svelte';
+    import ContadorCaracteres from '@/components/ContadorCaracteres.svelte';
     import PocSchemaEditor from '@/components/PocSchemaEditor.svelte';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent } from '@/components/ui/card';
@@ -69,6 +70,12 @@
     const minimo = (guardada: string | null | undefined): string => (guardada && guardada.slice(0, 10) < hoy ? guardada.slice(0, 10) : hoy);
 
     const esProfesional = $derived(empresaPlan?.es_profesional ?? false);
+
+    // Textos largos: mismo límite que valida el servidor, con contador a la vista.
+    // svelte-ignore state_referenced_locally
+    let descripcion = $state(programa.descripcion ?? '');
+    // svelte-ignore state_referenced_locally
+    let bugsBuscados = $state(programa.bugs_buscados ?? '');
 
     let tieneRecompensas = $state(Boolean(programa.tiene_recompensas));
     let recompensaMin = $state(programa.recompensa_min?.toString() ?? '50');
@@ -136,10 +143,13 @@
                         <textarea
                             id="descripcion"
                             name="descripcion"
+                            bind:value={descripcion}
+                            maxlength={5000}
                             rows="4"
                             required
                             class="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >{programa.descripcion}</textarea>
+                        ></textarea>
+                        <ContadorCaracteres actual={descripcion.length} maximo={5000} test="contador-descripcion" />
                         <InputError message={errors.descripcion} />
                     </div>
 
@@ -148,10 +158,13 @@
                         <textarea
                             id="bugs_buscados"
                             name="bugs_buscados"
+                            bind:value={bugsBuscados}
+                            maxlength={3000}
                             placeholder="Ej: inyeccion SQL, XSS, fallos de autenticacion, exposicion de datos personales..."
                             rows="3"
                             class="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >{programa.bugs_buscados ?? ''}</textarea>
+                        ></textarea>
+                        <ContadorCaracteres actual={bugsBuscados.length} maximo={3000} test="contador-bugs" />
                         <p class="text-xs text-muted-foreground">
                             Los investigadores lo veran antes de enviarte un reporte.
                         </p>

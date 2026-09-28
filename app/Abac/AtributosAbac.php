@@ -6,6 +6,7 @@ use App\Models\Programa;
 use App\Models\Reporte;
 use App\Models\User;
 use App\Services\Reputacion\Rangos;
+use App\Support\CachePorPeticion;
 use BackedEnum;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,10 @@ class AtributosAbac
     /**
      * Atributos del sujeto (usuario autenticado o invitado).
      *
+     * Un mismo request evalúa el ABAC varias veces (FormRequest, controlador, un permiso por
+     * botón) y cada cálculo cuesta ~5 consultas: se resuelve una vez por petición (ver
+     * CachePorPeticion), con las columnas del usuario en la clave por si cambian en memoria.
+     *
      * @return array{autenticado: bool, id: int|null, roles: array<int, string>, reputation_score: int, niveles_acceso: array<int, string>, programas_moderados: array<int, int>, suspendido: bool, empresa_id: int|null, rol_empresa: string|null}
      */
     public function sujeto(?User $usuario): array
@@ -33,6 +38,17 @@ class AtributosAbac
             return ['autenticado' => false, 'id' => null, 'roles' => [], 'reputation_score' => 0, 'niveles_acceso' => [], 'programas_moderados' => [], 'suspendido' => false, 'empresa_id' => null, 'rol_empresa' => null];
         }
 
+        return CachePorPeticion::recordar(
+            'abac.sujeto:'.$usuario->id.':'.md5((string) json_encode($usuario->getAttributes())),
+            fn (): array => $this->resolverSujeto($usuario),
+        );
+    }
+
+    /**
+     * @return array{autenticado: bool, id: int|null, roles: array<int, string>, reputation_score: int, niveles_acceso: array<int, string>, programas_moderados: array<int, int>, suspendido: bool, empresa_id: int|null, rol_empresa: string|null}
+     */
+    private function resolverSujeto(User $usuario): array
+    {
         $roles = [];
 
         foreach ($usuario->roles as $rol) {
@@ -41,6 +57,7 @@ class AtributosAbac
 
         $puntos = (int) ($usuario->reputation_score ?? 0);
         $empresa = $usuario->empresaActiva();
+        $suspendido = $usuario->suspensionActiva() !== null;
 
         return [
             'autenticado' => true,
@@ -53,8 +70,12 @@ class AtributosAbac
             'niveles_acceso' => app(Rangos::class)->nivelesAccesibles($puntos),
             // Un moderador solo actúa sobre los programas que se le asignaron.
             'programas_moderados' => in_array('moderador', $roles, true) ? $usuario->idsProgramasModerados() : [],
-            'suspendido' => $usuario->suspensionActiva() !== null,
-            'es_verificado' => $usuario->esVerificado(),
+            'suspendido' => $suspendido,
+            // Mismo criterio que User::esVerificado(), sin repetir la consulta de suspensión y sin
+            // mirar sanciones cuando aún no llega a la meta de informes.
+            'es_verificado' => ! $suspendido
+                && $usuario->cantidadReportesValidados() >= User::INFORMES_PARA_VERIFICARSE
+                && ! $usuario->tieneSancionReciente(),
             // La empresa a la que pertenece (una sola) y su papel en ella: propietario (los investigadores no pertenecen a empresas).
             'empresa_id' => $empresa?->id,
             'rol_empresa' => $empresa?->pivot->rol_interno,
@@ -147,17 +168,29 @@ class AtributosAbac
             $atributos[$clave] = $this->normalizarValor($valor, $casts[$clave] ?? null);
         }
 
-        if ($modelo instanceof Programa) {
-            $atributos['invited_hacker_ids'] = $modelo->invited_hacker_ids;
-            $atributos['fuera_de_fechas'] = $modelo->fuera_de_fechas;
+        return [...$atributos, ...$this->calculados($modelo)];
+    }
+
+    /**
+     * Atributos que no son columnas y cuestan consultas. Una página evalúa varias acciones sobre
+     * el mismo informe o programa, así que se calculan una vez por petición.
+     *
+     * @return array<string, mixed>
+     */
+    private function calculados(Model $modelo): array
+    {
+        if (! $modelo instanceof Programa && ! $modelo instanceof Reporte) {
+            return [];
         }
 
-        // Cola por orden de llegada: el moderador solo abre el siguiente informe sin revisor.
-        if ($modelo instanceof Reporte) {
-            $atributos['siguiente_en_cola'] = $modelo->esSiguienteEnCola();
-        }
-
-        return $atributos;
+        // Con sus columnas en la clave: si el modelo cambia en memoria, se recalcula.
+        return CachePorPeticion::recordar(
+            'abac.objeto:'.$modelo::class.':'.$modelo->getKey().':'.md5((string) json_encode($modelo->getAttributes())),
+            fn (): array => $modelo instanceof Programa
+                ? ['invited_hacker_ids' => $modelo->invited_hacker_ids, 'fuera_de_fechas' => $modelo->fuera_de_fechas]
+                // Cola por orden de llegada: el moderador solo abre el siguiente informe sin revisor.
+                : ['siguiente_en_cola' => $modelo->esSiguienteEnCola()],
+        );
     }
 
     /**

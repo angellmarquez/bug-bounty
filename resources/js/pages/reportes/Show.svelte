@@ -496,7 +496,7 @@
                             <p class="text-xs font-medium text-muted-foreground">Objetivos</p>
                             {#if reporte.programa.objetivos && reporte.programa.objetivos.length > 0}
                                 {#each reporte.programa.objetivos as objetivo (objetivo.id)}
-                                    <p class="text-sm">
+                                    <p class="text-sm wrap-anywhere">
                                         <span class="text-xs uppercase text-muted-foreground">{objetivo.tipo}</span>
                                         {objetivo.valor}
                                         {#if objetivo.descripcion}<span class="text-xs text-muted-foreground"> · {objetivo.descripcion}</span>{/if}
