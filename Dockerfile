@@ -41,10 +41,23 @@ RUN rm -f .env \
 
 FROM php:8.4-cli-bookworm AS runtime
 
+# gd (JPEG, PNG y WebP) y exif: las fotos de evidencia se re-codifican para quitarles
+# EXIF/GPS antes de cifrarlas (ver docs/render.md). Sin ellas, subir una foto falla.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev libzip-dev libonig-dev libxml2-dev gnupg2 ca-certificates \
-    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring xml bcmath zip \
+        libjpeg62-turbo-dev libpng-dev libwebp-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring xml bcmath zip gd exif \
     && rm -rf /var/lib/apt/lists/*
+
+# Límites de subida por encima de ADJUNTOS_MAX_KB (5 MB por foto, hasta 10 por envío) y
+# memoria para que GD descomprima fotos de hasta ADJUNTOS_MAX_PIXELES.
+RUN { \
+        echo 'upload_max_filesize=6M'; \
+        echo 'post_max_size=55M'; \
+        echo 'max_file_uploads=20'; \
+        echo 'memory_limit=256M'; \
+    } > /usr/local/etc/php/conf.d/bug-bounty.ini
 
 WORKDIR /app
 COPY --from=builder /app /app
