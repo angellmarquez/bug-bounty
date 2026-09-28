@@ -13,6 +13,14 @@ import type {
 
 import type { NivelAcceso } from '@/lib/rangos';
 
+/** Requisitos de contraseña tal como los valida el servidor (varían entre local y producción). */
+export type RequisitosContrasena = {
+    minimo: number;
+    maximo: number | null;
+    texto: string;
+    reglas: string;
+};
+
 export type Rol = {
     id: number;
     nombre: string;

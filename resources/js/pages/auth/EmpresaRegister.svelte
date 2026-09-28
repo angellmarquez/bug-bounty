@@ -19,8 +19,9 @@
     import { Label } from '@/components/ui/label';
     import { Spinner } from '@/components/ui/spinner';
     import { AYUDA_NOMBRE, PATRON_NOMBRE } from '@/lib/validacion';
+    import type { RequisitosContrasena } from '@/types/domain';
 
-    let { passwordRules }: { passwordRules: string } = $props();
+    let { contrasena }: { contrasena: RequisitosContrasena } = $props();
 </script>
 
 <AppHead title="Registrar empresa" />
@@ -72,13 +73,24 @@
 
             <div class="grid gap-2">
                 <Label for="password">Contraseña</Label>
-                <PasswordInput id="password" name="password" required autocomplete="new-password" passwordrules={passwordRules} />
+                <PasswordInput
+                    id="password"
+                    name="password"
+                    required
+                    autocomplete="new-password"
+                    placeholder="Mínimo {contrasena.minimo} caracteres"
+                    minlength={contrasena.minimo}
+                    maxlength={contrasena.maximo ?? undefined}
+                    passwordrules={contrasena.reglas}
+                    aria-describedby="password-requisitos"
+                />
+                <p id="password-requisitos" class="text-xs text-muted-foreground">{contrasena.texto}</p>
                 <InputError message={errors.password} />
             </div>
 
             <div class="grid gap-2">
                 <Label for="password_confirmation">Confirmar contraseña</Label>
-                <PasswordInput id="password_confirmation" name="password_confirmation" required autocomplete="new-password" passwordrules={passwordRules} />
+                <PasswordInput id="password_confirmation" name="password_confirmation" required autocomplete="new-password" placeholder="Repite la contraseña" passwordrules={contrasena.reglas} />
                 <InputError message={errors.password_confirmation} />
             </div>
 

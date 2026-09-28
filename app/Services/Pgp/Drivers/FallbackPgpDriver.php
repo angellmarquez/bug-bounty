@@ -259,7 +259,7 @@ class FallbackPgpDriver implements PgpDriver
     /**
      * {@inheritDoc}
      */
-    public function sign(string $message, ?string $privateKey = null): string
+    public function sign(string $message, ?string $privateKey = null, ?string $firmante = null): string
     {
         $this->assertAvailable();
 

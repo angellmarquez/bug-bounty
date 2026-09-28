@@ -2,6 +2,7 @@
 
 use App\Models\Rol;
 use App\Models\User;
+use App\Support\RequisitosContrasena;
 use Laravel\Fortify\Features;
 
 beforeEach(function () {
@@ -12,6 +13,26 @@ test('registration screen can be rendered', function () {
     $response = $this->get(route('register'));
 
     $response->assertOk();
+});
+
+test('el formulario muestra los mismos requisitos de contrasena que valida el servidor', function () {
+    $this->get(route('register'))
+        ->assertInertia(fn ($page) => $page
+            ->where('contrasena.minimo', 8)
+            ->where('contrasena.texto', fn (string $texto) => str_starts_with($texto, 'Mínimo 8 caracteres')));
+
+    $this->get(route('empresa.register'))
+        ->assertInertia(fn ($page) => $page->where('contrasena.minimo', 8));
+});
+
+test('en produccion el formulario anuncia 12 caracteres y la comprobacion de filtraciones', function () {
+    $this->app['env'] = 'production';
+
+    $requisitos = RequisitosContrasena::paraFormulario();
+
+    expect($requisitos['minimo'])->toBe(12)
+        ->and($requisitos['texto'])->toStartWith('Mínimo 12 caracteres, con mayúsculas y minúsculas, números y símbolos.')
+        ->and($requisitos['texto'])->toContain('filtraciones');
 });
 
 test('new users can register', function () {

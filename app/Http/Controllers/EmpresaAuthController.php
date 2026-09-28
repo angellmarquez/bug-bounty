@@ -8,6 +8,7 @@ use App\Models\Empresa;
 use App\Models\Rol;
 use App\Models\User;
 use App\Services\Notificaciones\Notificador;
+use App\Support\RequisitosContrasena;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,7 +31,7 @@ class EmpresaAuthController extends Controller
     public function create(): InertiaResponse
     {
         return Inertia::render('auth/EmpresaRegister', [
-            'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'contrasena' => RequisitosContrasena::paraFormulario(),
         ]);
     }
 

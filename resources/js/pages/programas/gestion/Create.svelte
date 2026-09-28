@@ -36,6 +36,7 @@
     import type { ReputacionConfig } from '@/lib/rangos';
     import { store as programaStore } from '@/routes/programas';
     import { TIPOS_OBJETIVO } from '@/lib/tipo-objetivo';
+    import { DURACION_MINIMA_DIAS, finMinimo } from '@/lib/fechas-programa';
     import Coins from '@lucide/svelte/icons/coins';
     import Sparkles from '@lucide/svelte/icons/sparkles';
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
@@ -52,6 +53,7 @@
 
     // Hoy en formato yyyy-mm-dd, el de los campos de fecha: no se eligen fechas pasadas.
     const hoy = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    let iniciaEn = $state('');
 
     const esEmpresa = $derived(((page.props.userRoles as string[] | undefined) ?? []).includes('empresa'));
     const esProfesional = $derived(empresaPlan?.es_profesional ?? false);
@@ -160,6 +162,7 @@
                                 name="inicia_en"
                                 type="date"
                                 min={hoy}
+                                bind:value={iniciaEn}
                             />
                             <InputError message={errors.inicia_en} />
                         </div>
@@ -170,11 +173,15 @@
                                 id="termina_en"
                                 name="termina_en"
                                 type="date"
-                                min={hoy}
+                                min={finMinimo(iniciaEn, hoy)}
                             />
                             <InputError message={errors.termina_en} />
                         </div>
                     </div>
+                    <p class="-mt-2 text-xs text-muted-foreground">
+                        Puedes guardarlo como borrador sin fechas, pero para publicarlo necesita inicio y fin, y
+                        estar abierto al menos {DURACION_MINIMA_DIAS} días.
+                    </p>
 
                     <div class="space-y-3">
                         <div class="flex items-center justify-between">

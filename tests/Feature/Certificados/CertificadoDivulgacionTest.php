@@ -5,6 +5,7 @@ use App\Models\ClavePgpPlataforma;
 use App\Models\Empresa;
 use App\Models\Programa;
 use App\Services\Certificados\CertificadoService;
+use App\Services\Pgp\Exceptions\PgpException;
 use App\Services\Pgp\PgpService;
 
 test('un reporte cerrado genera un certificado sellado con SHA-256 y firma PGP', function () {
@@ -191,6 +192,33 @@ test('la ruta publica de verificacion no requiere login y valida el certificado'
     $this->get(route('certificados.verificar', ['codigo' => 'BB-CERT-INEXISTENTE']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('VerificarCertificado')->where('existe', false));
+});
+
+test('el certificado incluye un QR que lleva a su pagina publica de verificacion', function () {
+    $investigador = investigador();
+    $reporte = reporteDe($investigador, Programa::factory()->create(), ['estado' => 'cerrado', 'cerrado_en' => now()]);
+
+    $this->actingAs($investigador)->get(route('certificados.show', $reporte))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('reportes/Certificado')
+            ->where('qrVerificacion', fn (string $svg) => str_starts_with($svg, '<svg') && ! str_contains($svg, '<?xml')));
+});
+
+test('si la firma no se puede comprobar la pagina de verificacion lo muestra en vez de fallar', function () {
+    $investigador = investigador();
+    $reporte = reporteDe($investigador, Programa::factory()->create(), ['estado' => 'cerrado', 'cerrado_en' => now()]);
+    $certificado = app(CertificadoService::class)->obtenerOCrear($reporte, $investigador);
+
+    // Como GnuPG ante una firma de una clave que su llavero no conoce.
+    $this->partialMock(PgpService::class, fn ($mock) => $mock->shouldReceive('verify')->andThrow(new PgpException('No hay clave pública')));
+
+    $this->get(route('certificados.verificar', ['codigo' => $certificado->codigo]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('existe', true)
+            ->where('verificacion.firma_valida', false)
+            ->where('verificacion.valido', false));
 });
 
 test('si el informe se retira, el certificado sigue siendo autentico pero deja de estar vigente', function () {

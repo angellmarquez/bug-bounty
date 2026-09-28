@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
 use App\Enums\NivelAcceso;
+use App\Models\Programa;
 use App\Rules\FechaNoPasada;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -72,6 +73,11 @@ class StoreProgramaRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            if (! $validator->errors()->has('termina_en')
+                && ($error = Programa::errorDeDuracion($this->input('inicia_en'), $this->input('termina_en'))) !== null) {
+                $validator->errors()->add('termina_en', $error);
+            }
+
             $empresa = $this->user()?->empresas()->wherePivot('estado', 'activo')->first();
             if ($empresa !== null && ! $empresa->puedeAccederElite()) {
                 if ($this->boolean('es_publico') === false) {

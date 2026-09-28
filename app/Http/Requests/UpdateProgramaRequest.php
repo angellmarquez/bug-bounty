@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
+use App\Enums\EstadoPrograma;
 use App\Enums\NivelAcceso;
 use App\Models\Programa;
 use App\Rules\FechaNoPasada;
@@ -101,6 +102,8 @@ class UpdateProgramaRequest extends FormRequest
      */
     public function withValidator(Validator $validator): void
     {
+        $validator->after(fn (Validator $validator) => $this->validarFechas($validator));
+
         $validator->after(function (Validator $validator) {
             $empresa = $this->user()?->empresas()->wherePivot('estado', 'activo')->first();
             $programa = $this->route('programa');
@@ -120,6 +123,38 @@ class UpdateProgramaRequest extends FormRequest
                 $validator->errors()->add('nivel_acceso', 'Restringir programas a investigadores de élite (Plata u Oro) requiere el Plan Profesional.');
             }
         });
+    }
+
+    /**
+     * Un programa publicado no puede quedarse sin fechas, y un periodo que se cambia debe durar
+     * el mínimo de días. Si las fechas no cambian no se vuelven a medir: un programa ya en
+     * curso se sigue pudiendo editar aunque le queden menos días.
+     */
+    private function validarFechas(Validator $validator): void
+    {
+        $programa = $this->programaActual();
+
+        if ($programa === null || $validator->errors()->hasAny(['inicia_en', 'termina_en'])) {
+            return;
+        }
+
+        $inicioActual = $programa->inicia_en?->toDateString();
+        $finActual = $programa->termina_en?->toDateString();
+        $inicio = $this->has('inicia_en') ? ($this->input('inicia_en') ?: null) : $inicioActual;
+        $fin = $this->has('termina_en') ? ($this->input('termina_en') ?: null) : $finActual;
+
+        if ($programa->estado === EstadoPrograma::Activo) {
+            foreach (['inicia_en' => $inicio, 'termina_en' => $fin] as $campo => $valor) {
+                if ($valor === null) {
+                    $validator->errors()->add($campo, 'Un programa publicado necesita fecha de inicio y de fin.');
+                }
+            }
+        }
+
+        if (($inicio !== $inicioActual || $fin !== $finActual)
+            && ($error = Programa::errorDeDuracion($inicio, $fin)) !== null) {
+            $validator->errors()->add('termina_en', $error);
+        }
     }
 
     public function messages(): array

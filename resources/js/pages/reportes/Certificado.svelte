@@ -27,6 +27,7 @@
         certificado,
         reporteId,
         urlVerificacion,
+        qrVerificacion,
     }: {
         certificado: {
             id: number;
@@ -52,6 +53,8 @@
         };
         reporteId: number;
         urlVerificacion: string;
+        /** SVG generado en el servidor con la URL de verificación. */
+        qrVerificacion: string;
     } = $props();
 
     let copiado = $state(false);
@@ -259,9 +262,23 @@
                     </div>
                 {/if}
 
-                <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
-                    <span class="text-muted-foreground">Verificación pública</span>
-                    <span class="font-mono font-medium break-all">{urlVerificacion}</span>
+                <div class="flex flex-col items-center gap-4 pt-1 sm:flex-row sm:items-center">
+                    <!-- Blanco fijo (no un token del tema): un QR solo se lee con buen contraste, también impreso. -->
+                    <div
+                        class="size-32 shrink-0 rounded-md bg-white p-1.5 print:size-28 [&>svg]:size-full"
+                        role="img"
+                        aria-label="Código QR para verificar este certificado"
+                        data-test="qr-verificacion"
+                    >
+                        {@html qrVerificacion}
+                    </div>
+                    <div class="min-w-0 space-y-1 text-center text-xs sm:text-left">
+                        <span class="block font-semibold text-foreground">Escanea para verificar</span>
+                        <span class="block text-muted-foreground">
+                            Abre la página pública que comprueba la firma y la integridad de este certificado.
+                        </span>
+                        <span class="block font-mono font-medium break-all">{urlVerificacion}</span>
+                    </div>
                 </div>
 
                 <div class="pt-1 print:hidden">

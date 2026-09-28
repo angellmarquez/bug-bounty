@@ -21,8 +21,9 @@
     import { login } from '@/routes';
     import { store } from '@/routes/register';
     import { AYUDA_NOMBRE, PATRON_NOMBRE } from '@/lib/validacion';
+    import type { RequisitosContrasena } from '@/types/domain';
 
-    let { passwordRules }: { passwordRules: string } = $props();
+    let { contrasena }: { contrasena: RequisitosContrasena } = $props();
 </script>
 
 <AppHead title="Crear cuenta de investigador" />
@@ -55,13 +56,24 @@
 
             <div class="grid gap-2">
                 <Label for="password">Contraseña</Label>
-                <PasswordInput id="password" required autocomplete="new-password" name="password" placeholder="Mínimo 8 caracteres" passwordrules={passwordRules} />
+                <PasswordInput
+                    id="password"
+                    required
+                    autocomplete="new-password"
+                    name="password"
+                    placeholder="Mínimo {contrasena.minimo} caracteres"
+                    minlength={contrasena.minimo}
+                    maxlength={contrasena.maximo ?? undefined}
+                    passwordrules={contrasena.reglas}
+                    aria-describedby="password-requisitos"
+                />
+                <p id="password-requisitos" class="text-xs text-muted-foreground">{contrasena.texto}</p>
                 <InputError message={errors.password} />
             </div>
 
             <div class="grid gap-2">
                 <Label for="password_confirmation">Confirmar contraseña</Label>
-                <PasswordInput id="password_confirmation" required autocomplete="new-password" name="password_confirmation" placeholder="Repite la contraseña" passwordrules={passwordRules} />
+                <PasswordInput id="password_confirmation" required autocomplete="new-password" name="password_confirmation" placeholder="Repite la contraseña" passwordrules={contrasena.reglas} />
                 <InputError message={errors.password_confirmation} />
             </div>
 

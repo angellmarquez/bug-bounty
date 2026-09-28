@@ -81,6 +81,65 @@ test('no se publica un programa cuya fecha de fin ya paso', function () {
     expect($programa->fresh()->estado->value)->toBe('borrador');
 });
 
+test('para publicar un programa hacen falta fechas y al menos 3 dias abierto', function (array $fechas, bool $puede) {
+    $duena = propietarioDeEmpresa();
+    $programa = conObjetivo(programaDeEmpresa($duena, ['estado' => 'borrador', 'inicia_en' => null, 'termina_en' => null, ...$fechas]));
+
+    $respuesta = $this->actingAs($duena)->post(route('programas.cambiar-estado', $programa), ['estado' => 'activo']);
+
+    $puede ? $respuesta->assertSessionHasNoErrors() : $respuesta->assertSessionHasErrors('estado');
+    expect($programa->fresh()->estado->value)->toBe($puede ? 'activo' : 'borrador');
+})->with([
+    'sin fechas' => [fn () => [], false],
+    'sin fecha de fin' => [fn () => ['inicia_en' => today()], false],
+    'sin fecha de inicio' => [fn () => ['termina_en' => today()->addMonth()], false],
+    'abierto solo 2 dias' => [fn () => ['inicia_en' => today(), 'termina_en' => today()->addDays(2)], false],
+    'ya empezo y le quedan 2 dias' => [fn () => ['inicia_en' => today()->subWeek(), 'termina_en' => today()->addDays(2)], false],
+    'abierto 3 dias' => [fn () => ['inicia_en' => today(), 'termina_en' => today()->addDays(3)], true],
+]);
+
+test('al crear, la fecha de fin debe quedar al menos 3 dias despues del inicio', function () {
+    $this->actingAs(propietarioDeEmpresa())
+        ->post(route('programas.store'), datosPrograma([
+            'inicia_en' => today()->addDay()->toDateString(),
+            'termina_en' => today()->addDays(3)->toDateString(),
+        ]))
+        ->assertSessionHasErrors('termina_en');
+});
+
+test('un programa publicado no puede quedarse sin fechas ni acortarse a menos de 3 dias', function () {
+    $duena = propietarioDeEmpresa();
+    $programa = conObjetivo(programaDeEmpresa($duena, [
+        'estado' => 'activo',
+        'inicia_en' => today()->subDays(10),
+        'termina_en' => today()->addMonth(),
+    ]));
+    $this->actingAs($duena);
+
+    $this->put(route('programas.update', $programa), ['termina_en' => ''])
+        ->assertSessionHasErrors('termina_en');
+
+    $this->put(route('programas.update', $programa), [
+        'inicia_en' => today()->toDateString(),
+        'termina_en' => today()->addDay()->toDateString(),
+    ])->assertSessionHasErrors('termina_en');
+});
+
+test('un programa en curso con pocos dias restantes se sigue pudiendo editar sin tocar sus fechas', function () {
+    $duena = propietarioDeEmpresa();
+    $programa = conObjetivo(programaDeEmpresa($duena, [
+        'estado' => 'activo',
+        'inicia_en' => today()->subMonth(),
+        'termina_en' => today()->addDay(),
+    ]));
+
+    $this->actingAs($duena)->put(route('programas.update', $programa), [
+        'nombre' => 'Nombre corregido',
+        'inicia_en' => $programa->inicia_en->toDateString(),
+        'termina_en' => $programa->termina_en->toDateString(),
+    ])->assertSessionHasNoErrors();
+});
+
 // ---------------------------------------------------------------------
 // Informes fuera del periodo
 // ---------------------------------------------------------------------
@@ -193,7 +252,7 @@ test('el "hoy" de un usuario en America no se rechaza aunque en UTC ya sea manan
     $this->actingAs(propietarioDeEmpresa())
         ->post(route('programas.store'), datosPrograma([
             'inicia_en' => '2026-09-27',
-            'termina_en' => '2026-09-28',
+            'termina_en' => '2026-09-30',
         ]))
         ->assertSessionHasNoErrors();
 
