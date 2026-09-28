@@ -55,8 +55,20 @@
         descargas?: { firma: string; clave: string | null } | null;
     } = $props();
 
-    // Tres desenlaces: auténtico y vigente, auténtico pero ya no vigente, o alterado.
-    const estado = $derived(!verificacion ? null : !verificacion.valido ? 'alterado' : verificacion.vigente ? 'vigente' : 'no_vigente');
+    // Cuatro desenlaces: auténtico y vigente, auténtico pero ya no vigente, alterado (la huella
+    // no coincide) o sin confirmar (los datos cuadran pero la firma no se pudo comprobar: sin
+    // firma no se puede asegurar que lo emitió Huella, pero tampoco hay prueba de alteración).
+    const estado = $derived(
+        !verificacion
+            ? null
+            : !verificacion.hash_valido
+              ? 'alterado'
+              : !verificacion.firma_valida
+                ? 'sin_confirmar'
+                : verificacion.vigente
+                  ? 'vigente'
+                  : 'no_vigente',
+    );
 
     function formatearFecha(iso?: string | null): string {
         if (!iso) return 'N/A';
@@ -86,7 +98,7 @@
             <div
                 class="space-y-6 rounded-2xl border-2 p-6 shadow-xl md:p-8 {estado === 'vigente'
                     ? 'border-primary/50 bg-card'
-                    : estado === 'no_vigente'
+                    : estado === 'no_vigente' || estado === 'sin_confirmar'
                       ? 'border-chart-4/50 bg-card'
                       : 'border-destructive/50 bg-destructive/5'}"
             >
@@ -94,13 +106,13 @@
                     <div
                         class="shrink-0 rounded-full p-3 {estado === 'vigente'
                             ? 'bg-primary/10 text-primary'
-                            : estado === 'no_vigente'
+                            : estado === 'no_vigente' || estado === 'sin_confirmar'
                               ? 'bg-chart-4/10 text-chart-4'
                               : 'bg-destructive/10 text-destructive'}"
                     >
                         {#if estado === 'vigente'}
                             <CheckCircle2 class="size-8" />
-                        {:else if estado === 'no_vigente'}
+                        {:else if estado === 'no_vigente' || estado === 'sin_confirmar'}
                             <TriangleAlert class="size-8" />
                         {:else}
                             <ShieldAlert class="size-8" />
@@ -113,12 +125,20 @@
                                     Certificado auténtico y vigente
                                 {:else if estado === 'no_vigente'}
                                     Certificado auténtico, pero ya no vigente
+                                {:else if estado === 'sin_confirmar'}
+                                    No se pudo confirmar la autenticidad
                                 {:else}
                                     Alerta: el certificado fue alterado
                                 {/if}
                             </h2>
                             <Badge variant={estado === 'alterado' ? 'destructive' : 'outline'} class="font-mono text-xs">
-                                {estado === 'vigente' ? 'VERIFICADO' : estado === 'no_vigente' ? 'NO VIGENTE' : 'CORRUPTO'}
+                                {estado === 'vigente'
+                                    ? 'VERIFICADO'
+                                    : estado === 'no_vigente'
+                                      ? 'NO VIGENTE'
+                                      : estado === 'sin_confirmar'
+                                        ? 'SIN CONFIRMAR'
+                                        : 'CORRUPTO'}
                             </Badge>
                         </div>
                         <p class="mt-1 text-sm text-muted-foreground">
@@ -126,8 +146,12 @@
                                 La firma PGP y la huella SHA-256 coinciden, y el informe sigue cerrado como resuelto.
                             {:else if estado === 'no_vigente'}
                                 Lo emitió Huella y no fue modificado, pero el informe al que se refiere ya no está cerrado como resuelto o fue retirado.
+                            {:else if estado === 'sin_confirmar'}
+                                Los datos coinciden con su huella SHA-256, pero la firma digital no se pudo comprobar con las
+                                claves de Huella. Sin esa firma no se puede asegurar que lo haya emitido la plataforma.
                             {:else}
-                                La huella recalculada no coincide con el registro original o la firma digital no es válida.
+                                La huella recalculada no coincide con el registro original: los datos del certificado se
+                                modificaron después de emitirlo.
                             {/if}
                         </p>
                     </div>
