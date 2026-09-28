@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\EstadoPrograma;
 use App\Enums\NivelAcceso;
 use App\Services\Reputacion\Rangos;
+use App\Support\FechaCalendario;
 use Database\Factories\ProgramaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -162,14 +163,17 @@ class Programa extends Model
      */
     public function getFueraDeFechasAttribute(): bool
     {
-        return ($this->inicia_en !== null && $this->inicia_en->isFuture())
+        return ($this->inicia_en !== null && ! FechaCalendario::empezo($this->inicia_en))
             || $this->haTerminado();
     }
 
-    /** La fecha de fin se cuenta completa: termina al acabar ese día. */
+    /**
+     * La fecha de fin se cuenta completa y para todos los usuarios: el programa termina cuando
+     * ese día acabó en todas las zonas horarias (ver FechaCalendario).
+     */
     public function haTerminado(): bool
     {
-        return $this->termina_en !== null && $this->termina_en->copy()->endOfDay()->isPast();
+        return $this->termina_en !== null && FechaCalendario::termino($this->termina_en);
     }
 
     protected static function boot(): void
