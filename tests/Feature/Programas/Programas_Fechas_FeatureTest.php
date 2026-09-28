@@ -97,7 +97,8 @@ test('fuera del periodo del programa no se puede reportar', function (array $fec
         ->assertStatus($puede ? 302 : 403);
 })->with([
     'ya termino' => [fn () => ['termina_en' => now()->subDays(2)], false],
-    'aun no empieza' => [fn () => ['inicia_en' => now()->addDay()], false],
+    // Pasado mañana: "mañana" ya empezó en UTC+14 desde las 10:00 UTC (ver FechaCalendario).
+    'aun no empieza' => [fn () => ['inicia_en' => now()->addDays(2)], false],
     'termina hoy (vale todo el dia)' => [fn () => ['termina_en' => today()], true],
     'dentro del periodo' => [fn () => ['inicia_en' => now()->subWeek(), 'termina_en' => now()->addWeek()], true],
 ]);
