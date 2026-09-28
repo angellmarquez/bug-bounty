@@ -316,6 +316,32 @@ test('las respuestas llevan cabeceras de seguridad', function () {
         ->and($respuesta->headers->get('Permissions-Policy'))->toContain('camera=()');
 });
 
+test('la CSP solo permite los scripts del sitio y el del tema lleva el nonce de la respuesta', function () {
+    $respuesta = $this->get(route('login'))->assertOk();
+    $politica = (string) $respuesta->headers->get('Content-Security-Policy');
+
+    expect($politica)->toContain("default-src 'self'")
+        ->and($politica)->toContain("object-src 'none'")
+        ->and($politica)->not->toMatch("/script-src[^;]*'unsafe-inline'/")
+        ->and($politica)->not->toContain('unsafe-eval');
+
+    preg_match("/'nonce-([^']+)'/", $politica, $nonce);
+    expect($nonce[1] ?? null)->not->toBeNull();
+
+    // Todo <script> ejecutable de la página lleva ese nonce (el JSON de Inertia no se ejecuta).
+    preg_match_all('/<script(?![^>]*type="application\/json")[^>]*>/', $respuesta->getContent(), $scripts);
+    expect($scripts[0])->not->toBeEmpty();
+    foreach ($scripts[0] as $script) {
+        expect($script)->toContain("nonce=\"{$nonce[1]}\"");
+    }
+});
+
+test('cada respuesta usa un nonce distinto', function () {
+    $nonce = fn () => preg_match("/'nonce-([^']+)'/", (string) $this->get(route('login'))->headers->get('Content-Security-Policy'), $m) ? $m[1] : null;
+
+    expect($nonce())->not->toBe($nonce());
+});
+
 test('por https se exige https en adelante (HSTS)', function () {
     $this->get('https://localhost/login')
         ->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
