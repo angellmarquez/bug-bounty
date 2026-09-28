@@ -16,9 +16,11 @@ use App\Services\Pgp\Drivers\FallbackPgpDriver;
 use App\Services\Pgp\Drivers\GpgBinaryDriver;
 use App\Services\Pgp\Exceptions\PgpDriverUnavailableException;
 use App\Services\Pgp\PgpService;
+use App\Support\CachePorPeticion;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -89,6 +91,14 @@ class AppServiceProvider extends ServiceProvider
             'ClavePgp' => ClavePgpPlataforma::class,
             'Adjunto' => Adjunto::class,
         ]);
+
+        // Los atributos ABAC del usuario se resuelven una vez por petición; cualquier escritura
+        // (incluidos pivotes como roles o empresa) los invalida para no decidir con datos viejos.
+        DB::listen(function (QueryExecuted $consulta): void {
+            if (CachePorPeticion::invalidaCon($consulta->sql)) {
+                CachePorPeticion::olvidar();
+            }
+        });
 
         // Freno HTTP al guardar/enviar informes: frena scripts que disparan cientos de peticiones.
         RateLimiter::for('reportes', fn (Request $request) => Limit::perMinute(

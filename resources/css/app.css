@@ -241,6 +241,12 @@
     body {
         @apply bg-background text-foreground font-sans antialiased;
     }
+    /* Texto libre escrito por usuarios (descripciones, notas, motivos): una palabra o un enlace
+       larguísimo sin espacios se parte en lugar de salirse de su tarjeta. */
+    .whitespace-pre-wrap,
+    .whitespace-pre-line {
+        overflow-wrap: anywhere;
+    }
     h1,
     h2,
     h3 {

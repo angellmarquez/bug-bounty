@@ -222,7 +222,7 @@
     </div>
 
     <div class="grid gap-6 lg:grid-cols-3">
-        <div class="space-y-6 lg:col-span-2">
+        <div class="min-w-0 space-y-6 lg:col-span-2">
             {#if puedeModerar && conteosInformes}
                 <InformesDelPrograma
                     programaId={programa.id}
@@ -292,10 +292,10 @@
                             <div class="space-y-1">
                                 <div class="flex items-center gap-2">
                                     <Badge variant="secondary">{tipoObjetivoLabel(obj.tipo)}</Badge>
-                                    <span class="text-sm font-medium text-foreground">{obj.valor}</span>
+                                    <span class="min-w-0 text-sm font-medium text-foreground wrap-anywhere">{obj.valor}</span>
                                 </div>
                                 {#if obj.descripcion}
-                                    <p class="text-xs text-muted-foreground">{obj.descripcion}</p>
+                                    <p class="text-xs text-muted-foreground wrap-anywhere">{obj.descripcion}</p>
                                 {/if}
                             </div>
                         {/each}
@@ -372,7 +372,7 @@
             {/if}
         </div>
 
-        <div class="space-y-6">
+        <div class="min-w-0 space-y-6">
             {#if puedeReportar}
                 <Card>
                     <CardHeader>

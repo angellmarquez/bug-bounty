@@ -64,6 +64,7 @@ class ProgramaController extends Controller
         }
 
         $programas = $query->orderBy('nombre')->paginate(15)->withQueryString();
+        $programas->getCollection()->each(fn (Programa $programa) => $this->ocultarContenidoCifrado($programa));
 
         return Inertia::render('programas/Index', [
             'programas' => $programas,
@@ -474,7 +475,7 @@ class ProgramaController extends Controller
 
         $programas = $query->withCount('reportes')->orderBy('nombre')->paginate(15)->withQueryString();
         $programas->getCollection()->each(
-            fn (Programa $programa) => $programa->setAttribute(
+            fn (Programa $programa) => $this->ocultarContenidoCifrado($programa)->setAttribute(
                 'puede_editar',
                 $this->puedeProgramAction(AccionesAbac::ProgramaEditar, $programa),
             ),
@@ -485,6 +486,21 @@ class ProgramaController extends Controller
             'filtros' => $request->only(['estado', 'busqueda']),
             'esAdmin' => $isAdmin,
         ]);
+    }
+
+    /**
+     * Los listados no descifran cada programa (serían un gpg y una auditoría por tarjeta):
+     * el contenido cifrado no se envía, en vez de llegar a la tarjeta como un bloque PGP.
+     */
+    private function ocultarContenidoCifrado(Programa $programa): Programa
+    {
+        $programa->makeHidden(['descripcion', 'bugs_buscados', 'clave_huella']);
+
+        if ($programa->relationLoaded('objetivos')) {
+            $programa->objetivos->each(fn ($objetivo) => $objetivo->makeHidden(['valor', 'descripcion', 'clave_huella']));
+        }
+
+        return $programa;
     }
 
     public function invitarHacker(Request $request, Programa $programa, Notificador $notificador): RedirectResponse

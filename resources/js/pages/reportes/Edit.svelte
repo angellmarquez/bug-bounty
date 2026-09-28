@@ -52,6 +52,7 @@
     import { schemaEfectivo, validarPoc } from '@/lib/poc-schema';
     import { CATEGORIAS_REPORTE } from '@/lib/categorias-reporte';
     import { errorDeFotos } from '@/lib/fotos';
+    import { erroresDelServidor, primerPasoConError } from '@/lib/wizard-reporte';
 
     let {
         reporte,
@@ -156,6 +157,15 @@
             return false;
         }
     }
+
+    // Si el servidor rechaza un campo de un paso anterior, se vuelve a ese paso para corregirlo.
+    function alFallar(errores: Record<string, string>) {
+        const paso = primerPasoConError(errores, maxPaso);
+
+        if (paso !== null) {
+            pasoActual = paso;
+        }
+    }
 </script>
 
 <AppHead title="Editar reporte — {reporte.numero_reporte}" />
@@ -181,10 +191,21 @@
         class="space-y-6"
         transform={(data) => ({ ...data, ...construirPayload() })}
         onBefore={alEnviar}
+        onError={alFallar}
     >
         {#snippet children({ errors: formErrors, processing: formProcessing })}
             {#if formErrors.pgp}
                 <AlertError errors={[formErrors.pgp]} title="No se pudo guardar el reporte" />
+            {/if}
+            {#if erroresDelServidor(formErrors).length > 0}
+                <div data-test="errores-servidor">
+                    <AlertError errors={erroresDelServidor(formErrors)} title="Revisa estos datos antes de guardar el reporte" />
+                </div>
+            {/if}
+            {#if formProcessing}
+                <p class="flex items-center gap-2 text-sm text-muted-foreground" role="status" data-test="guardando-reporte">
+                    <Spinner /> Cifrando y guardando el reporte… puede tardar unos segundos.
+                </p>
             {/if}
             {#if pasoActual === 1}
                 <Card>
@@ -202,6 +223,7 @@
                             <Input
                                 id="titulo"
                                 name="titulo"
+                                maxlength={255}
                                 bind:value={formulario.titulo}
                                 required
                                 disabled={esEnviado}
