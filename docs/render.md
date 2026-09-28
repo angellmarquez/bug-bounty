@@ -1,57 +1,116 @@
-# Despliegue en Render — pendientes
+# Despliegue en Render
 
-> Estado: **pendiente**. Hoy el proyecto corre solo en local. Esta lista reúne lo que hay
-> que resolver antes de publicarlo en Render.
+`main` es la rama que se publica en Render; `develop` es la de trabajo en local. Cada push a
+`main` despliega solo (Auto-Deploy).
 
-## 1. Fotos de evidencia (informes y apelaciones)
+## 1. Crear el servicio
 
-**Problema:** el disco de un servicio web de Render es temporal. Se borra en cada deploy,
-reinicio o cambio de instancia. Si las fotos se guardan en el disco local
-(`ADJUNTOS_DISK=local`, que es lo que se usa en desarrollo), se pierden y en la base
-quedan registros de `adjuntos` apuntando a archivos inexistentes (la foto responde 404).
+- **New → Web Service**, repositorio `bug-bounty`, rama **`main`**.
+- **Runtime:** Docker (usa el `Dockerfile` de la raíz).
+- **Región:** Virginia (US East), la misma que el proyecto de Supabase (`us-east-1`): la app
+  consulta la base en cada petición y conviene que estén cerca. Es también la región con menos
+  latencia hacia Venezuela.
 
-**Solución propuesta:** Supabase Storage (compatible con S3), en el mismo proyecto de la base.
+El contenedor, al arrancar (`docker/entrypoint.sh`):
 
-1. Crear un bucket **privado** (p. ej. `evidencias`) en Supabase Storage.
-2. Generar credenciales S3 en _Storage → Settings → S3 Connection_.
-3. `composer require league/flysystem-aws-s3-v3 "^3.0"`.
-4. Variables en Render:
+1. exige `APP_KEY` y `PGP_STORAGE_KEY`;
+2. ejecuta las migraciones;
+3. reconstruye el keyring de GnuPG desde la base (`pgp:restore`) y crea la clave de custodia si
+   falta;
+4. lanza el scheduler en segundo plano (verificación de pagos, programas vencidos, SLA de
+   apelaciones, vencimiento de planes);
+5. sirve la app en el puerto `$PORT`.
 
-    ```env
-    ADJUNTOS_DISK=s3
-    AWS_ACCESS_KEY_ID=<access key de Supabase>
-    AWS_SECRET_ACCESS_KEY=<secret de Supabase>
-    AWS_DEFAULT_REGION=<región del proyecto>
-    AWS_BUCKET=evidencias
-    AWS_ENDPOINT=https://<ref>.supabase.co/storage/v1/s3
-    AWS_USE_PATH_STYLE_ENDPOINT=true
-    ```
+## 2. Variables de entorno
 
-5. Comprobar que `config/filesystems.php` → disco `s3` lee `AWS_ENDPOINT` (ya lo hace).
+Se cargan en **Environment → Add from .env**:
 
-Las fotos ya se guardan **cifradas con PGP**: aunque alguien acceda al bucket solo ve bloques
-cifrados. El bucket debe seguir siendo privado; la app nunca genera URLs públicas.
+```env
+APP_NAME=Huella
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://<servicio>.onrender.com
+APP_KEY=<php artisan key:generate --show>
+APP_LOCALE=es
+LOG_CHANNEL=stderr
+LOG_LEVEL=error
 
-Alternativa descartada: _Persistent Disk_ de Render (de pago, una sola instancia, sin
-deploys sin caída).
+DB_CONNECTION=pgsql
+DB_HOST=<host de Supabase>
+DB_PORT=<5432 o 6543>
+DB_DATABASE=postgres
+DB_USERNAME=<postgres.xxxxx>
+DB_PASSWORD=<contraseña de Supabase>
+DB_SSLMODE=require
+DB_POOLED=true
 
-## 2. PGP en producción
+PGP_DRIVER=gpg
+PGP_BINARY=gpg
+PGP_ALGORITHM=ed25519
+PGP_KEY_PASSWORD=<contraseña larga>
+PGP_STORAGE_KEY=<base64:... de 32 bytes>
 
-- Render no trae el binario `gpg` y en producción está prohibido el driver de respaldo.
-  Hay que desplegar con **Docker** e instalar `gnupg` en la imagen.
-- El llavero de `gpg` también vive en el disco temporal: al arrancar el contenedor hay que
-  reconstruirlo desde la base (`PgpService::restaurarEnKeyring()` y
-  `restaurarClavesDeEmpresaEnKeyring()`), por ejemplo en el script de arranque.
+SESSION_DRIVER=database
+SESSION_SECURE_COOKIE=true
+CACHE_STORE=database
+QUEUE_CONNECTION=sync
 
-## 3. PHP en la imagen
+ADJUNTOS_DISK=s3
+AWS_ACCESS_KEY_ID=<access key de Supabase Storage>
+AWS_SECRET_ACCESS_KEY=<secret de Supabase Storage>
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=evidencias
+AWS_ENDPOINT=https://<project-ref>.supabase.co/storage/v1/s3
+AWS_USE_PATH_STYLE_ENDPOINT=true
 
-- Extensiones: `gd` (con soporte JPEG, PNG y WebP) y `exif` para procesar las fotos;
-  `fileinfo` para validar su tipo real.
-- `php.ini`: `upload_max_filesize` y `post_max_size` por encima de `ADJUNTOS_MAX_KB`
-  (5 MB por foto por defecto; `post_max_size` debe cubrir varias fotos juntas, p. ej. 55M).
-- `memory_limit` ≥ 128M: GD descomprime la foto en memoria (límite `ADJUNTOS_MAX_PIXELES`).
+BOUNTY_RED=polygon_amoy
+BOUNTY_PERMITIR_MAINNET=false
+MAIL_ENABLED=false
+MAIL_MAILER=log
+```
 
-## 4. Memoria del plan
+Generar los secretos en local:
 
-Los planes pequeños de Render tienen 512 MB de RAM. Mantener `ADJUNTOS_MAX_PIXELES`
-(16 MP) y `ADJUNTOS_MAX_KB` (5 MB) para que procesar fotos no agote la memoria.
+```bash
+php artisan key:generate --show                                                  # APP_KEY
+php artisan tinker --execute="echo 'base64:'.base64_encode(random_bytes(32));"   # PGP_STORAGE_KEY
+```
+
+> **`APP_KEY` y `PGP_STORAGE_KEY` no se cambian nunca** una vez que la base tiene datos: protegen
+> las claves privadas PGP. Si cambian o se pierden, los informes cifrados quedan ilegibles para
+> siempre. Guárdalos también en un gestor de contraseñas. Si producción reutiliza una base que ya
+> tiene datos, hay que poner los mismos valores con los que se crearon.
+>
+> `PGP_KEY_PASSWORD` es obligatoria en producción: sin ella la app no crea claves.
+
+## 3. Fotos de evidencia en Supabase Storage
+
+El disco de un Web Service de Render es temporal: se borra en cada deploy o reinicio. Por eso,
+en producción, las fotos van a **Supabase Storage** (compatible con S3):
+
+1. En Supabase: **Storage → New bucket** → `evidencias`, **privado**.
+2. **Storage → Settings → S3 Connection** → crear un access key. Copiar el endpoint, la región,
+   el access key y el secret a las variables `AWS_*` de arriba.
+3. `ADJUNTOS_DISK=s3`.
+
+Las fotos ya se suben **cifradas con PGP** y sin EXIF/GPS: aunque alguien entre al bucket solo
+ve bloques cifrados. La app nunca genera URLs públicas; las sirve ella misma tras comprobar
+permisos. Cada foto recuerda en qué disco se guardó, así que las antiguas siguen leyéndose.
+
+## 4. Imagen Docker
+
+- GnuPG real (en producción el driver de respaldo está prohibido).
+- Extensiones `gd` (JPEG, PNG, WebP) y `exif` para procesar las fotos.
+- `upload_max_filesize=6M`, `post_max_size=55M`, `memory_limit=256M`.
+
+Los planes pequeños de Render tienen 512 MB de RAM: mantener `ADJUNTOS_MAX_PIXELES` (16 MP) y
+`ADJUNTOS_MAX_KB` (5 MB).
+
+## 5. Comprobar el despliegue
+
+En **Logs** de Render debe verse el arranque sin errores. Luego, en **Shell**:
+
+```bash
+php artisan pgp:check          # driver gpg, clave y ciclo cifrar/descifrar
+php artisan schedule:list      # tareas programadas
+```

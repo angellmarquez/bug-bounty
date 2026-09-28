@@ -38,4 +38,9 @@ php artisan pgp:restore || true
 # el primer reporte (ver PgpService::asegurarClave).
 php artisan pgp:setup --tolerante || true
 
+# Tareas programadas (routes/console.php): verificar pagos, pausar programas vencidos,
+# SLA de apelaciones y vencimiento de planes. Render no tiene cron en un Web Service,
+# así que corren en segundo plano dentro del mismo contenedor (su salida va a los logs de Render).
+php artisan schedule:work &
+
 exec php artisan serve --host=0.0.0.0 --port="${PORT:-10000}"
