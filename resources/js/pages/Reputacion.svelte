@@ -72,6 +72,7 @@
     const MOTIVOS: Record<string, string> = {
         reporte_validado: 'Reporte confirmado por la empresa',
         reporte_resuelto: 'Informe resuelto',
+        puntos_iniciales: 'Puntos de bienvenida',
         // Movimientos antiguos, de cuando la plataforma todavía registraba pagos.
         reporte_pagado: 'Informe pagado (histórico)',
         calidad_documentacion: 'Calidad de la documentación',

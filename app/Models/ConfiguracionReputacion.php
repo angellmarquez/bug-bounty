@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $puntos_reporte_resuelto
  * @property int $puntos_calidad_documentacion
  * @property int $puntos_participacion
+ * @property array<string, array{reporte_validado: int, reporte_resuelto: int}>|null $puntos_por_severidad
  * @property int $penalizacion_leve
  * @property int $penalizacion_media
  * @property int $penalizacion_grave
@@ -32,6 +33,7 @@ use Illuminate\Database\Eloquent\Model;
     'puntos_reporte_resuelto',
     'puntos_calidad_documentacion',
     'puntos_participacion',
+    'puntos_por_severidad',
     'penalizacion_leve',
     'penalizacion_media',
     'penalizacion_grave',
@@ -58,6 +60,7 @@ class ConfiguracionReputacion extends Model
             'puntos_reporte_resuelto' => 'integer',
             'puntos_calidad_documentacion' => 'integer',
             'puntos_participacion' => 'integer',
+            'puntos_por_severidad' => 'array',
             'penalizacion_leve' => 'integer',
             'penalizacion_media' => 'integer',
             'penalizacion_grave' => 'integer',
@@ -77,6 +80,8 @@ class ConfiguracionReputacion extends Model
     public function haciaArrayDeConfig(): array
     {
         return [
+            // Sin tabla guardada se conservan los defaults por severidad de config/reputacion.php.
+            ...($this->puntos_por_severidad === null ? [] : ['puntos_por_severidad' => $this->puntos_por_severidad]),
             'puntos_inicial' => $this->puntos_inicial,
             'puntos' => [
                 'reporte_validado' => $this->puntos_reporte_validado,
@@ -108,8 +113,10 @@ class ConfiguracionReputacion extends Model
             'puntos_inicial' => $validado['puntos_inicial'],
             'puntos_reporte_validado' => $validado['puntos']['reporte_validado'],
             'puntos_reporte_resuelto' => $validado['puntos']['reporte_resuelto'],
-            'puntos_calidad_documentacion' => $validado['puntos']['calidad_documentacion'],
-            'puntos_participacion' => $validado['puntos']['participacion'],
+            // Ninguna acción otorga todavía estos puntos: el panel ya no los muestra y se conservan.
+            'puntos_calidad_documentacion' => $validado['puntos']['calidad_documentacion'] ?? (int) config('reputacion.puntos.calidad_documentacion', 0),
+            'puntos_participacion' => $validado['puntos']['participacion'] ?? (int) config('reputacion.puntos.participacion', 0),
+            'puntos_por_severidad' => $validado['puntos_por_severidad'],
             'penalizacion_leve' => $validado['penalizacion']['leve'],
             'penalizacion_media' => $validado['penalizacion']['media'],
             'penalizacion_grave' => $validado['penalizacion']['grave'],
