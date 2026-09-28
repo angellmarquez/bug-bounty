@@ -6,7 +6,7 @@
         <meta name="theme-color" content="#0b0d10">
 
         {{-- Tema "Automático": se resuelve antes de pintar para que no parpadee. --}}
-        <script>
+        <script nonce="{{ Vite::cspNonce() }}">
             (function () {
                 var raiz = document.documentElement;
                 if (raiz.dataset.tema) return;
