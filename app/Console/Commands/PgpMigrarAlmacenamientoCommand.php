@@ -19,6 +19,11 @@ use RuntimeException;
  * deja tal cual; si no, la migra desde la vieja. Opera con SQL crudo (no
  * pasa por Eloquent) justo para no depender de qué cast esté activo en el
  * modelo en este momento.
+ *
+ * Solo falla si no se puede leer una clave ACTIVA: sin ella la plataforma no
+ * descifra. Una clave ya reemplazada que no se puede leer (guardada con un
+ * secreto que ya no existe) solo se avisa: nada la usa y no debe impedir que
+ * la aplicación arranque.
  */
 class PgpMigrarAlmacenamientoCommand extends Command
 {
@@ -39,24 +44,26 @@ class PgpMigrarAlmacenamientoCommand extends Command
         $migradas = 0;
         $yaMigradas = 0;
         $fallidas = 0;
+        $inactivasIlegibles = 0;
 
         foreach (['claves_pgp_plataforma', 'claves_pgp_empresa'] as $tabla) {
             if (! $this->tablaExiste($tabla)) {
                 continue;
             }
 
-            foreach (DB::table($tabla)->select('id', 'clave_privada')->get() as $fila) {
-                $resultado = $this->migrarFila($tabla, $fila->id, (string) $fila->clave_privada, $storageKey);
+            foreach (DB::table($tabla)->select('id', 'clave_privada', 'activa')->get() as $fila) {
+                $resultado = $this->migrarFila($tabla, $fila->id, (string) $fila->clave_privada, $storageKey, (bool) $fila->activa);
 
                 match ($resultado) {
                     'migrada' => $migradas++,
                     'ya_migrada' => $yaMigradas++,
+                    'inactiva_ilegible' => $inactivasIlegibles++,
                     default => $fallidas++,
                 };
             }
         }
 
-        $this->info("Migradas: {$migradas}. Ya estaban migradas: {$yaMigradas}. Fallidas: {$fallidas}.");
+        $this->info("Migradas: {$migradas}. Ya estaban migradas: {$yaMigradas}. Fallidas: {$fallidas}. Inactivas ilegibles (ignoradas): {$inactivasIlegibles}.");
 
         return $fallidas > 0 ? self::FAILURE : self::SUCCESS;
     }
@@ -66,7 +73,7 @@ class PgpMigrarAlmacenamientoCommand extends Command
         return Schema::hasTable($tabla);
     }
 
-    private function migrarFila(string $tabla, int $id, string $valorActual, string $storageKey): string
+    private function migrarFila(string $tabla, int $id, string $valorActual, string $storageKey, bool $activa): string
     {
         if ($valorActual === '') {
             return 'ya_migrada';
@@ -84,6 +91,12 @@ class PgpMigrarAlmacenamientoCommand extends Command
         try {
             $plano = Crypt::decryptString($valorActual);
         } catch (DecryptException $e) {
+            if (! $activa) {
+                $this->warn("[{$tabla}#{$id}] Clave inactiva ilegible (secreto antiguo): se ignora, ya no se usa.");
+
+                return 'inactiva_ilegible';
+            }
+
             $this->error("[{$tabla}#{$id}] No descifra ni con la clave nueva ni con APP_KEY: {$e->getMessage()}");
 
             return 'fallida';
