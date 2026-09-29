@@ -83,3 +83,29 @@ test('el simulador evalua acciones y devuelve el desglose de reglas y contexto',
             'decision' => 'denegar',
         ]);
 });
+
+test('el simulador usa el mismo entorno que la app: la empresa ve su propio programa en borrador', function () {
+    $duena = propietarioDeEmpresa();
+    $borrador = programaDeEmpresa($duena, ['estado' => 'borrador']);
+
+    // En la aplicación real, la empresa abre su programa en borrador…
+    $this->actingAs($duena)->get(route('programas.show', $borrador))->assertOk();
+
+    // …y el simulador tiene que decir lo mismo.
+    $this->actingAs(administrador())->postJson(route('admin.abac.simular'), [
+        'usuario_id' => $duena->id,
+        'accion' => 'programas.ver',
+        'tipo_recurso' => 'programa',
+        'recurso_id' => $borrador->id,
+    ])->assertOk()
+        ->assertJson(['permitido' => true, 'regla_decisiva' => 'empresa-ver-programa-propio'])
+        ->assertJsonPath('contexto.entorno.empresa_id', $borrador->empresa_id);
+
+    // Otra empresa no.
+    $this->actingAs(administrador())->postJson(route('admin.abac.simular'), [
+        'usuario_id' => propietarioDeEmpresa()->id,
+        'accion' => 'programas.ver',
+        'tipo_recurso' => 'programa',
+        'recurso_id' => $borrador->id,
+    ])->assertJson(['permitido' => false]);
+});
