@@ -107,6 +107,9 @@ class Reporte extends Model
      */
     public const ESTADOS_RECHAZADOS = ['rechazado', 'duplicado', 'fuera_de_alcance'];
 
+    /** Categorías que ofrece el formulario (resources/js/lib/categorias-reporte.ts). */
+    public const CATEGORIAS = ['xss', 'sql_injection', 'rce', 'idor', 'csrf', 'ssrf', 'xxe', 'otro'];
+
     /**
      * Get the attributes that should be cast.
      *
