@@ -23,6 +23,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use InvalidArgumentException;
@@ -61,6 +62,7 @@ class AdminController extends Controller
     public function aprobarEmpresa(Empresa $empresa, Request $request): RedirectResponse
     {
         Gate::authorize('abac', [AccionesAbac::EmpresaAprobar, $empresa]);
+        $this->exigirEstadoEmpresa($empresa, [EstadoEmpresa::Pendiente], 'aprobar');
 
         $validated = $request->validate([
             'motivo' => ['nullable', 'string', 'max:2000'],
@@ -85,6 +87,7 @@ class AdminController extends Controller
     public function rechazarEmpresa(Empresa $empresa, Request $request): RedirectResponse
     {
         Gate::authorize('abac', [AccionesAbac::EmpresaRechazar, $empresa]);
+        $this->exigirEstadoEmpresa($empresa, [EstadoEmpresa::Pendiente], 'rechazar');
 
         $validated = $request->validate([
             'motivo' => ['required', 'string', 'max:2000'],
@@ -109,6 +112,7 @@ class AdminController extends Controller
     public function suspenderEmpresa(Empresa $empresa, Request $request): RedirectResponse
     {
         Gate::authorize('abac', [AccionesAbac::EmpresaSuspender, $empresa]);
+        $this->exigirEstadoEmpresa($empresa, [EstadoEmpresa::Aprobada], 'suspender');
 
         $validated = $request->validate([
             'motivo' => ['required', 'string', 'max:2000'],
@@ -131,6 +135,7 @@ class AdminController extends Controller
     public function reactivarEmpresa(Empresa $empresa, Request $request): RedirectResponse
     {
         Gate::authorize('abac', [AccionesAbac::EmpresaReactivar, $empresa]);
+        $this->exigirEstadoEmpresa($empresa, [EstadoEmpresa::Suspendida], 'reactivar');
 
         $empresa->update([
             'estado' => EstadoEmpresa::Aprobada,
@@ -177,6 +182,21 @@ class AdminController extends Controller
         return redirect()->route('admin.empresas')->with('success', $empresa->plan === 'profesional'
             ? 'Plan Profesional activado.'
             : 'La empresa volvió al Plan Comunitario.');
+    }
+
+    /**
+     * Cada decisión solo vale desde su estado (igual que los botones del panel): así "reactivar"
+     * no aprueba una empresa pendiente sin revisarla ni se suspende una que aún no se aprobó.
+     *
+     * @param  array<int, EstadoEmpresa>  $desde
+     */
+    private function exigirEstadoEmpresa(Empresa $empresa, array $desde, string $accion): void
+    {
+        if (! in_array($empresa->estado, $desde, true)) {
+            throw ValidationException::withMessages([
+                'estado' => "No se puede {$accion} una empresa en estado «{$empresa->estado->value}».",
+            ]);
+        }
     }
 
     private function registrarDecisionEmpresa(Request $request, Empresa $empresa, string $accion): void

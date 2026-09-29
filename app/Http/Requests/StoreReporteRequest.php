@@ -5,8 +5,10 @@ namespace App\Http\Requests;
 use App\Abac\AccionesAbac;
 use App\Enums\Severidad;
 use App\Models\Programa;
+use App\Models\Reporte;
 use App\Rules\PocCumpleSchema;
 use App\Services\Adjuntos\AdjuntoService;
+use App\Support\Cvss31;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -40,6 +42,14 @@ class StoreReporteRequest extends FormRequest
             $poc = json_decode((string) $this->input('poc'), true);
             $this->merge(['poc' => is_array($poc) ? $poc : null]);
         }
+
+        // La puntuación y la severidad reparten los puntos de reputación: nunca se aceptan las
+        // del navegador, se calculan aquí desde el vector (sin vector, el informe no tiene CVSS).
+        $cvss = Cvss31::calcular($this->input('vector_cvss'));
+        $this->merge([
+            'puntuacion_cvss' => $cvss['puntuacion'] ?? null,
+            'severidad' => $cvss['severidad']->value ?? null,
+        ]);
     }
 
     /**
@@ -59,8 +69,8 @@ class StoreReporteRequest extends FormRequest
             'programa_id' => ['required', 'exists:programas,id'],
             'titulo' => ['required', 'string', 'max:255'],
             'descripcion' => ['required', 'string', 'max:50000'],
-            'categoria' => ['nullable', 'string', 'max:100'],
-            'vector_cvss' => ['nullable', 'string', 'max:100'],
+            'categoria' => ['nullable', 'string', Rule::in(Reporte::CATEGORIAS)],
+            'vector_cvss' => ['nullable', 'string', 'regex:'.Cvss31::PATRON],
             'puntuacion_cvss' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'severidad' => ['nullable', Rule::enum(Severidad::class)],
             'poc' => [
@@ -84,6 +94,8 @@ class StoreReporteRequest extends FormRequest
             'descripcion.required' => 'La descripción es obligatoria.',
             'descripcion.min' => 'La descripción debe tener al menos 50 caracteres detallando el hallazgo.',
             'descripcion.max' => 'La descripción no puede exceder 50000 caracteres.',
+            'vector_cvss.regex' => 'El vector CVSS no es válido: usa la calculadora (formato CVSS:3.1/AV:…/A:…).',
+            'categoria.in' => 'Elige una categoría de la lista.',
             'puntuacion_cvss.min' => 'La puntuación CVSS debe ser entre 0 y 10.',
             'puntuacion_cvss.max' => 'La puntuación CVSS debe ser entre 0 y 10.',
             'poc.required' => 'La prueba de concepto es obligatoria para enviar el reporte.',
