@@ -73,6 +73,12 @@ class Notificador
                     $actor,
                 ),
                 TipoEventoReporte::Comentario => $this->comentario($reporte, $actor, $ref, $url, $propietarios),
+                // Solo al investigador: la empresa no ve el informe mientras está en triaje.
+                TipoEventoReporte::CvssAjustado => $this->enviar(
+                    [$reporte->investigador],
+                    new AvisoPlataforma('informe', 'Moderación ajustó el CVSS de tu informe', "{$ref}: ahora ".($evento->datos['nuevo']['puntuacion'] ?? '?').' ('.($evento->datos['nuevo']['severidad'] ?? '?').')', $url),
+                    $actor,
+                ),
                 default => null,
             };
         });

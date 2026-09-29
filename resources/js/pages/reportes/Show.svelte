@@ -29,6 +29,7 @@
     import Send from '@lucide/svelte/icons/send';
     import Eye from '@lucide/svelte/icons/eye';
     import HelpCircle from '@lucide/svelte/icons/help-circle';
+    import Gauge from '@lucide/svelte/icons/gauge';
     import { page } from '@inertiajs/svelte';
     import AppHead from '@/components/AppHead.svelte';
     import BotonVolver from '@/components/BotonVolver.svelte';
@@ -38,6 +39,7 @@
     import Timeline from '@/components/Timeline.svelte';
     import ComentarioForm from '@/components/ComentarioForm.svelte';
     import StateTransition from '@/components/StateTransition.svelte';
+    import AjustarCvss from '@/components/AjustarCvss.svelte';
     import { Button } from '@/components/ui/button';
     import ContenidoInforme from '@/components/ContenidoInforme.svelte';
     import GaleriaFotos from '@/components/GaleriaFotos.svelte';
@@ -99,6 +101,7 @@
     const auth = $derived(page.props.auth);
 
     let transitionOpen = $state(false);
+    let cvssOpen = $state(false);
     let transitionAccion = $state<'asignar' | 'pedir_info' | 'validar' | 'rechazar' | 'marcar_duplicado' | 'reparacion' | 'cerrar'>('validar');
 
     function openTransition(accion: typeof transitionAccion) {
@@ -342,6 +345,12 @@
                                     Duplicado
                                 </Button>
                             {/if}
+                            {#if accionesDisponibles.ajustar_cvss}
+                                <Button variant="outline" size="sm" onclick={() => (cvssOpen = true)}>
+                                    <Gauge class="mr-1 h-3 w-3" />
+                                    Ajustar CVSS
+                                </Button>
+                            {/if}
                             {#if accionesDisponibles.reparacion}
                                 <Button variant="outline" size="sm" onclick={() => openTransition('reparacion')}>
                                     <Wrench class="mr-1 h-3 w-3" />
@@ -551,3 +560,15 @@
     reporteActual={{ titulo: reporte.titulo, categoria: reporte.categoria ?? null, severidad: reporte.severidad, vector_cvss: reporte.vector_cvss ?? null }}
     onsuccess={recargar}
 />
+
+{#if accionesDisponibles.ajustar_cvss}
+    {#key reporte.vector_cvss}
+        <AjustarCvss
+            bind:open={cvssOpen}
+            reporteId={reporte.id}
+            vectorActual={reporte.vector_cvss ?? null}
+            puntuacionActual={reporte.puntuacion_cvss ?? null}
+            onsuccess={recargar}
+        />
+    {/key}
+{/if}

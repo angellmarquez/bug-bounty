@@ -48,6 +48,7 @@ export const TipoEventoReporte = {
     Sancion: 'sancion',
     Asignacion: 'asignacion',
     Bounty: 'bounty',
+    CvssAjustado: 'cvss_ajustado',
 } as const;
 export type TipoEventoReporte =
     (typeof TipoEventoReporte)[keyof typeof TipoEventoReporte];

@@ -9,6 +9,7 @@ const tipoEventoLabelMap: Record<TipoEventoReporte, string> = {
     sancion: 'Sanción aplicada',
     asignacion: 'Asignado a analista',
     bounty: 'Recompensa',
+    cvss_ajustado: 'CVSS ajustado por moderación',
 };
 
 export function tipoEventoLabel(tipo: TipoEventoReporte): string {

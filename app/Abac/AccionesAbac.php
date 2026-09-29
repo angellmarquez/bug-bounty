@@ -31,6 +31,9 @@ final class AccionesAbac
 
     public const ReporteMarcarDuplicado = 'reportes.marcar_duplicado';
 
+    /** Corregir el vector CVSS durante el triaje (el servidor recalcula puntuación y severidad). */
+    public const ReporteAjustarCvss = 'reportes.ajustar_cvss';
+
     public const ReporteMarcarEnReparacion = 'reportes.marcar_en_reparacion';
 
     public const ReporteCerrar = 'reportes.cerrar';

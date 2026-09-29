@@ -95,6 +95,7 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
+                'reportes.ajustar_cvss',
                 'reportes.marcar_en_reparacion',
                 'reportes.cerrar',
                 'moderacion.ver',
@@ -494,7 +495,7 @@ return [
         [
             'id' => 'moderador-triaje-asignado',
             'prioridad' => 35,
-            'acciones' => ['reportes.revisar', 'reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado'],
+            'acciones' => ['reportes.revisar', 'reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado', 'reportes.ajustar_cvss'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
             'objeto' => [
                 'estado' => ['in' => ['enviado', 'en_revision', 'needs_info']],
@@ -516,6 +517,7 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
+                'reportes.ajustar_cvss',
                 'reportes.marcar_en_reparacion',
                 'reportes.cerrar',
             ],
@@ -537,6 +539,7 @@ return [
                 'reportes.validar',
                 'reportes.rechazar',
                 'reportes.marcar_duplicado',
+                'reportes.ajustar_cvss',
                 'reportes.marcar_en_reparacion',
                 'reportes.cerrar',
                 'reportes.ver_notas_internas',
