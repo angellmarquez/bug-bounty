@@ -122,11 +122,45 @@ test('la asignacion manual por el administrador sigue funcionando y puede supera
 
     $prog3 = Programa::factory()->create(['estado' => 'activo']);
 
-    // Admin fuerza la asignación manual del 3er programa
+    // Sin confirmar, el límite frena la asignación y explica por qué.
     $this->actingAs($admin);
-    $response = $this->post(route('admin.programas.moderadores.asignar', [$prog3, $moderador]));
-    $response->assertRedirect(route('admin.moderadores'));
+    $this->post(route('admin.programas.moderadores.asignar', [$prog3, $moderador]))
+        ->assertRedirect(route('admin.moderadores'))
+        ->assertSessionHas('error', fn (string $m) => str_contains($m, 'ya modera 2 programas activos'));
+    expect($prog3->fresh()->moderadores()->whereKey($moderador->id)->exists())->toBeFalse();
+
+    // Confirmado (forzar), el admin puede superarlo.
+    $this->post(route('admin.programas.moderadores.asignar', [$prog3, $moderador]), ['forzar' => true])
+        ->assertRedirect(route('admin.moderadores'));
 
     expect($prog3->fresh()->moderadores()->whereKey($moderador->id)->exists())->toBeTrue();
     expect($moderador->fresh()->programasModerados()->count())->toBe(3);
+});
+
+test('un programa no activo se asigna sin confirmar aunque el moderador este en el limite', function () {
+    $moderador = investigador();
+    $moderador->roles()->syncWithoutDetaching([rol('moderador')->id]);
+    Programa::factory()->count(2)->create(['estado' => 'activo'])->each(fn ($p) => $p->moderadores()->attach($moderador->id));
+    $enPausa = Programa::factory()->create(['estado' => 'en_pausa']);
+
+    $this->actingAs(administrador())
+        ->post(route('admin.programas.moderadores.asignar', [$enPausa, $moderador]))
+        ->assertSessionMissing('error');
+
+    expect($enPausa->fresh()->moderadores()->whereKey($moderador->id)->exists())->toBeTrue();
+});
+
+test('el panel distingue programas activos de asignados', function () {
+    $moderador = investigador();
+    $moderador->roles()->syncWithoutDetaching([rol('moderador')->id]);
+    Programa::factory()->create(['estado' => 'activo'])->moderadores()->attach($moderador->id);
+    Programa::factory()->create(['estado' => 'en_pausa'])->moderadores()->attach($moderador->id);
+    $resuelto = Programa::factory()->create(['estado' => 'resuelto']);
+    $resuelto->moderadores()->attach($moderador->id);
+    $resuelto->delete();
+
+    $this->actingAs(administrador())->get(route('admin.moderadores'))
+        ->assertInertia(fn ($page) => $page
+            ->where('moderadores.data.0.programas_activos_count', 1)
+            ->where('moderadores.data.0.programas_asignados_count', 2));
 });
