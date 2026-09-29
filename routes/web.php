@@ -125,7 +125,7 @@ Route::middleware(['auth', 'verified', 'empresa.access'])->group(function () {
     Route::get('admin/usuarios', [AdminController::class, 'usuarios'])->name('admin.usuarios');
     Route::get('admin/sanciones', [AdminController::class, 'sanciones'])->name('admin.sanciones');
     Route::post('admin/sanciones/{sancion}/revocar', [AdminController::class, 'revocarSancion'])->name('admin.sanciones.revocar');
-    // Las apelaciones las resuelven los moderadores y el administrador (nunca quien aplicó la sanción).
+    // Las apelaciones las resuelve el administrador (ABAC deniega a los moderadores y a quien apeló).
     Route::redirect('admin/apelaciones', '/moderacion/apelaciones')->name('admin.apelaciones');
     Route::get('moderacion/apelaciones', [ApelacionController::class, 'index'])->name('apelaciones.index');
     Route::get('moderacion/apelaciones/{apelacion}', [ApelacionController::class, 'show'])->name('apelaciones.show');

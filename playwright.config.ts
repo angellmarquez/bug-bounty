@@ -12,7 +12,8 @@ export const entornoE2e = {
     APP_DEBUG: 'true',
     APP_URL: `http://127.0.0.1:${puerto}`,
     DB_CONNECTION: 'sqlite',
-    DB_DATABASE: path.join(dirE2e, 'e2e.sqlite'),
+    // E2E_DB permite otra ruta si la de siempre está bloqueada (p. ej. abierta en el editor).
+    DB_DATABASE: process.env.E2E_DB ?? path.join(dirE2e, 'e2e.sqlite'),
     PGP_DRIVER: 'fallback',
     SESSION_DRIVER: 'file',
     CACHE_STORE: 'file',

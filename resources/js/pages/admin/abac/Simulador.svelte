@@ -88,7 +88,8 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
+                    // Laravel deja el token en la cookie XSRF-TOKEN (no hay <meta name="csrf-token">).
+                    'X-XSRF-TOKEN': decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length) ?? ''),
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({

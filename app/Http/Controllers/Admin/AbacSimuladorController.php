@@ -144,8 +144,17 @@ class AbacSimuladorController extends Controller
 
         $accion = (string) $request->accion;
 
-        $contexto = $engine->contexto($accion, $objeto, $sujeto);
-        $decision = $engine->evaluar($accion, $objeto, $sujeto);
+        // El mismo entorno que arma la aplicación en cada petición: la empresa aprobada en la que
+        // el sujeto está activo (ver ProgramaController::argumentosAbac). Sin él, el simulador
+        // negaría lo que la app permite (p. ej. que la empresa vea su propio programa en borrador).
+        $empresa = $sujeto?->empresas()
+            ->where('empresas.estado', 'aprobada')
+            ->where('empresa_usuario.estado', 'activo')
+            ->first();
+        $entorno = $empresa === null ? [] : ['empresa_id' => $empresa->id];
+
+        $contexto = $engine->contexto($accion, $objeto, $sujeto, $entorno);
+        $decision = $engine->evaluar($accion, $objeto, $sujeto, $entorno);
 
         return response()->json([
             'permitido' => $decision->estaPermitida(),
