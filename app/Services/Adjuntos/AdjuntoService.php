@@ -31,7 +31,15 @@ use Throwable;
  */
 class AdjuntoService
 {
+    public const MENSAJE_DESACTIVADAS = 'El envío de fotos está desactivado por ahora.';
+
     public function __construct(private readonly PgpService $pgp) {}
+
+    /** ¿Se pueden subir fotos nuevas? (ADJUNTOS_HABILITADOS) */
+    public static function habilitados(): bool
+    {
+        return (bool) config('adjuntos.habilitados', true);
+    }
 
     /**
      * Reglas de validación para el campo `fotos[]` de un formulario.
@@ -40,6 +48,11 @@ class AdjuntoService
      */
     public static function reglas(): array
     {
+        // Envío de fotos desactivado (config adjuntos.habilitados): cualquier foto se rechaza.
+        if (! self::habilitados()) {
+            return ['fotos' => ['prohibited'], 'fotos.*' => ['prohibited']];
+        }
+
         return [
             'fotos' => ['sometimes', 'array', 'max:'.config('adjuntos.max_por_entidad')],
             'fotos.*' => ['file', 'mimetypes:'.implode(',', config('adjuntos.mimes')), 'max:'.config('adjuntos.max_kb')],
@@ -54,6 +67,8 @@ class AdjuntoService
         $maxMb = round(self::maxKbEfectivo() / 1024, 1);
 
         return [
+            'fotos.prohibited' => self::MENSAJE_DESACTIVADAS,
+            'fotos.*.prohibited' => self::MENSAJE_DESACTIVADAS,
             'fotos.array' => 'Las fotos no se enviaron correctamente.',
             'fotos.max' => 'Puedes adjuntar como máximo '.config('adjuntos.max_por_entidad').' fotos.',
             'fotos.*.file' => 'Una de las fotos no se pudo subir.',
@@ -152,7 +167,13 @@ class AdjuntoService
                 $ruta = config('adjuntos.directorio').'/'.now()->format('Y/m').'/'.Str::uuid().'.pgp';
 
                 if (! Storage::disk($disco)->put($ruta, $cifrado['contenido'])) {
-                    throw new \RuntimeException('No se pudo guardar la foto.');
+                    // El motivo del almacenamiento ya quedó en el log (disco con 'report'); al
+                    // usuario se le explica en el formulario en lugar de una página de error.
+                    report(new \RuntimeException("No se pudo guardar la foto en el disco «{$disco}» ({$ruta})."));
+
+                    throw ValidationException::withMessages([
+                        'fotos' => 'No se pudo guardar la foto en el almacenamiento. Inténtalo de nuevo en unos minutos.',
+                    ]);
                 }
 
                 $preparadas[] = [

@@ -18,6 +18,10 @@
 
 return [
 
+    // Interruptor del envío de fotos. Con false no se pueden subir nuevas (la interfaz oculta el
+    // selector y el servidor las rechaza), pero las ya subidas se siguen viendo.
+    'habilitados' => (bool) env('ADJUNTOS_HABILITADOS', true),
+
     'disco' => env('ADJUNTOS_DISK', 'local'),
 
     'directorio' => 'adjuntos',

@@ -557,6 +557,10 @@ class ReporteController extends Controller
     {
         Gate::authorize('abac', [AccionesAbac::ReporteEditar, $reporte]);
 
+        if (! AdjuntoService::habilitados()) {
+            return redirect()->back()->withErrors(['fotos' => AdjuntoService::MENSAJE_DESACTIVADAS]);
+        }
+
         $request->validate([
             ...AdjuntoService::reglas(),
             'fotos' => ['required', 'array', 'min:1', 'max:'.config('adjuntos.max_por_entidad')],

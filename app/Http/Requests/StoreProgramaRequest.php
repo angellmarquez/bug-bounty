@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
+use App\Concerns\PocSchemaValidationRules;
 use App\Enums\NivelAcceso;
 use App\Models\Programa;
 use App\Rules\FechaNoPasada;
@@ -14,6 +15,8 @@ use Illuminate\Validation\Validator;
 
 class StoreProgramaRequest extends FormRequest
 {
+    use PocSchemaValidationRules;
+
     public function authorize(): bool
     {
         return Gate::allows('abac', [AccionesAbac::ProgramaCrear]);
@@ -45,16 +48,7 @@ class StoreProgramaRequest extends FormRequest
             'moneda' => ['nullable', 'string', 'max:10'],
             'tabla_recompensas' => ['nullable', 'array'],
             'nivel_acceso' => ['sometimes', Rule::enum(NivelAcceso::class)],
-            'poc_schema' => ['nullable', 'array'],
-            'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
-            'poc_schema.*.label' => ['required_with:poc_schema', 'string', 'max:255'],
-            'poc_schema.*.type' => ['required_with:poc_schema', Rule::in(['text', 'textarea', 'select', 'number', 'url', 'code'])],
-            'poc_schema.*.required' => ['boolean'],
-            'poc_schema.*.placeholder' => ['nullable', 'string', 'max:255'],
-            'poc_schema.*.help' => ['nullable', 'string', 'max:500'],
-            'poc_schema.*.options' => ['nullable', 'array'],
-            'poc_schema.*.repeatable' => ['boolean'],
-            'poc_schema.*.defaultValue' => ['nullable', 'string', 'max:2000'],
+            ...$this->pocSchemaRules(),
             'inicia_en' => ['nullable', 'date', new FechaNoPasada(etiqueta: 'La fecha de inicio')],
             'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en', new FechaNoPasada(etiqueta: 'La fecha de fin')],
             // Una empresa no puede crear un programa sin alcance: necesita al menos un objetivo.
@@ -97,6 +91,7 @@ class StoreProgramaRequest extends FormRequest
     public function messages(): array
     {
         return [
+            ...$this->pocSchemaMessages(),
             'objetivos.required' => 'Agrega al menos un objetivo: define qué sistemas pueden investigar los investigadores.',
             'objetivos.min' => 'Agrega al menos un objetivo: define qué sistemas pueden investigar los investigadores.',
             'objetivos.*.valor.required' => 'Indica el objetivo (por ejemplo un dominio, una API o una aplicación).',

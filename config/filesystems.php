@@ -57,7 +57,9 @@ return [
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => false,
-            'report' => false,
+            // Las fotos de evidencia van a este disco (Supabase Storage): si una operación falla,
+            // el motivo que devuelve el bucket queda en el log en lugar de perderse.
+            'report' => true,
         ],
 
     ],

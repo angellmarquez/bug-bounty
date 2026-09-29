@@ -74,8 +74,16 @@
         arrastrando = false;
         agregar(e.dataTransfer?.files ?? null);
     }
+
+    // Con el envío de fotos desactivado en el servidor no se ofrece el selector.
+    const habilitadas = $derived(page.props.fotosHabilitadas ?? true);
 </script>
 
+{#if !habilitadas}
+    <p class="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground" data-test="fotos-desactivadas">
+        El envío de fotos está desactivado por ahora. Describe la evidencia en la prueba de concepto.
+    </p>
+{:else}
 <div class="space-y-3" data-test="fotos-selector">
     <label
         for={id}
@@ -130,3 +138,4 @@
 
     <InputError message={aviso || error} />
 </div>
+{/if}

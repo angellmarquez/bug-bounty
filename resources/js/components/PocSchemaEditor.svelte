@@ -300,9 +300,13 @@
                         <Input
                             id={`poc-name-${i}`}
                             placeholder="ej: endpoint_afectado"
+                            required
+                            pattern="[a-z][a-z0-9_]*"
+                            title="Minúsculas, números y guion bajo, empezando por una letra (ej: url_afectada)"
+                            maxlength={100}
                             bind:value={campo.name}
                         />
-                        <p class="text-[11px] text-muted-foreground">Sin espacios; se usa como clave interna del dato.</p>
+                        <p class="text-[11px] text-muted-foreground">Minúsculas, números y guion bajo (ej: url_afectada); es la clave interna del dato.</p>
                         <InputError message={errorDe(i, 'name')} />
                     </div>
 
@@ -311,6 +315,8 @@
                         <Input
                             id={`poc-label-${i}`}
                             placeholder="ej: Endpoint afectado"
+                            required
+                            maxlength={255}
                             bind:value={campo.label}
                         />
                         <InputError message={errorDe(i, 'label')} />
@@ -392,12 +398,13 @@
                         {#if campo.options.length === 0}
                             <p class="text-[11px] text-muted-foreground">Agrega al menos una opción para este campo.</p>
                         {/if}
+                        <InputError message={errorDe(i, 'options')} />
                         {#each campo.options as opcion, j (j)}
                             <div class="flex items-center gap-2">
                                 <input type="hidden" name={`poc_schema[${i}][options][${j}][value]`} value={opcion.value} />
                                 <input type="hidden" name={`poc_schema[${i}][options][${j}][label]`} value={opcion.label} />
-                                <Input placeholder="valor" bind:value={opcion.value} class="flex-1" />
-                                <Input placeholder="etiqueta" bind:value={opcion.label} class="flex-1" />
+                                <Input placeholder="valor" required aria-label={`Valor de la opción ${j + 1}`} bind:value={opcion.value} class="flex-1" />
+                                <Input placeholder="etiqueta" required aria-label={`Etiqueta de la opción ${j + 1}`} bind:value={opcion.label} class="flex-1" />
                                 <Button
                                     type="button"
                                     variant="ghost"

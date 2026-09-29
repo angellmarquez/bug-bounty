@@ -13,6 +13,7 @@ use App\Services\Adjuntos\AdjuntoService;
 use App\Services\Pgp\PgpService;
 use App\Services\Reputacion\ReputationService;
 use App\Services\Reputacion\TrazaApelaciones;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -76,6 +77,53 @@ test('el investigador crea un informe con fotos: quedan cifradas en el disco y c
     expect(hash('sha256', $binario))->toBe($fotos[0]->sha256);
 
     expect(Auditoria::where('accion', 'adjuntos.subidos')->where('entidad_id', $reporte->id)->exists())->toBeTrue();
+});
+
+test('si el almacenamiento rechaza la foto, el formulario lo explica y no se crea nada', function () {
+    // Un disco que no acepta escrituras (como un bucket que rechaza la subida).
+    $disco = Mockery::mock(Filesystem::class);
+    $disco->shouldReceive('put')->andReturnFalse();
+    $disco->shouldReceive('delete')->andReturnTrue();
+    Storage::set('local', $disco);
+
+    $investigador = investigador();
+    $programa = Programa::factory()->create();
+
+    $this->actingAs($investigador)->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'Informe con foto que no se guarda',
+        'descripcion' => 'Descripción del hallazgo con una captura adjunta.',
+        'poc' => json_encode(['pasos' => 'abrir y pegar']),
+        'fotos' => [fotoPng()],
+    ])->assertRedirect()->assertSessionHasErrors(['fotos' => 'No se pudo guardar la foto en el almacenamiento. Inténtalo de nuevo en unos minutos.']);
+
+    expect(Reporte::where('titulo', 'Informe con foto que no se guarda')->exists())->toBeFalse()
+        ->and(Adjunto::count())->toBe(0);
+});
+
+test('con el envio de fotos desactivado no se puede subir ninguna, pero el informe sin fotos si', function () {
+    config(['adjuntos.habilitados' => false]);
+    $investigador = investigador();
+    $programa = Programa::factory()->create();
+    $datos = [
+        'programa_id' => $programa->id,
+        'descripcion' => 'Descripción del hallazgo para probar el interruptor de fotos.',
+        'poc' => json_encode(['pasos' => 'abrir y pegar']),
+    ];
+
+    $this->actingAs($investigador)
+        ->post(route('reportes.store'), [...$datos, 'titulo' => 'Con foto', 'fotos' => [fotoPng()]])
+        ->assertSessionHasErrors(['fotos' => AdjuntoService::MENSAJE_DESACTIVADAS]);
+    expect(Reporte::where('titulo', 'Con foto')->exists())->toBeFalse();
+
+    $this->post(route('reportes.store'), [...$datos, 'titulo' => 'Sin foto'])->assertSessionHasNoErrors();
+    $borrador = Reporte::where('titulo', 'Sin foto')->firstOrFail();
+
+    $this->post(route('reportes.fotos.subir', $borrador), ['fotos' => [fotoPng()]])
+        ->assertSessionHasErrors(['fotos' => AdjuntoService::MENSAJE_DESACTIVADAS]);
+    expect(Adjunto::count())->toBe(0);
+
+    $this->get(route('reportes.edit', $borrador))->assertInertia(fn ($page) => $page->where('fotosHabilitadas', false));
 });
 
 test('la foto se vuelve a codificar: lo que venía pegado tras la imagen desaparece', function () {
