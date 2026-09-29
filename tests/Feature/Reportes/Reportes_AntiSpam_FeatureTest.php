@@ -178,7 +178,7 @@ test('guardar y enviar bloqueado no crea el informe y devuelve el motivo', funct
     $respuesta = $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'Otro hallazgo',
-        'descripcion' => 'Detalle del hallazgo',
+        'descripcion' => 'Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
         'poc' => ['evidencia' => 'Evidencia de prueba.'],
         'enviar' => true,
     ]);
@@ -197,7 +197,7 @@ test('guardar solo un borrador siempre se permite, aunque este en el limite', fu
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'Para enviar mas tarde',
-        'descripcion' => 'Detalle del hallazgo',
+        'descripcion' => 'Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
     ])->assertSessionHasNoErrors();
 
     $this->assertDatabaseHas('reportes', [
@@ -220,7 +220,7 @@ test('simulacion: un script envia 15 informes distintos al mismo programa y solo
         $this->post(route('reportes.store'), [
             'programa_id' => $programa->id,
             'titulo' => "Hallazgo automatico {$i}",
-            'descripcion' => "Texto {$i}",
+            'descripcion' => "Descripción detallada del hallazgo número {$i} con los pasos para reproducirlo.",
             'poc' => ['evidencia' => "Evidencia {$i}"],
             'enviar' => true,
         ]);
@@ -238,7 +238,7 @@ test('simulacion: un script reparte 18 informes entre 18 programas y solo entran
         $this->post(route('reportes.store'), [
             'programa_id' => $programa->id,
             'titulo' => "Barrido {$i}",
-            'descripcion' => "Texto {$i}",
+            'descripcion' => "Descripción detallada del hallazgo número {$i} con los pasos para reproducirlo.",
             'poc' => ['evidencia' => "Evidencia {$i}"],
             'enviar' => true,
         ]);
@@ -255,7 +255,7 @@ test('el bloqueo salta antes que la auditoria: un investigador legitimo nunca es
         $this->post(route('reportes.store'), [
             'programa_id' => $programa->id,
             'titulo' => "Legitimo {$i}",
-            'descripcion' => "Texto {$i}",
+            'descripcion' => "Descripción detallada del hallazgo número {$i} con los pasos para reproducirlo.",
             'poc' => ['evidencia' => "Evidencia {$i}"],
             'enviar' => true,
         ]);
@@ -274,7 +274,7 @@ test('freno HTTP: la peticion 21 en un minuto recibe 429 y otro usuario no se ve
         $codigos[] = $this->actingAs($atacante)->post(route('reportes.store'), [
             'programa_id' => $programa->id,
             'titulo' => "Borrador {$i}",
-            'descripcion' => "Texto {$i}",
+            'descripcion' => "Descripción detallada del hallazgo número {$i} con los pasos para reproducirlo.",
         ])->getStatusCode();
     }
 
@@ -284,6 +284,6 @@ test('freno HTTP: la peticion 21 en un minuto recibe 429 y otro usuario no se ve
     $this->actingAs(investigador())->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'Otro usuario',
-        'descripcion' => 'Texto',
+        'descripcion' => 'Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
     ])->assertRedirect();
 });

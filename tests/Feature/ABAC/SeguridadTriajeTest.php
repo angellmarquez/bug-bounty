@@ -194,7 +194,7 @@ test('el moderador pide informacion y el investigador responde reenviando el inf
 
     // El investigador edita y lo reenvía; vuelve a la cola del moderador.
     $this->actingAs($autor)
-        ->put(route('reportes.update', $reporte), ['titulo' => $reporte->titulo, 'descripcion' => 'Con la petición completa.', 'poc' => ['evidencia' => 'GET /api?id=1 HTTP/1.1']])
+        ->put(route('reportes.update', $reporte), ['titulo' => $reporte->titulo, 'descripcion' => 'Con la petición completa y los pasos exactos para reproducir el acceso indebido.', 'poc' => ['evidencia' => 'GET /api?id=1 HTTP/1.1']])
         ->assertRedirect();
     $this->post(route('reportes.enviar', $reporte))->assertRedirect()->assertSessionMissing('error');
 

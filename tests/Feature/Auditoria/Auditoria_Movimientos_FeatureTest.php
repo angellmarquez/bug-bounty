@@ -14,7 +14,7 @@ test('crear y enviar un reporte queda auditado con el alias corto de entidad', f
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'XSS reflejado',
-        'descripcion' => 'Detalle',
+        'descripcion' => 'Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
         'poc' => ['evidencia' => 'pasos'],
         'enviar' => true,
     ])->assertRedirect();

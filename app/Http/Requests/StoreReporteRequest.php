@@ -67,8 +67,9 @@ class StoreReporteRequest extends FormRequest
 
         return [
             'programa_id' => ['required', 'exists:programas,id'],
-            'titulo' => ['required', 'string', 'max:255'],
-            'descripcion' => ['required', 'string', 'max:50000'],
+            // Los mínimos del formulario se exigen al enviar; un borrador puede ir incompleto.
+            'titulo' => ['required', 'string', ...($enviar ? ['min:'.Reporte::TITULO_MINIMO] : []), 'max:255'],
+            'descripcion' => ['required', 'string', ...($enviar ? ['min:'.Reporte::DESCRIPCION_MINIMA] : []), 'max:50000'],
             'categoria' => ['nullable', 'string', Rule::in(Reporte::CATEGORIAS)],
             'vector_cvss' => ['nullable', 'string', 'regex:'.Cvss31::PATRON],
             'puntuacion_cvss' => ['nullable', 'numeric', 'min:0', 'max:10'],
@@ -89,10 +90,10 @@ class StoreReporteRequest extends FormRequest
             'programa_id.required' => 'Debe seleccionar un programa.',
             'programa_id.exists' => 'El programa seleccionado no existe.',
             'titulo.required' => 'El título es obligatorio.',
-            'titulo.min' => 'El título debe tener al menos 5 caracteres descriptivos.',
+            'titulo.min' => 'El título debe tener al menos '.Reporte::TITULO_MINIMO.' caracteres descriptivos.',
             'titulo.max' => 'El título no puede exceder 255 caracteres.',
             'descripcion.required' => 'La descripción es obligatoria.',
-            'descripcion.min' => 'La descripción debe tener al menos 50 caracteres detallando el hallazgo.',
+            'descripcion.min' => 'La descripción debe tener al menos '.Reporte::DESCRIPCION_MINIMA.' caracteres detallando el hallazgo.',
             'descripcion.max' => 'La descripción no puede exceder 50000 caracteres.',
             'vector_cvss.regex' => 'El vector CVSS no es válido: usa la calculadora (formato CVSS:3.1/AV:…/A:…).',
             'categoria.in' => 'Elige una categoría de la lista.',
