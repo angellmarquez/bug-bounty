@@ -9,6 +9,7 @@ use App\Enums\EstadoPrograma;
 use App\Enums\NivelAcceso;
 use App\Models\Programa;
 use App\Rules\FechaNoPasada;
+use App\Rules\ObjetivoValido;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -69,7 +70,7 @@ class UpdateProgramaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre' => ['sometimes', 'required', 'string', 'max:255'],
+            'nombre' => ['sometimes', 'required', 'string', 'min:3', 'max:255'],
             'descripcion' => ['sometimes', 'required', 'string', 'max:5000'],
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'es_publico' => ['boolean'],
@@ -83,7 +84,7 @@ class UpdateProgramaRequest extends FormRequest
             'objetivos' => ['nullable', 'array'],
             'objetivos.*.id' => ['nullable', 'integer'],
             'objetivos.*.tipo' => ['required_with:objetivos', Rule::in(['web', 'api', 'movil', 'otro'])],
-            'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255'],
+            'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255', new ObjetivoValido],
             'objetivos.*.descripcion' => ['nullable', 'string', 'max:500'],
         ];
     }
@@ -157,6 +158,7 @@ class UpdateProgramaRequest extends FormRequest
             ...$this->pocSchemaMessages(),
             ...$this->recompensasMessages(),
             'nombre.required' => 'El nombre es obligatorio.',
+            'nombre.min' => 'El nombre del programa debe tener al menos 3 caracteres.',
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
             'descripcion.required' => 'La descripción es obligatoria.',
             'descripcion.max' => 'La descripción no puede exceder 5000 caracteres.',

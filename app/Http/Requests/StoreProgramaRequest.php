@@ -8,6 +8,7 @@ use App\Concerns\RecompensasValidationRules;
 use App\Enums\NivelAcceso;
 use App\Models\Programa;
 use App\Rules\FechaNoPasada;
+use App\Rules\ObjetivoValido;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -39,7 +40,7 @@ class StoreProgramaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre' => ['required', 'string', 'max:255'],
+            'nombre' => ['required', 'string', 'min:3', 'max:255'],
             'descripcion' => ['required', 'string', 'max:5000'],
             'bugs_buscados' => ['nullable', 'string', 'max:3000'],
             'es_publico' => ['boolean'],
@@ -58,7 +59,7 @@ class StoreProgramaRequest extends FormRequest
                 'min:1',
             ],
             'objetivos.*.tipo' => ['required_with:objetivos', Rule::in(['web', 'api', 'movil', 'otro'])],
-            'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255'],
+            'objetivos.*.valor' => ['required_with:objetivos', 'string', 'max:255', new ObjetivoValido],
             'objetivos.*.descripcion' => ['nullable', 'string', 'max:500'],
         ];
     }
@@ -98,6 +99,7 @@ class StoreProgramaRequest extends FormRequest
             'objetivos.min' => 'Agrega al menos un objetivo: define qué sistemas pueden investigar los investigadores.',
             'objetivos.*.valor.required' => 'Indica el objetivo (por ejemplo un dominio, una API o una aplicación).',
             'nombre.required' => 'El nombre es obligatorio.',
+            'nombre.min' => 'El nombre del programa debe tener al menos 3 caracteres.',
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
             'descripcion.required' => 'La descripción es obligatoria.',
             'descripcion.max' => 'La descripción no puede exceder 5000 caracteres.',

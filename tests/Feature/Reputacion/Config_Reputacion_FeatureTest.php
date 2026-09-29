@@ -153,3 +153,17 @@ test('solo el administrador actualiza la configuracion de reputacion', function 
 
     expect(ConfiguracionReputacion::count())->toBe(0);
 });
+
+test('rechaza valores desorbitados en la configuracion', function (array $cambios, string $campo) {
+    $this->actingAs(administrador());
+
+    $this->put(route('admin.config.reputacion.update'), configReputacion($cambios))->assertSessionHasErrors($campo);
+
+    expect(ConfiguracionReputacion::query()->exists())->toBeFalse();
+})->with([
+    'penalizacion enorme' => [['penalizacion' => ['grave' => -999999999]], 'penalizacion.grave'],
+    'puntos enormes' => [['puntos_por_severidad' => ['critica' => ['reporte_validado' => 999999]]], 'puntos_por_severidad.critica.reporte_validado'],
+    'puntos iniciales enormes' => [['puntos_inicial' => 50000], 'puntos_inicial'],
+    'suspension de mas de un año' => [['suspension' => ['grave' => ['dias' => 400]]], 'suspension.grave.dias'],
+    'plazo de apelacion excesivo' => [['plazo_apelacion_dias' => 365], 'plazo_apelacion_dias'],
+]);

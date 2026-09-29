@@ -351,6 +351,9 @@ class AdminController extends Controller
     // ------------------------------------------------------------------
 
     /** Tipos de cuenta, del de mayor privilegio al de menor: una cuenta se muestra con el primero que tenga. */
+    /** Tope de los puntos y penalizaciones configurables: evita valores absurdos (o que desborden la columna). */
+    private const PUNTOS_MAXIMOS = 10000;
+
     private const TIPOS_DE_CUENTA = ['administrador', 'moderador', 'empresa', 'investigador'];
 
     /**
@@ -562,27 +565,27 @@ class AdminController extends Controller
         $severidades = array_map(fn (Severidad $s): string => $s->value, Severidad::cases());
 
         $validated = $request->validate([
-            'puntos_inicial' => ['required', 'integer', 'min:0'],
+            'puntos_inicial' => ['required', 'integer', 'min:0', 'max:'.self::PUNTOS_MAXIMOS],
             // Lo que de verdad reparte los puntos: casi todo informe tiene severidad CVSS.
             'puntos_por_severidad' => ['required', 'array:'.implode(',', $severidades)],
             ...collect($severidades)->flatMap(fn (string $s): array => [
                 "puntos_por_severidad.{$s}" => ['required', 'array:reporte_validado,reporte_resuelto'],
-                "puntos_por_severidad.{$s}.reporte_validado" => ['required', 'integer', 'min:0'],
-                "puntos_por_severidad.{$s}.reporte_resuelto" => ['required', 'integer', 'min:0'],
+                "puntos_por_severidad.{$s}.reporte_validado" => ['required', 'integer', 'min:0', 'max:'.self::PUNTOS_MAXIMOS],
+                "puntos_por_severidad.{$s}.reporte_resuelto" => ['required', 'integer', 'min:0', 'max:'.self::PUNTOS_MAXIMOS],
             ])->all(),
             // Para informes sin severidad calculada.
-            'puntos.reporte_validado' => ['required', 'integer', 'min:0'],
-            'puntos.reporte_resuelto' => ['required', 'integer', 'min:0'],
-            'puntos.calidad_documentacion' => ['sometimes', 'integer', 'min:0'],
-            'puntos.participacion' => ['sometimes', 'integer', 'min:0'],
+            'puntos.reporte_validado' => ['required', 'integer', 'min:0', 'max:'.self::PUNTOS_MAXIMOS],
+            'puntos.reporte_resuelto' => ['required', 'integer', 'min:0', 'max:'.self::PUNTOS_MAXIMOS],
+            'puntos.calidad_documentacion' => ['sometimes', 'integer', 'min:0', 'max:'.self::PUNTOS_MAXIMOS],
+            'puntos.participacion' => ['sometimes', 'integer', 'min:0', 'max:'.self::PUNTOS_MAXIMOS],
             // Una "penalización" positiva sería en realidad un premio: se exige <= 0.
-            'penalizacion.leve' => ['required', 'integer', 'max:0'],
-            'penalizacion.media' => ['required', 'integer', 'max:0'],
-            'penalizacion.grave' => ['required', 'integer', 'max:0'],
-            'suspension.leve.dias' => ['required', 'integer', 'min:0'],
-            'suspension.media.dias' => ['required', 'integer', 'min:0'],
-            'suspension.grave.dias' => ['required', 'integer', 'min:0'],
-            'plazo_apelacion_dias' => ['required', 'integer', 'min:1'],
+            'penalizacion.leve' => ['required', 'integer', 'min:-'.self::PUNTOS_MAXIMOS, 'max:0'],
+            'penalizacion.media' => ['required', 'integer', 'min:-'.self::PUNTOS_MAXIMOS, 'max:0'],
+            'penalizacion.grave' => ['required', 'integer', 'min:-'.self::PUNTOS_MAXIMOS, 'max:0'],
+            'suspension.leve.dias' => ['required', 'integer', 'min:0', 'max:365'],
+            'suspension.media.dias' => ['required', 'integer', 'min:0', 'max:365'],
+            'suspension.grave.dias' => ['required', 'integer', 'min:0', 'max:365'],
+            'plazo_apelacion_dias' => ['required', 'integer', 'min:1', 'max:90'],
         ]);
 
         $configAnterior = config('reputacion');
