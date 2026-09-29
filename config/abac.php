@@ -10,6 +10,7 @@
 |
 | Estructura de regla:
 |   id         -> identificador único (aparece en auditoría y trazas)
+|   descripcion-> qué dice la regla en lenguaje llano (la muestra el simulador ABAC)
 |   prioridad  -> orden de evaluación (menor primero); el deny siempre gana
 |   acciones   -> lista de acciones (comodines: 'reportes.*' y '*')
 |   sujeto     -> condiciones sobre atributos del usuario
@@ -32,6 +33,7 @@ return [
         // ------------------------------------------------------------------
         [
             'id' => 'denegar-todo-a-usuario-inactivo',
+            'descripcion' => 'Una cuenta desactivada por el administrador no puede hacer nada.',
             'prioridad' => 1,
             'acciones' => ['*'],
             'sujeto' => ['is_active' => ['=' => false]],
@@ -43,6 +45,7 @@ return [
         // (sanciones incluidas) y apelar. Sin esa salida una sanción injusta sería definitiva.
         [
             'id' => 'denegar-todo-a-usuario-suspendido-salvo-apelar',
+            'descripcion' => 'Un usuario suspendido queda bloqueado en todo, salvo ver su reputación y apelar la sanción.',
             'prioridad' => 1,
             'acciones' => [
                 'reportes.*',
@@ -70,6 +73,7 @@ return [
         // ------------------------------------------------------------------
         [
             'id' => 'admin-bypass-total',
+            'descripcion' => 'El administrador puede supervisar y arbitrar todo (salvo lo que otras reglas le prohíben).',
             'prioridad' => 10,
             'acciones' => ['*'],
             'sujeto' => ['roles' => ['contains' => 'administrador']],
@@ -85,6 +89,7 @@ return [
         // necesita SoD por recurso para el admin, cambiar a condición de objeto en lugar de eliminarla.
         [
             'id' => 'denegar-dia-a-dia-de-reportes-al-administrador',
+            'descripcion' => 'El administrador supervisa, pero no crea ni tría informes: eso es trabajo de investigadores y moderadores.',
             'prioridad' => 5,
             'acciones' => [
                 'reportes.crear',
@@ -116,6 +121,7 @@ return [
         // cambiar 'objeto' => [] por 'objeto' => ['id' => ['in' => '@sujeto.programas_moderados']].
         [
             'id' => 'denegar-crear-reportes-a-moderador',
+            'descripcion' => 'Un moderador no envía informes: no puede ser juez y parte.',
             'prioridad' => 5,
             'acciones' => ['reportes.crear', 'reportes.enviar'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
@@ -128,6 +134,7 @@ return [
         // la fecha manda desde el primer momento.
         [
             'id' => 'denegar-reportar-programa-fuera-de-fechas',
+            'descripcion' => 'No se puede reportar en un programa que aún no empezó o que ya terminó.',
             'prioridad' => 5,
             'acciones' => ['reportes.crear'],
             'sujeto' => ['autenticado' => ['=' => true]],
@@ -137,6 +144,7 @@ return [
         ],
         [
             'id' => 'denegar-enviar-informe-a-programa-fuera-de-fechas',
+            'descripcion' => 'No se puede enviar un informe a un programa fuera de sus fechas.',
             'prioridad' => 5,
             'acciones' => ['reportes.enviar'],
             'sujeto' => ['autenticado' => ['=' => true]],
@@ -149,6 +157,7 @@ return [
 
         [
             'id' => 'denegar-crear-reportes-a-empresa',
+            'descripcion' => 'Una empresa nunca envía informes: es quien los recibe y paga.',
             'prioridad' => 5,
             'acciones' => ['reportes.crear', 'reportes.enviar'],
             'sujeto' => ['roles' => ['contains' => 'empresa']],
@@ -162,6 +171,7 @@ return [
         // ------------------------------------------------------------------
         [
             'id' => 'denegar-no-verificado-en-programa-premium',
+            'descripcion' => 'Los programas «solo verificados» no aceptan informes de investigadores sin verificar.',
             'prioridad' => 15,
             'acciones' => ['reportes.crear'],
             'sujeto' => [
@@ -176,6 +186,7 @@ return [
         ],
         [
             'id' => 'inv-crear-reporte-en-programa-publico-activo',
+            'descripcion' => 'Un investigador puede reportar en un programa público y activo si su rango le da acceso a ese nivel.',
             'prioridad' => 20,
             'acciones' => ['reportes.crear'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -189,6 +200,7 @@ return [
         ],
         [
             'id' => 'inv-crear-reporte-en-programa-privado-invitado',
+            'descripcion' => 'Un investigador puede reportar en un programa privado y activo solo si fue invitado.',
             'prioridad' => 20,
             'acciones' => ['reportes.crear'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -202,6 +214,7 @@ return [
         ],
         [
             'id' => 'inv-ver-reporte-propio',
+            'descripcion' => 'Un investigador puede ver sus propios informes.',
             'prioridad' => 20,
             'acciones' => ['reportes.ver'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -211,6 +224,7 @@ return [
         ],
         [
             'id' => 'inv-descifrar-poc-propio',
+            'descripcion' => 'Un investigador puede descifrar la prueba de concepto de sus propios informes.',
             'prioridad' => 20,
             'acciones' => ['reportes.decrypt_poc'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -220,6 +234,7 @@ return [
         ],
         [
             'id' => 'inv-editar-reporte-propio-en-colada',
+            'descripcion' => 'Un investigador puede editar su informe mientras está en borrador, enviado o pendiente de información.',
             'prioridad' => 20,
             'acciones' => ['reportes.editar'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -232,6 +247,7 @@ return [
         ],
         [
             'id' => 'inv-enviar-reporte-borrador',
+            'descripcion' => 'Un investigador puede enviar su informe si está en borrador o le pidieron más información.',
             'prioridad' => 20,
             'acciones' => ['reportes.enviar'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -244,6 +260,7 @@ return [
         ],
         [
             'id' => 'inv-eliminar-reporte-borrador',
+            'descripcion' => 'Un investigador puede eliminar su informe solo mientras es un borrador.',
             'prioridad' => 20,
             'acciones' => ['reportes.eliminar'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -256,6 +273,7 @@ return [
         ],
         [
             'id' => 'inv-ver-programa-publico',
+            'descripcion' => 'Un investigador ve los programas públicos (activos o en pausa) de su nivel de acceso.',
             'prioridad' => 20,
             'acciones' => ['programas.ver'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -269,6 +287,7 @@ return [
         ],
         [
             'id' => 'inv-ver-programa-privado-invitado',
+            'descripcion' => 'Un investigador ve un programa privado solo si fue invitado.',
             'prioridad' => 20,
             'acciones' => ['programas.ver'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -282,6 +301,7 @@ return [
         ],
         [
             'id' => 'inv-ver-reputacion-propia',
+            'descripcion' => 'Un investigador puede ver su propia reputación.',
             'prioridad' => 20,
             'acciones' => ['reputacion.ver'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -291,6 +311,7 @@ return [
         ],
         [
             'id' => 'inv-apelar-sancion-propia-en-plazo',
+            'descripcion' => 'Un investigador puede apelar una sanción suya mientras siga vigente el plazo de apelación.',
             'prioridad' => 20,
             'acciones' => ['apelaciones.crear'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -309,6 +330,7 @@ return [
         // Crear programas corresponde exclusivamente a la empresa dueña (company_admin).
         [
             'id' => 'denegar-crear-editar-eliminar-o-publicar-programas-al-administrador',
+            'descripcion' => 'El administrador no crea ni edita programas: son de las empresas.',
             'prioridad' => 5,
             'acciones' => ['programas.crear', 'programas.editar', 'programas.cambiar_estado', 'programas.eliminar'],
             'sujeto' => ['roles' => ['contains' => 'administrador']],
@@ -318,6 +340,7 @@ return [
         ],
         [
             'id' => 'denegar-crear-o-editar-programas-al-moderador',
+            'descripcion' => 'Un moderador no crea ni edita programas: solo revisa informes.',
             'prioridad' => 5,
             'acciones' => ['programas.crear', 'programas.editar', 'programas.cambiar_estado', 'programas.eliminar'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
@@ -327,6 +350,7 @@ return [
         ],
         [
             'id' => 'denegar-crear-programas-al-investigador',
+            'descripcion' => 'Un investigador no puede crear programas.',
             'prioridad' => 5,
             'acciones' => ['programas.crear'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -340,6 +364,7 @@ return [
         // ------------------------------------------------------------------
         [
             'id' => 'empresa-crear-programa',
+            'descripcion' => 'Una empresa puede crear programas.',
             'prioridad' => 35,
             'acciones' => ['programas.crear'],
             'sujeto' => ['roles' => ['contains' => 'empresa']],
@@ -349,6 +374,7 @@ return [
         ],
         [
             'id' => 'empresa-ver-programa-propio',
+            'descripcion' => 'Una empresa ve sus propios programas, aunque estén en borrador o en pausa.',
             'prioridad' => 35,
             'acciones' => ['programas.ver'],
             'sujeto' => ['roles' => ['contains' => 'empresa']],
@@ -358,6 +384,7 @@ return [
         ],
         [
             'id' => 'empresa-gestionar-programa-propio',
+            'descripcion' => 'Una empresa gestiona (edita, publica, pausa, elimina) solo los programas de su propia empresa.',
             'prioridad' => 35,
             'acciones' => ['programas.gestionar', 'programas.editar', 'programas.cambiar_estado', 'programas.eliminar'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
@@ -367,6 +394,7 @@ return [
         ],
         [
             'id' => 'empresa-invitar-hacker-a-programa',
+            'descripcion' => 'Una empresa invita investigadores solo a sus propios programas.',
             'prioridad' => 35,
             'acciones' => ['programas.invitar_hacker'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
@@ -379,6 +407,7 @@ return [
         // Nunca un borrador ni uno aún en revisión ('enviado', 'en_revision', 'needs_info').
         [
             'id' => 'empresa-ver-reportes-de-sus-programas',
+            'descripcion' => 'Una empresa ve los informes de sus programas solo cuando moderación ya los decidió (aprobados o descartados).',
             'prioridad' => 35,
             'acciones' => ['reportes.ver'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
@@ -392,6 +421,7 @@ return [
         // La empresa descifra el PoC de lo que puede ver: aprobado o descartado por moderación
         [
             'id' => 'empresa-descifrar-poc',
+            'descripcion' => 'Una empresa descifra la prueba de concepto de los informes de sus programas ya decididos por moderación.',
             'prioridad' => 35,
             'acciones' => ['reportes.decrypt_poc'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
@@ -405,6 +435,7 @@ return [
         // Reparar y cerrar reportes de sus programas
         [
             'id' => 'empresa-reparar-y-cerrar-reportes-de-sus-programas',
+            'descripcion' => 'Una empresa marca en reparación y cierra los informes validados de sus programas.',
             'prioridad' => 35,
             'acciones' => ['reportes.marcar_en_reparacion', 'reportes.cerrar'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
@@ -418,6 +449,7 @@ return [
         // La empresa paga su propio Plan Profesional (nunca el de otra).
         [
             'id' => 'empresa-pagar-su-plan',
+            'descripcion' => 'Una empresa paga solo su propio Plan Profesional.',
             'prioridad' => 35,
             'acciones' => ['empresas.pagar_plan'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
@@ -428,6 +460,7 @@ return [
         // Gestionar y pagar recompensas (bounties) por la empresa dueña del programa
         [
             'id' => 'empresa-gestionar-y-pagar-bounties',
+            'descripcion' => 'Una empresa asigna y paga recompensas de los informes validados de sus programas.',
             'prioridad' => 35,
             'acciones' => ['reportes.asignar_bounty', 'reportes.pagar_bounty'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
@@ -444,6 +477,7 @@ return [
         // ------------------------------------------------------------------
         [
             'id' => 'moderador-ver-sus-programas',
+            'descripcion' => 'Un moderador ve los programas que tiene asignados.',
             'prioridad' => 35,
             'acciones' => ['programas.ver'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
@@ -456,6 +490,7 @@ return [
         // quedan fuera de su vista: ni el siguiente en la fila ni los que revisa otro moderador.
         [
             'id' => 'moderador-ver-reportes-que-tomo',
+            'descripcion' => 'Un moderador ve los informes que él mismo tomó, de sus programas y que no escribió él.',
             'prioridad' => 35,
             'acciones' => ['reportes.ver', 'reportes.ver_notas_internas', 'reportes.decrypt_poc'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
@@ -470,6 +505,7 @@ return [
         ],
         [
             'id' => 'moderador-ver-siguiente-de-la-cola',
+            'descripcion' => 'Un moderador puede abrir y tomar el siguiente informe de la cola de sus programas.',
             'prioridad' => 35,
             'acciones' => ['reportes.ver', 'reportes.ver_notas_internas', 'reportes.decrypt_poc', 'reportes.revisar'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
@@ -483,6 +519,7 @@ return [
         ],
         [
             'id' => 'moderador-ver-cola-de-moderacion',
+            'descripcion' => 'Un moderador puede entrar a su cola de moderación.',
             'prioridad' => 35,
             'acciones' => ['moderacion.ver'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
@@ -494,6 +531,7 @@ return [
         // a él) y desde entonces solo él lo tría. Asignar/reasignar a otro es exclusivo del admin.
         [
             'id' => 'moderador-triaje-asignado',
+            'descripcion' => 'Un moderador tría (valida, rechaza, marca duplicado, ajusta CVSS) solo los informes en revisión que tiene asignados, de sus programas y que no escribió él.',
             'prioridad' => 35,
             'acciones' => ['reportes.revisar', 'reportes.validar', 'reportes.rechazar', 'reportes.marcar_duplicado', 'reportes.ajustar_cvss'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
@@ -510,6 +548,7 @@ return [
         // Denegar explícitamente el triaje a investigadores
         [
             'id' => 'denegar-triaje-a-investigador',
+            'descripcion' => 'Un investigador nunca tría informes.',
             'prioridad' => 5,
             'acciones' => [
                 'reportes.asignar',
@@ -532,6 +571,7 @@ return [
         // ------------------------------------------------------------------
         [
             'id' => 'denegar-triaje-de-informe-propio',
+            'descripcion' => 'Nadie puede triar su propio informe: no se puede ser juez y parte.',
             'prioridad' => 5,
             'acciones' => [
                 'reportes.asignar',
@@ -551,6 +591,7 @@ return [
         ],
         [
             'id' => 'denegar-resolver-apelaciones-a-moderador',
+            'descripcion' => 'Un moderador no resuelve apelaciones: podría estar revisando su propia sanción.',
             'prioridad' => 5,
             'acciones' => ['apelaciones.resolver'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],
@@ -560,6 +601,7 @@ return [
         ],
         [
             'id' => 'denegar-resolver-apelacion-propia',
+            'descripcion' => 'Nadie resuelve su propia apelación.',
             'prioridad' => 5,
             'acciones' => ['apelaciones.resolver'],
             'sujeto' => ['autenticado' => ['=' => true]],
@@ -576,6 +618,7 @@ return [
         // El administrador entra por admin-bypass-total; el simulador no tiene más regla que esa.
         [
             'id' => 'inv-ver-certificado-propio',
+            'descripcion' => 'Un investigador ve el certificado de sus informes cerrados.',
             'prioridad' => 20,
             'acciones' => ['certificados.ver'],
             'sujeto' => ['roles' => ['contains' => 'investigador']],
@@ -588,6 +631,7 @@ return [
         ],
         [
             'id' => 'empresa-ver-certificados-de-sus-programas',
+            'descripcion' => 'Una empresa ve los certificados de los informes cerrados de sus programas.',
             'prioridad' => 35,
             'acciones' => ['certificados.ver'],
             'sujeto' => ['roles' => ['contains' => 'empresa'], 'empresa_id' => ['is_not_null']],
@@ -600,6 +644,7 @@ return [
         ],
         [
             'id' => 'moderador-ver-certificados-de-sus-programas',
+            'descripcion' => 'Un moderador ve los certificados de los informes cerrados de sus programas.',
             'prioridad' => 35,
             'acciones' => ['certificados.ver'],
             'sujeto' => ['roles' => ['contains' => 'moderador']],

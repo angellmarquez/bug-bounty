@@ -58,7 +58,9 @@ test.describe('Simulador ABAC (administrador)', () => {
                 'Programa Acme E2E',
             ),
         ).toBe('ACCESO PERMITIDO');
-        await expect(page.getByText('Regla de impacto')).toBeVisible();
+        await expect(page.locator('[data-test=resumen]')).toContainText(
+            'SÍ puede',
+        );
 
         expect(
             await simular(
@@ -69,8 +71,23 @@ test.describe('Simulador ABAC (administrador)', () => {
                 'Programa Acme E2E',
             ),
         ).toBe('ACCESO DENEGADO');
+        await expect(page.locator('[data-test=resumen]')).toContainText(
+            'Una empresa nunca envía informes',
+        );
         await expect(
-            page.getByText('[denegar-crear-reportes-a-empresa]').first(),
+            page.getByText(
+                'denegar-crear-reportes-a-empresa · decidió el resultado',
+            ),
+        ).toBeVisible();
+
+        // Un caso de ejemplo se carga y se evalúa con un clic.
+        await page
+            .locator('[data-test=casos-ejemplo] button', {
+                hasText: 'Empresa gestiona su propio programa',
+            })
+            .click();
+        await expect(
+            page.locator('[data-test=veredicto]').getByText('ACCESO PERMITIDO'),
         ).toBeVisible();
 
         expect(errores, errores.join('\n')).toEqual([]);
@@ -92,6 +109,19 @@ test.describe('Simulador ABAC (administrador)', () => {
                 'Programa en borrador E2E',
             ),
         ).toBe('ACCESO PERMITIDO');
+
+        // Sin programa: avisa de que la acción necesita uno y explica qué faltó.
+        await page.locator('#abac-tipo-recurso').selectOption('ninguno');
+        await expect(
+            page.locator('[data-test=aviso-tipo-objeto]'),
+        ).toBeVisible();
+        await page
+            .getByRole('button', { name: /Ejecutar Simulación ABAC/ })
+            .click();
+        await expect(page.locator('[data-test=casi]')).toContainText(
+            'Sobre qué',
+        );
+
         // Un investigador cualquiera no lo ve.
         expect(
             await simular(

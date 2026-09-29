@@ -14,83 +14,130 @@
     import ShieldCheck from '@lucide/svelte/icons/shield-check';
     import ShieldAlert from '@lucide/svelte/icons/shield-alert';
     import Play from '@lucide/svelte/icons/play';
-    import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
-    import XCircle from '@lucide/svelte/icons/x-circle';
+    import Check from '@lucide/svelte/icons/check';
+    import X from '@lucide/svelte/icons/x';
     import Cpu from '@lucide/svelte/icons/cpu';
-    import Layers from '@lucide/svelte/icons/layers';
     import Code2 from '@lucide/svelte/icons/code-2';
+    import Lightbulb from '@lucide/svelte/icons/lightbulb';
+    import Sparkles from '@lucide/svelte/icons/sparkles';
+    import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+
+    type TipoRecurso = 'reporte' | 'programa' | 'apelacion' | 'ninguno';
+    type Condicion = { grupo: string; texto: string; actual: string; cumple: boolean };
+    type ReglaExplicada = { regla: string; descripcion: string; decision: string; coincide: boolean; condiciones: Condicion[] };
+    type Caso = { titulo: string; usuario_id: number; accion: string; tipo_recurso: TipoRecurso; recurso_id: number | null; permitido: boolean };
 
     let {
         usuarios,
         acciones,
         recursos,
+        casos = [],
         totalReglas,
         denyByDefault,
     }: {
-        usuarios: Array<{
-            id: number;
-            name: string;
-            email: string;
-            roles: string[];
-            reputation_score: number;
-        }>;
-        acciones: Record<string, string>;
+        usuarios: Array<{ id: number; name: string; email: string; roles: string[]; reputation_score: number }>;
+        acciones: Record<string, { label: string; objeto: TipoRecurso }>;
         recursos: {
             reportes: Array<{ id: number; etiqueta: string; estado: string }>;
             programas: Array<{ id: number; etiqueta: string; estado: string; es_publico: boolean }>;
             apelaciones: Array<{ id: number; etiqueta: string; estado: string }>;
         };
+        casos?: Caso[];
         totalReglas: number;
         denyByDefault: boolean;
     } = $props();
 
+    const NOMBRE_TIPO: Record<TipoRecurso, string> = {
+        reporte: 'un informe',
+        programa: 'un programa',
+        apelacion: 'una apelación',
+        ninguno: 'ningún objeto',
+    };
+
+    const PASOS: Array<[string, string]> = [
+        ['denegacion', '¿Alguna regla que deniega se cumple?'],
+        ['permiso', '¿Alguna regla que permite se cumple?'],
+        ['por_defecto', 'Ninguna: se deniega por defecto'],
+    ];
+
     let usuarioSeleccionado = $state<string>('');
-    let accionSeleccionada = $state<string>('reportes.ver');
-    let tipoRecurso = $state<'reporte' | 'programa' | 'apelacion' | 'ninguno'>('reporte');
+    let accionSeleccionada = $state<string>('reportes.crear');
+    let tipoRecurso = $state<TipoRecurso>('programa');
     let recursoId = $state<string>('');
 
     let cargando = $state(false);
+    let error = $state('');
     let resultado = $state<{
         permitido: boolean;
         decision: string;
-        motivo: string;
         regla_decisiva: string | null;
-        contexto: {
-            sujeto: Record<string, any>;
-            objeto: Record<string, any>;
-            entorno: Record<string, any>;
+        contexto: { sujeto: Record<string, unknown>; objeto: Record<string, unknown>; entorno: Record<string, unknown> };
+        explicacion: {
+            resumen: string;
+            paso: 'denegacion' | 'permiso' | 'por_defecto';
+            reglas: ReglaExplicada[];
+            casi: { regla: string; descripcion: string; faltan: Condicion[] } | null;
         };
-        detalle: Array<{
-            regla: string;
-            decision: string;
-            grupos: Record<string, boolean>;
-            coincide: boolean;
-        }>;
     } | null>(null);
 
-    let pestanaResultado = $state<'arbol' | 'atributos'>('arbol');
+    let pestanaResultado = $state<'reglas' | 'atributos'>('reglas');
+    let verTodas = $state(false);
 
-    // Inicializar primer recurso si hay
-    $effect(() => {
-        if (tipoRecurso === 'reporte' && recursos.reportes.length > 0 && !recursoId) {
-            recursoId = String(recursos.reportes[0].id);
-        } else if (tipoRecurso === 'programa' && recursos.programas.length > 0 && !recursoId) {
-            recursoId = String(recursos.programas[0].id);
-        } else if (tipoRecurso === 'apelacion' && recursos.apelaciones.length > 0 && !recursoId) {
-            recursoId = String(recursos.apelaciones[0].id);
-        }
+    const tipoNecesario = $derived(acciones[accionSeleccionada]?.objeto ?? 'ninguno');
+    const reglasVisibles = $derived(
+        resultado ? (verTodas ? resultado.explicacion.reglas : resultado.explicacion.reglas.filter((r) => r.coincide)) : [],
+    );
+
+    function opcionesDe(tipo: TipoRecurso): Array<{ id: number; etiqueta: string }> {
+        if (tipo === 'reporte') return recursos.reportes;
+        if (tipo === 'programa') return recursos.programas;
+        if (tipo === 'apelacion') return recursos.apelaciones;
+        return [];
+    }
+
+    function primeroDe(tipo: TipoRecurso): string {
+        return String(opcionesDe(tipo)[0]?.id ?? '');
+    }
+
+    // Cada acción se evalúa sobre un tipo de objeto: al elegirla se ajusta sola.
+    function alCambiarAccion() {
+        tipoRecurso = tipoNecesario;
+        recursoId = primeroDe(tipoRecurso);
+        resultado = null;
+    }
+
+    function alCambiarTipo() {
+        recursoId = primeroDe(tipoRecurso);
+    }
+
+    $effect.pre(() => {
+        if (recursoId === '' && tipoRecurso !== 'ninguno') recursoId = primeroDe(tipoRecurso);
     });
+
+    function cargarCaso(caso: Caso) {
+        usuarioSeleccionado = String(caso.usuario_id);
+        accionSeleccionada = caso.accion;
+        tipoRecurso = caso.tipo_recurso;
+        recursoId = caso.recurso_id === null ? '' : String(caso.recurso_id);
+        void ejecutarSimulacion();
+    }
+
+    function tokenXsrf(): string {
+        const cookie = document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='));
+        return decodeURIComponent(cookie?.slice('XSRF-TOKEN='.length) ?? '');
+    }
 
     async function ejecutarSimulacion() {
         cargando = true;
+        error = '';
         try {
             const res = await fetch('/admin/abac/simular', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     // Laravel deja el token en la cookie XSRF-TOKEN (no hay <meta name="csrf-token">).
-                    'X-XSRF-TOKEN': decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))?.slice('XSRF-TOKEN='.length) ?? ''),
-                    'Accept': 'application/json',
+                    'X-XSRF-TOKEN': tokenXsrf(),
+                    Accept: 'application/json',
                 },
                 body: JSON.stringify({
                     usuario_id: usuarioSeleccionado ? Number(usuarioSeleccionado) : null,
@@ -102,287 +149,272 @@
 
             if (res.ok) {
                 resultado = await res.json();
+                verTodas = false;
+                pestanaResultado = 'reglas';
             } else {
-                alert('Error al simular la política ABAC.');
+                error = `No se pudo simular (HTTP ${res.status}). Recarga la página e inténtalo de nuevo.`;
             }
-        } catch (e) {
-            console.error(e);
-            alert('Error de conexión.');
+        } catch {
+            error = 'Error de conexión al simular.';
         } finally {
             cargando = false;
         }
+    }
+
+    function gruposDe(condiciones: Condicion[]): Array<[string, Condicion[]]> {
+        const grupos = new Map<string, Condicion[]>();
+        for (const c of condiciones) grupos.set(c.grupo, [...(grupos.get(c.grupo) ?? []), c]);
+        return [...grupos.entries()];
     }
 </script>
 
 <AppHead title="Simulador ABAC" />
 
 <div class="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
-    <!-- Encabezado con métricas de arquitectura -->
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
-        <div>
-            <PageHeader
-                title="Simulador de Políticas ABAC"
-                description="Auditoría y evaluación en tiempo real bajo el estándar NIST SP 800-162."
-            />
-        </div>
-
+    <div class="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <PageHeader
+            title="Simulador de Políticas ABAC"
+            description="Pregúntale al motor de permisos: ¿puede este usuario hacer esta acción sobre este objeto? Y por qué."
+        />
         <div class="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" class="font-mono text-xs border-primary/30 text-primary">
-                {totalReglas} Reglas Activas
-            </Badge>
-            <Badge variant="outline" class="font-mono text-xs border-chart-2/40 text-chart-2">
-                {denyByDefault ? 'Fail-Closed (Deny by Default)' : 'Permissive'}
+            <Badge variant="outline" class="border-primary/30 font-mono text-xs text-primary">{totalReglas} reglas activas</Badge>
+            <Badge variant="outline" class="border-chart-2/40 font-mono text-xs text-chart-2">
+                {denyByDefault ? 'Denegar por defecto' : 'Permisivo'}
             </Badge>
         </div>
     </div>
 
-    <!-- Área principal: Formulario a la izquierda, resultados a la derecha -->
+    {#if casos.length > 0}
+        <Card>
+            <CardHeader class="pb-3">
+                <CardTitle class="flex items-center gap-2 text-base">
+                    <Sparkles class="size-4 text-primary" />
+                    Casos de ejemplo
+                </CardTitle>
+                <CardDescription>Un clic carga el caso con datos reales y lo evalúa. El icono indica lo que responde el motor.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div class="flex flex-wrap gap-2" data-test="casos-ejemplo">
+                {#each casos as caso (caso.titulo)}
+                    <Button variant="outline" size="sm" class="h-auto py-1.5 text-left whitespace-normal" onclick={() => cargarCaso(caso)}>
+                        {#if caso.permitido}
+                            <Check class="mr-1.5 size-3.5 shrink-0 text-primary" />
+                        {:else}
+                            <X class="mr-1.5 size-3.5 shrink-0 text-destructive" />
+                        {/if}
+                        {caso.titulo}
+                    </Button>
+                {/each}
+                </div>
+            </CardContent>
+        </Card>
+    {/if}
+
     <div class="grid gap-6 lg:grid-cols-12">
-        <!-- FORMULARIO DE ENTRADA (4 cols) -->
-        <div class="lg:col-span-5 space-y-5">
+        <div class="space-y-5 lg:col-span-5">
             <Card>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2 text-base">
                         <Cpu class="size-4 text-primary" />
-                        Parámetros de la Evaluación
+                        La pregunta
                     </CardTitle>
-                    <CardDescription>
-                        Selecciona el sujeto que solicita la acción, la operación a evaluar y el objeto de destino.
-                    </CardDescription>
+                    <CardDescription>¿Puede <strong>este usuario</strong> hacer <strong>esta acción</strong> sobre <strong>este objeto</strong>?</CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    <!-- Sujeto / Usuario -->
                     <div class="space-y-1.5">
-                        <label for="abac-usuario" class="text-xs font-semibold text-foreground">Sujeto (Usuario)</label>
-                        <select
-                            id="abac-usuario"
-                            bind:value={usuarioSeleccionado}
-                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                        >
-                            <option value="">Invitado (No autenticado / Anónimo)</option>
+                        <label for="abac-usuario" class="text-xs font-semibold text-foreground">1. Usuario (quién)</label>
+                        <select id="abac-usuario" bind:value={usuarioSeleccionado} class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                            <option value="">Visitante sin sesión</option>
                             {#each usuarios as u (u.id)}
-                                <option value={String(u.id)}>
-                                    {u.name} [{u.roles.join(', ')}] ({u.reputation_score} pts)
-                                </option>
+                                <option value={String(u.id)}>{u.name} [{u.roles.join(', ')}] ({u.reputation_score} pts)</option>
                             {/each}
                         </select>
                     </div>
 
-                    <!-- Acción ABAC -->
                     <div class="space-y-1.5">
-                        <label for="abac-accion" class="text-xs font-semibold text-foreground">Acción a Evaluar</label>
-                        <select
-                            id="abac-accion"
-                            bind:value={accionSeleccionada}
-                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
-                        >
-                            {#each Object.entries(acciones) as [slug, label] (slug)}
-                                <option value={slug}>
-                                    {slug} — {label}
-                                </option>
+                        <label for="abac-accion" class="text-xs font-semibold text-foreground">2. Acción (qué quiere hacer)</label>
+                        <select id="abac-accion" bind:value={accionSeleccionada} onchange={alCambiarAccion} class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                            {#each Object.entries(acciones) as [slug, accion] (slug)}
+                                <option value={slug}>{accion.label} ({slug})</option>
                             {/each}
                         </select>
                     </div>
 
-                    <!-- Tipo de Recurso -->
                     <div class="space-y-1.5">
-                        <label for="abac-tipo-recurso" class="text-xs font-semibold text-foreground">Tipo de Objeto / Recurso</label>
-                        <select
-                            id="abac-tipo-recurso"
-                            bind:value={tipoRecurso}
-                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                            onchange={() => recursoId = ''}
-                        >
-                            <option value="reporte">Reporte de Vulnerabilidad</option>
-                            <option value="programa">Programa de Bug Bounty</option>
-                            <option value="apelacion">Apelación de Sanción</option>
-                            <option value="ninguno">Ninguno / Operación Global (sin objeto)</option>
+                        <label for="abac-tipo-recurso" class="text-xs font-semibold text-foreground">3. Objeto (sobre qué)</label>
+                        <select id="abac-tipo-recurso" bind:value={tipoRecurso} onchange={alCambiarTipo} class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none">
+                            <option value="reporte">Un informe</option>
+                            <option value="programa">Un programa</option>
+                            <option value="apelacion">Una apelación</option>
+                            <option value="ninguno">Ninguno (acción general)</option>
                         </select>
+                        {#if tipoRecurso !== tipoNecesario}
+                            <p class="flex items-start gap-1.5 text-xs text-chart-4" data-test="aviso-tipo-objeto">
+                                <AlertTriangle class="mt-0.5 size-3.5 shrink-0" />
+                                Esta acción se comprueba sobre {NOMBRE_TIPO[tipoNecesario]}. Con {NOMBRE_TIPO[tipoRecurso]}, el motor no puede verificar, por ejemplo, a quién pertenece, y denegará.
+                            </p>
+                        {/if}
                     </div>
 
-                    <!-- Recurso Específico -->
                     {#if tipoRecurso !== 'ninguno'}
-                        <div class="space-y-1.5">
-                            <label for="abac-recurso-id" class="text-xs font-semibold text-foreground">Objeto Específico</label>
-                            <select
-                                id="abac-recurso-id"
-                                bind:value={recursoId}
-                                class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none text-xs"
-                            >
-                                {#if tipoRecurso === 'reporte'}
-                                    {#each recursos.reportes as r (r.id)}
-                                        <option value={String(r.id)}>{r.etiqueta}</option>
-                                    {/each}
-                                {:else if tipoRecurso === 'programa'}
-                                    {#each recursos.programas as p (p.id)}
-                                        <option value={String(p.id)}>{p.etiqueta}</option>
-                                    {/each}
-                                {:else if tipoRecurso === 'apelacion'}
-                                    {#each recursos.apelaciones as a (a.id)}
-                                        <option value={String(a.id)}>{a.etiqueta}</option>
-                                    {/each}
-                                {/if}
-                            </select>
-                        </div>
+                        <select id="abac-recurso-id" aria-label="Objeto concreto" bind:value={recursoId} class="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none">
+                            {#each opcionesDe(tipoRecurso) as o (o.id)}
+                                <option value={String(o.id)}>{o.etiqueta}</option>
+                            {/each}
+                        </select>
                     {/if}
 
-                    <Button class="w-full mt-2 font-semibold" onclick={ejecutarSimulacion} disabled={cargando}>
+                    <Button class="mt-2 w-full font-semibold" onclick={ejecutarSimulacion} disabled={cargando}>
                         <Play class="mr-2 size-4" />
-                        {cargando ? 'Evaluando motor...' : 'Ejecutar Simulación ABAC'}
+                        {cargando ? 'Evaluando…' : 'Ejecutar Simulación ABAC'}
                     </Button>
+                    {#if error}
+                        <p role="alert" class="text-sm text-destructive">{error}</p>
+                    {/if}
                 </CardContent>
             </Card>
 
             <Card class="bg-muted/30">
-                <CardContent class="pt-6 text-xs text-muted-foreground space-y-2">
-                    <p class="font-semibold text-foreground flex items-center gap-1.5">
-                        <Layers class="size-3.5 text-primary" />
-                        Mapeo NIST SP 800-162
+                <CardContent class="space-y-2 pt-6 text-xs text-muted-foreground">
+                    <p class="flex items-center gap-1.5 font-semibold text-foreground">
+                        <Lightbulb class="size-3.5 text-primary" />
+                        Cómo decide el motor
                     </p>
+                    <ol class="list-decimal space-y-1 pl-4">
+                        <li>Busca las reglas que hablan de esa acción.</li>
+                        <li>Si alguna regla que <strong>deniega</strong> se cumple, deniega. Siempre gana.</li>
+                        <li>Si no, y alguna regla que <strong>permite</strong> se cumple, permite.</li>
+                        <li>Si ninguna se cumple, <strong>deniega por defecto</strong>: lo que no está permitido explícitamente, está prohibido.</li>
+                    </ol>
                     <p>
-                        A diferencia de los sistemas tradicionales basados en roles (RBAC), el motor ABAC evalúa en tiempo real
-                        atributos de tres fuentes: <strong>Sujeto</strong> (roles, reputación, estado de sanción),
-                        <strong>Objeto</strong> (propiedad, programa, nivel de acceso) y <strong>Entorno</strong> (seguridad).
+                        A diferencia de un sistema por roles (RBAC), cada regla mira atributos del <strong>usuario</strong> (rol, reputación,
+                        suspensión, empresa), del <strong>objeto</strong> (dueño, estado, a quién está asignado) y del <strong>contexto</strong> (NIST SP 800-162).
                     </p>
                 </CardContent>
             </Card>
         </div>
 
-        <!-- RESULTADOS DE LA SIMULACIÓN (7 cols) -->
-        <div class="lg:col-span-7 space-y-5">
+        <div class="space-y-5 lg:col-span-7">
             {#if resultado}
-                <!-- BANNER DE VEREDICTO FINAL -->
-                <div class="rounded-xl border-2 {resultado.permitido ? 'border-primary bg-primary/10' : 'border-destructive bg-destructive/10'} p-5 shadow-lg space-y-2">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            {#if resultado.permitido}
-                                <ShieldCheck class="size-7 text-primary" />
-                                <span class="text-xl font-extrabold text-foreground tracking-tight">ACCESO PERMITIDO</span>
-                            {:else}
-                                <ShieldAlert class="size-7 text-destructive" />
-                                <span class="text-xl font-extrabold text-foreground tracking-tight">ACCESO DENEGADO</span>
-                            {/if}
-                        </div>
-                        <Badge variant={resultado.permitido ? 'default' : 'destructive'} class="font-mono text-xs uppercase">
-                            {resultado.decision}
-                        </Badge>
+                {@const exp = resultado.explicacion}
+                <div class="space-y-3 rounded-xl border-2 p-5 shadow-lg {resultado.permitido ? 'border-primary bg-primary/10' : 'border-destructive bg-destructive/10'}" data-test="veredicto">
+                    <div class="flex items-center gap-2">
+                        {#if resultado.permitido}
+                            <ShieldCheck class="size-7 text-primary" />
+                            <span class="text-xl font-extrabold tracking-tight text-foreground">ACCESO PERMITIDO</span>
+                        {:else}
+                            <ShieldAlert class="size-7 text-destructive" />
+                            <span class="text-xl font-extrabold tracking-tight text-foreground">ACCESO DENEGADO</span>
+                        {/if}
                     </div>
+                    <p class="text-sm font-medium text-foreground" data-test="resumen">{exp.resumen}</p>
 
-                    <p class="text-sm font-medium text-foreground">
-                        {resultado.motivo}
-                    </p>
+                    <ol class="grid gap-2 text-xs sm:grid-cols-3" data-test="pasos">
+                        {#each PASOS as [paso, texto], i (paso)}
+                            <li class="rounded-md border px-2 py-1.5 {exp.paso === paso ? 'border-foreground/50 bg-background font-semibold text-foreground' : 'border-border/60 text-muted-foreground'}">
+                                <span class="font-mono">{i + 1}.</span> {texto}
+                                {#if exp.paso === paso}<span class="block text-[11px] font-normal">← aquí se decidió</span>{/if}
+                            </li>
+                        {/each}
+                    </ol>
 
-                    {#if resultado.regla_decisiva}
-                        <div class="text-xs text-muted-foreground font-mono">
-                            Regla de impacto: <strong class="text-foreground">[{resultado.regla_decisiva}]</strong>
+                    {#if exp.casi && exp.casi.faltan.length > 0}
+                        <div class="rounded-md border border-border bg-background/70 p-3 text-xs" data-test="casi">
+                            <p class="font-semibold text-foreground">Para que se permitiera, faltó:</p>
+                            <p class="mt-0.5 text-muted-foreground">La regla que más se acercó: «{exp.casi.descripcion}»</p>
+                            <ul class="mt-1.5 space-y-0.5">
+                                {#each exp.casi.faltan as c, i (i)}
+                                    <li class="flex gap-1.5">
+                                        <X class="mt-0.5 size-3 shrink-0 text-destructive" />
+                                        <span><strong>{c.grupo}:</strong> {c.texto} <span class="text-muted-foreground">(ahora: {c.actual})</span></span>
+                                    </li>
+                                {/each}
+                            </ul>
                         </div>
                     {/if}
                 </div>
 
-                <!-- Selector de pestañas de análisis -->
                 <div class="flex border-b border-border text-sm">
-                    <button
-                        type="button"
-                        class="px-4 py-2 font-medium border-b-2 transition-colors {pestanaResultado === 'arbol' ? 'border-primary text-primary font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-                        onclick={() => pestanaResultado = 'arbol'}
-                    >
-                        Árbol de Decisión de Reglas ({resultado.detalle.length} evaluadas)
+                    <button type="button" class="border-b-2 px-4 py-2 font-medium transition-colors {pestanaResultado === 'reglas' ? 'border-primary font-semibold text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}" onclick={() => (pestanaResultado = 'reglas')}>
+                        Reglas ({exp.reglas.length} evaluadas)
                     </button>
-                    <button
-                        type="button"
-                        class="px-4 py-2 font-medium border-b-2 transition-colors {pestanaResultado === 'atributos' ? 'border-primary text-primary font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}"
-                        onclick={() => pestanaResultado = 'atributos'}
-                    >
-                        Atributos Evaluados en Memoria
+                    <button type="button" class="border-b-2 px-4 py-2 font-medium transition-colors {pestanaResultado === 'atributos' ? 'border-primary font-semibold text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}" onclick={() => (pestanaResultado = 'atributos')}>
+                        Datos técnicos
                     </button>
                 </div>
 
-                {#if pestanaResultado === 'arbol'}
-                    <!-- LISTADO DE REGLAS EVALUADAS -->
-                    <div class="space-y-3">
-                        {#each resultado.detalle as item (item.regla)}
-                            <div class="rounded-lg border {item.coincide ? (item.decision === 'permitir' ? 'border-primary/50 bg-primary/5' : 'border-destructive/50 bg-destructive/5') : 'border-border/60 bg-muted/20 opacity-70'} p-3.5 space-y-2">
-                                <div class="flex items-center justify-between text-xs">
-                                    <div class="flex items-center gap-2">
-                                        {#if item.coincide}
-                                            {#if item.decision === 'permitir'}
-                                                <CheckCircle2 class="size-4 text-primary" />
-                                            {:else}
-                                                <XCircle class="size-4 text-destructive" />
-                                            {/if}
-                                        {:else}
-                                            <div class="size-4 rounded-full border border-muted-foreground/40 shrink-0"></div>
-                                        {/if}
-                                        <span class="font-mono font-bold {item.coincide ? 'text-foreground' : 'text-muted-foreground'}">
-                                            [{item.regla}]
-                                        </span>
-                                    </div>
-
-                                    <div class="flex items-center gap-2">
-                                        <Badge variant={item.decision === 'permitir' ? 'secondary' : 'destructive'} class="text-[10px] font-mono">
-                                            {item.decision}
+                {#if pestanaResultado === 'reglas'}
+                    <div class="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{verTodas ? 'Todas las reglas que hablan de esta acción.' : 'Solo las reglas que se cumplieron.'}</span>
+                        <Button variant="ghost" size="sm" class="h-7 text-xs" onclick={() => (verTodas = !verTodas)}>
+                            {verTodas ? 'Ver solo las que se cumplieron' : `Ver las ${exp.reglas.length} evaluadas`}
+                        </Button>
+                    </div>
+                    <div class="space-y-3" data-test="reglas">
+                        {#each reglasVisibles as item (item.regla)}
+                            <div class="space-y-2 rounded-lg border p-3.5 {item.coincide ? (item.decision === 'permitir' ? 'border-primary/50 bg-primary/5' : 'border-destructive/50 bg-destructive/5') : 'border-border/60 bg-muted/20'}">
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <p class="min-w-0 flex-1 text-sm font-medium text-foreground">{item.descripcion}</p>
+                                    <div class="flex shrink-0 items-center gap-1.5">
+                                        <Badge variant={item.decision === 'permitir' ? 'secondary' : 'destructive'} class="text-[10px]">
+                                            {item.decision === 'permitir' ? 'permite' : 'deniega'}
                                         </Badge>
-                                        <Badge variant="outline" class="text-[10px]">
-                                            {item.coincide ? 'Coincide' : 'No coincide'}
-                                        </Badge>
+                                        <Badge variant="outline" class="text-[10px]">{item.coincide ? 'se cumple' : 'no se cumple'}</Badge>
                                     </div>
                                 </div>
-
-                                <!-- Condiciones por grupo -->
-                                <div class="grid grid-cols-3 gap-2 text-[11px] pt-1">
-                                    <div class="flex items-center gap-1 font-mono {item.grupos.sujeto ? 'text-primary' : 'text-muted-foreground'}">
-                                        <span>Sujeto:</span>
-                                        <strong>{item.grupos.sujeto ? 'OK' : 'No'}</strong>
+                                <p class="font-mono text-[11px] text-muted-foreground">{item.regla}{item.regla === resultado.regla_decisiva ? ' · decidió el resultado' : ''}</p>
+                                {#if item.condiciones.length > 0}
+                                    <div class="space-y-1.5 border-t border-border/60 pt-2 text-xs">
+                                        {#each gruposDe(item.condiciones) as [grupo, condiciones] (grupo)}
+                                            <div>
+                                                <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{grupo}</p>
+                                                <ul class="space-y-0.5">
+                                                    {#each condiciones as c, i (i)}
+                                                        <li class="flex gap-1.5">
+                                                            {#if c.cumple}
+                                                                <Check class="mt-0.5 size-3 shrink-0 text-primary" />
+                                                            {:else}
+                                                                <X class="mt-0.5 size-3 shrink-0 text-destructive" />
+                                                            {/if}
+                                                            <span>{c.texto} <span class="text-muted-foreground">(ahora: {c.actual})</span></span>
+                                                        </li>
+                                                    {/each}
+                                                </ul>
+                                            </div>
+                                        {/each}
                                     </div>
-                                    <div class="flex items-center gap-1 font-mono {item.grupos.objeto ? 'text-primary' : 'text-muted-foreground'}">
-                                        <span>Objeto:</span>
-                                        <strong>{item.grupos.objeto ? 'OK' : 'No'}</strong>
-                                    </div>
-                                    <div class="flex items-center gap-1 font-mono {item.grupos.entorno ? 'text-primary' : 'text-muted-foreground'}">
-                                        <span>Entorno:</span>
-                                        <strong>{item.grupos.entorno ? 'OK' : 'No'}</strong>
-                                    </div>
-                                </div>
+                                {:else}
+                                    <p class="text-xs text-muted-foreground">Sin condiciones: aplica a cualquiera que intente esta acción.</p>
+                                {/if}
                             </div>
+                        {:else}
+                            <p class="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                                Ninguna regla se cumplió. Pulsa «Ver las {exp.reglas.length} evaluadas» para ver qué condición falló en cada una.
+                            </p>
                         {/each}
                     </div>
                 {:else}
-                    <!-- JSON DE ATRIBUTOS -->
                     <div class="space-y-4">
-                        <div class="rounded-lg border border-border bg-card p-4 space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                                <Code2 class="size-3.5" />
-                                Atributos del Sujeto ($sujeto)
-                            </span>
-                            <pre class="text-[11px] font-mono bg-muted/40 p-3 rounded overflow-x-auto text-foreground">{JSON.stringify(resultado.contexto.sujeto, null, 2)}</pre>
-                        </div>
-
-                        <div class="rounded-lg border border-border bg-card p-4 space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                                <Code2 class="size-3.5" />
-                                Atributos del Objeto ($objeto)
-                            </span>
-                            <pre class="text-[11px] font-mono bg-muted/40 p-3 rounded overflow-x-auto text-foreground">{JSON.stringify(resultado.contexto.objeto, null, 2)}</pre>
-                        </div>
-
-                        <div class="rounded-lg border border-border bg-card p-4 space-y-2">
-                            <span class="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                                <Code2 class="size-3.5" />
-                                Atributos del Entorno ($entorno)
-                            </span>
-                            <pre class="text-[11px] font-mono bg-muted/40 p-3 rounded overflow-x-auto text-foreground">{JSON.stringify(resultado.contexto.entorno, null, 2)}</pre>
-                        </div>
+                        {#each [['Usuario ($sujeto)', resultado.contexto.sujeto], ['Objeto ($objeto)', resultado.contexto.objeto], ['Contexto ($entorno)', resultado.contexto.entorno]] as const as [titulo, datos] (titulo)}
+                            <div class="space-y-2 rounded-lg border border-border bg-card p-4">
+                                <span class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+                                    <Code2 class="size-3.5" />
+                                    {titulo}
+                                </span>
+                                <pre class="overflow-x-auto rounded bg-muted/40 p-3 font-mono text-[11px] text-foreground">{JSON.stringify(datos, null, 2)}</pre>
+                            </div>
+                        {/each}
                     </div>
                 {/if}
             {:else}
-                <!-- ESTADO INICIAL VACÍO -->
-                <div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border py-16 px-6 text-center space-y-3">
+                <div class="flex flex-col items-center justify-center space-y-3 rounded-xl border-2 border-dashed border-border px-6 py-16 text-center">
                     <div class="rounded-full bg-primary/10 p-4 text-primary">
                         <Cpu class="size-10" />
                     </div>
-                    <h3 class="text-lg font-bold">Motor ABAC Listo para Simular</h3>
-                    <p class="text-sm text-muted-foreground max-w-sm">
-                        Selecciona a la izquierda un usuario, la acción a verificar y el recurso. Luego pulsa "Ejecutar Simulación ABAC" para visualizar el árbol de decisiones.
+                    <h3 class="text-lg font-bold">Haz una pregunta al motor</h3>
+                    <p class="max-w-sm text-sm text-muted-foreground">
+                        Elige un caso de ejemplo de arriba, o arma la pregunta a la izquierda y pulsa «Ejecutar Simulación ABAC».
+                        Verás el veredicto, qué regla lo decidió y qué condición se cumplió o falló.
                     </p>
                 </div>
             {/if}
