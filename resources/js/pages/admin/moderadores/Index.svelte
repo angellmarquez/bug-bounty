@@ -14,9 +14,11 @@
     import EmptyState from '@/components/EmptyState.svelte';
     import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
     import PageHeader from '@/components/PageHeader.svelte';
+    import ProgramaStateBadge from '@/components/ProgramaStateBadge.svelte';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
     import type { User } from '@/types/auth';
+    import type { EstadoPrograma } from '@/types/enums';
 
     let {
         moderadores: moderadoresData,
@@ -25,9 +27,9 @@
         limitePorModerador = 5,
         programasSinModerador = [],
     }: {
-        moderadores: { data: (User & { programas_activos_count?: number })[]; total: number };
+        moderadores: { data: (User & { programas_activos_count?: number; programas_asignados_count?: number })[]; total: number };
         usuariosDisponibles: User[];
-        programas: { id: number; nombre: string; estado?: string; moderadores: { id: number }[] }[];
+        programas: { id: number; nombre: string; estado?: EstadoPrograma; moderadores: { id: number }[] }[];
         limitePorModerador?: number;
         programasSinModerador?: { id: number; nombre: string }[];
     } = $props();
@@ -42,10 +44,24 @@
         router.delete(`/admin/moderadores/${userId}`, { preserveState: true });
     }
 
-    function asignarAPrograma(userId: number) {
-        const programaId = programaSeleccionado[userId];
+    // Solo los programas activos cuentan en la carga: son los que reciben informes.
+    function asignarAPrograma(moderador: User & { programas_activos_count?: number }) {
+        const programaId = programaSeleccionado[moderador.id];
         if (!programaId) return;
-        router.post(`/admin/programas/${programaId}/moderadores/${userId}`, {}, { preserveState: true });
+        const programa = programas.find((p) => String(p.id) === programaId);
+        const activos = moderador.programas_activos_count ?? 0;
+        let forzar = false;
+        if (programa?.estado === 'activo' && activos >= limitePorModerador) {
+            const confirmado = confirm(
+                `${moderador.name} ya modera ${activos} programas activos y el límite recomendado es ${limitePorModerador}.
+
+` +
+                    `Si le asignas "${programa.nombre}" quedará con ${activos + 1}. ¿Asignarlo de todas formas?`,
+            );
+            if (!confirmado) return;
+            forzar = true;
+        }
+        router.post(`/admin/programas/${programaId}/moderadores/${moderador.id}`, { forzar }, { preserveState: true });
     }
 
     function quitarDePrograma(userId: number, programaId: number) {
@@ -117,7 +133,13 @@
                                 <p class="text-xs text-muted-foreground">{moderador.email}</p>
                                 <p class="text-[11px] {(moderador.programas_activos_count ?? 0) >= limitePorModerador ? 'text-chart-4 font-semibold' : 'text-muted-foreground'}">
                                     Carga: {moderador.programas_activos_count ?? 0} / {limitePorModerador} programas activos
+                                    {#if (moderador.programas_activos_count ?? 0) > limitePorModerador}· por encima del límite{:else if (moderador.programas_activos_count ?? 0) === limitePorModerador}· límite alcanzado{/if}
                                 </p>
+                                {#if (moderador.programas_asignados_count ?? 0) > (moderador.programas_activos_count ?? 0)}
+                                    <p class="text-[11px] text-muted-foreground" data-test="carga-no-activos">
+                                        {moderador.programas_asignados_count} asignados: {(moderador.programas_asignados_count ?? 0) - (moderador.programas_activos_count ?? 0)} no activo(s), no cuentan en la carga.
+                                    </p>
+                                {/if}
                             </div>
                             <Button size="sm" variant="destructive" onclick={() => revocar(moderador.id)}>Revocar</Button>
                         </div>
@@ -125,7 +147,12 @@
                             <p class="text-xs font-medium text-muted-foreground">Programas que modera</p>
                             {#each programasDe(moderador.id) as programa (programa.id)}
                                 <div class="flex items-center justify-between gap-2 rounded-md bg-muted px-2 py-1 text-sm">
-                                    <span class="truncate">{programa.nombre}</span>
+                                    <span class="flex min-w-0 items-center gap-2">
+                                        <span class="truncate {programa.estado && programa.estado !== 'activo' ? 'text-muted-foreground' : ''}">{programa.nombre}</span>
+                                        {#if programa.estado && programa.estado !== 'activo'}
+                                            <span class="shrink-0 text-[10px]"><ProgramaStateBadge estado={programa.estado} /></span>
+                                        {/if}
+                                    </span>
                                     <Button size="sm" variant="ghost" class="h-6 px-2 text-xs" aria-label="Quitar {programa.nombre}" onclick={() => quitarDePrograma(moderador.id, programa.id)}>
                                         Quitar
                                     </Button>
@@ -141,10 +168,10 @@
                             <select class="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm" bind:value={programaSeleccionado[moderador.id]}>
                                 <option value="">Seleccionar programa</option>
                                 {#each programas.filter((programa) => !estaAsignado(programa, moderador.id)) as programa (programa.id)}
-                                    <option value={String(programa.id)}>{programa.nombre}</option>
+                                    <option value={String(programa.id)}>{programa.nombre}{programa.estado && programa.estado !== 'activo' ? ' (no activo: no suma carga)' : ''}</option>
                                 {/each}
                             </select>
-                            <Button size="sm" onclick={() => asignarAPrograma(moderador.id)} disabled={!programaSeleccionado[moderador.id]}>Asignar alcance</Button>
+                            <Button size="sm" onclick={() => asignarAPrograma(moderador)} disabled={!programaSeleccionado[moderador.id]}>Asignar alcance</Button>
                         </div>
                     </CardContent>
                 </Card>

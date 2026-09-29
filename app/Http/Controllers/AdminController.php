@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Abac\AccionesAbac;
 use App\Enums\EstadoEmpresa;
+use App\Enums\EstadoPrograma;
 use App\Enums\Severidad;
 use App\Mail\EmpresaEstadoMail;
 use App\Models\Auditoria;
@@ -220,7 +221,10 @@ class AdminController extends Controller
 
         $moderador = Rol::where('slug', 'moderador')->first();
         $moderadores = $moderador?->usuarios()
-            ->withCount(['programasModerados as programas_activos_count' => fn ($q) => $q->where('estado', 'activo')])
+            ->withCount([
+                'programasModerados as programas_activos_count' => fn ($q) => $q->where('estado', 'activo'),
+                'programasModerados as programas_asignados_count',
+            ])
             ->latest('users.created_at')
             ->paginate(15) ?? User::query()->whereKey(0)->paginate(15);
 
@@ -318,6 +322,18 @@ class AdminController extends Controller
         if ($programa->reportes()->where('investigador_id', $user->id)->exists()) {
             return redirect()->route('admin.moderadores')
                 ->with('error', "{$user->name} ya presentó informes en {$programa->nombre}: no puede moderarlo.");
+        }
+
+        // El límite de carga cuenta solo programas activos. El admin puede superarlo, pero de forma
+        // explícita (forzar): así no se sobrecarga a un moderador por un clic distraído.
+        $autoAsignador = app(AutoAsignadorModeradores::class);
+        $limite = $autoAsignador->limitePorModerador();
+        $activos = $autoAsignador->programasActivosDe($user);
+        $sumaCarga = $programa->estado === EstadoPrograma::Activo
+            && ! $programa->moderadores()->whereKey($user->id)->exists();
+        if ($sumaCarga && $activos >= $limite && ! $request->boolean('forzar')) {
+            return redirect()->route('admin.moderadores')
+                ->with('error', "{$user->name} ya modera {$activos} programas activos (límite recomendado: {$limite}). Confirma la asignación para superarlo.");
         }
 
         $programa->moderadores()->syncWithoutDetaching([
