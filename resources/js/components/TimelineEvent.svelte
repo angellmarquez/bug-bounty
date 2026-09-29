@@ -7,6 +7,7 @@
     import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
     import UserPlus from '@lucide/svelte/icons/user-plus';
     import Coins from '@lucide/svelte/icons/coins';
+    import Gauge from '@lucide/svelte/icons/gauge';
     import type { EventoReporte } from '@/types/domain';
     import { TipoEventoReporte } from '@/types/enums';
     import { tipoEventoLabel } from '@/lib/timeline-labels';
@@ -25,6 +26,7 @@
         [TipoEventoReporte.Sancion]: AlertTriangle,
         [TipoEventoReporte.Asignacion]: UserPlus,
         [TipoEventoReporte.Bounty]: Coins,
+        [TipoEventoReporte.CvssAjustado]: Gauge,
     };
 
     const dotColorMap: Record<TipoEventoReporte, string> = {
@@ -36,7 +38,15 @@
         [TipoEventoReporte.Sancion]: 'bg-chart-3',
         [TipoEventoReporte.Asignacion]: 'bg-chart-5',
         [TipoEventoReporte.Bounty]: 'bg-chart-1',
+        [TipoEventoReporte.CvssAjustado]: 'bg-chart-4',
     };
+
+    type DatosCvss = { vector: string | null; puntuacion: number | null; severidad: string | null };
+    const cvss = $derived(
+        evento.tipo === TipoEventoReporte.CvssAjustado && evento.metadata?.nuevo
+            ? (evento.metadata as { anterior?: DatosCvss; nuevo: DatosCvss })
+            : null,
+    );
 
     const Icon = $derived(iconMap[evento.tipo] ?? FilePlus);
 
@@ -92,6 +102,13 @@
             </p>
         {/if}
         <p class="text-xs text-muted-foreground">{formatDate(evento.created_at)}</p>
+        {#if cvss}
+            <p class="mt-1 text-sm" data-test="cvss-ajustado">
+                <span class="text-muted-foreground line-through">{cvss.anterior?.puntuacion ?? '—'}{cvss.anterior?.severidad ? ` (${cvss.anterior.severidad})` : ''}</span>
+                → <span class="font-semibold text-primary">{cvss.nuevo.puntuacion} ({cvss.nuevo.severidad})</span>
+            </p>
+            <code class="mt-1 block truncate text-xs text-muted-foreground" title={cvss.nuevo.vector}>{cvss.nuevo.vector}</code>
+        {/if}
         {#if evento.descripcion}
             <p class="mt-1 text-sm text-muted-foreground wrap-anywhere">{evento.descripcion}</p>
         {/if}

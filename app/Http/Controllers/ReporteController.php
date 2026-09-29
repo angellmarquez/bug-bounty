@@ -26,6 +26,7 @@ use App\Services\Reportes\DetectorDuplicados;
 use App\Services\Reportes\LimiteDeEnvios;
 use App\Services\Reputacion\Rangos;
 use App\Services\Reputacion\ReputationService;
+use App\Support\Cvss31;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -225,6 +226,7 @@ class ReporteController extends Controller
         $puedePedirInfo = Gate::allows('abac', [AccionesAbac::ReporteValidar, $reporte]) && $this->transicionPosible($reporte, 'needs_info');
         $puedeRechazar = Gate::allows('abac', [AccionesAbac::ReporteRechazar, $reporte]) && $this->transicionPosible($reporte, 'rechazado');
         $puedeMarcarDuplicado = Gate::allows('abac', [AccionesAbac::ReporteMarcarDuplicado, $reporte]) && $this->transicionPosible($reporte, 'duplicado');
+        $puedeAjustarCvss = Gate::allows('abac', [AccionesAbac::ReporteAjustarCvss, $reporte]);
         // Marcar en reparación y cerrar corresponden a la empresa dueña del programa (y al admin),
         // por eso se evalúan con el contexto de la empresa.
         $puedeMarcarEnReparacion = Gate::allows('abac', [AccionesAbac::ReporteMarcarEnReparacion, $reporte, $this->empresaContexto()]) && $this->transicionPosible($reporte, 'en_reparacion');
@@ -306,7 +308,7 @@ class ReporteController extends Controller
             'puedeModerar' => $puedeModerar,
             'candidatosDuplicado' => $candidatosDuplicado,
             'posiblesDuplicados' => $posiblesDuplicados,
-            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedePedirInfo || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeMarcarEnReparacion || $puedeCerrar,
+            'puedeTriar' => $puedeAsignar || $puedeRevisar || $puedePedirInfo || $puedeValidar || $puedeRechazar || $puedeMarcarDuplicado || $puedeAjustarCvss || $puedeMarcarEnReparacion || $puedeCerrar,
             'accionesDisponibles' => [
                 'asignar' => $puedeAsignar,
                 'revisar' => $puedeRevisar,
@@ -314,6 +316,7 @@ class ReporteController extends Controller
                 'validar' => $puedeValidar,
                 'rechazar' => $puedeRechazar,
                 'marcar_duplicado' => $puedeMarcarDuplicado,
+                'ajustar_cvss' => $puedeAjustarCvss,
                 'reparacion' => $puedeMarcarEnReparacion,
                 'cerrar' => $puedeCerrar,
                 'asignar_bounty' => $puedeAsignarBounty,
@@ -924,6 +927,62 @@ class ReporteController extends Controller
 
         return redirect()->route('reportes.show', $reporte)
             ->with('success', 'Se ha solicitado más información al investigador.');
+    }
+
+    /**
+     * El moderador corrige el vector CVSS durante el triaje (el investigador pudo sobrevalorarlo
+     * o quedarse corto). Como al crear el informe, la puntuación y la severidad las calcula el
+     * servidor desde el vector; el cambio y su motivo quedan en la línea de tiempo y en auditoría.
+     */
+    public function ajustarCvss(Request $request, Reporte $reporte): RedirectResponse
+    {
+        $this->asegurarAcceso($reporte);
+        Gate::authorize('abac', [AccionesAbac::ReporteAjustarCvss, $reporte]);
+
+        $validated = $request->validate([
+            'vector_cvss' => ['required', 'string', 'regex:'.Cvss31::PATRON],
+            'nota' => ['required', 'string', 'max:2000'],
+        ], [
+            'vector_cvss.required' => 'Indica el vector CVSS corregido.',
+            'vector_cvss.regex' => 'El vector CVSS no es válido: usa la calculadora (formato CVSS:3.1/AV:…/A:…).',
+            'nota.required' => 'Explica al investigador por qué se ajusta el CVSS.',
+        ]);
+
+        if ($validated['vector_cvss'] === $reporte->vector_cvss) {
+            throw ValidationException::withMessages(['vector_cvss' => 'El vector es el mismo que ya tiene el informe.']);
+        }
+
+        $cvss = Cvss31::calcular($validated['vector_cvss']);
+        abort_if($cvss === null, 422);
+
+        $anterior = [
+            'vector' => $reporte->vector_cvss,
+            'puntuacion' => $reporte->puntuacion_cvss === null ? null : (float) $reporte->puntuacion_cvss,
+            'severidad' => $reporte->severidad?->value,
+        ];
+        $nuevo = [
+            'vector' => $validated['vector_cvss'],
+            'puntuacion' => $cvss['puntuacion'],
+            'severidad' => $cvss['severidad']->value,
+        ];
+
+        $reporte->update([
+            'vector_cvss' => $nuevo['vector'],
+            'puntuacion_cvss' => $nuevo['puntuacion'],
+            'severidad' => $nuevo['severidad'],
+        ]);
+
+        $reporte->eventos()->create([
+            'actor_id' => $request->user()->id,
+            'tipo' => 'cvss_ajustado',
+            'nota' => $validated['nota'],
+            'datos' => ['anterior' => $anterior, 'nuevo' => $nuevo],
+        ]);
+
+        Auditoria::registrar('reportes.cvss_ajustado', $reporte, ['anterior' => $anterior, 'nuevo' => $nuevo], $request->user()->id);
+
+        return redirect()->route('reportes.show', $reporte)
+            ->with('success', "CVSS ajustado a {$nuevo['puntuacion']} ({$cvss['severidad']->value}).");
     }
 
     public function asignar(Reporte $reporte, Request $request): RedirectResponse

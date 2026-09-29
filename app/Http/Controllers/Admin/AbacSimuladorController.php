@@ -48,6 +48,7 @@ class AbacSimuladorController extends Controller
             'reportes.validar' => 'Validar hallazgo (aprobar)',
             'reportes.rechazar' => 'Rechazar reporte (descartar)',
             'reportes.marcar_duplicado' => 'Marcar reporte como duplicado',
+            'reportes.ajustar_cvss' => 'Ajustar el CVSS en el triaje',
             'reportes.marcar_en_reparacion' => 'Marcar informe en reparación',
             'reportes.cerrar' => 'Cerrar reporte como resuelto',
             'reportes.ver_notas_internas' => 'Ver notas internas confidenciales',
