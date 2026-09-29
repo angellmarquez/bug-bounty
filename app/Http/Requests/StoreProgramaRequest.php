@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
 use App\Concerns\PocSchemaValidationRules;
+use App\Concerns\RecompensasValidationRules;
 use App\Enums\NivelAcceso;
 use App\Models\Programa;
 use App\Rules\FechaNoPasada;
@@ -15,7 +16,7 @@ use Illuminate\Validation\Validator;
 
 class StoreProgramaRequest extends FormRequest
 {
-    use PocSchemaValidationRules;
+    use PocSchemaValidationRules, RecompensasValidationRules;
 
     public function authorize(): bool
     {
@@ -29,6 +30,7 @@ class StoreProgramaRequest extends FormRequest
             'tiene_recompensas' => $this->has('tiene_recompensas') ? $this->boolean('tiene_recompensas') : false,
             'solo_verificados' => $this->has('solo_verificados') ? $this->boolean('solo_verificados') : false,
         ]);
+        $this->normalizarTablaRecompensas();
     }
 
     /**
@@ -43,10 +45,7 @@ class StoreProgramaRequest extends FormRequest
             'es_publico' => ['boolean'],
             'tiene_recompensas' => ['boolean'],
             'solo_verificados' => ['boolean'],
-            'recompensa_min' => ['nullable', 'numeric', 'min:0'],
-            'recompensa_max' => ['nullable', 'numeric', 'gte:recompensa_min'],
-            'moneda' => ['nullable', 'string', 'max:10'],
-            'tabla_recompensas' => ['nullable', 'array'],
+            ...$this->recompensasRules(),
             'nivel_acceso' => ['sometimes', Rule::enum(NivelAcceso::class)],
             ...$this->pocSchemaRules(),
             'inicia_en' => ['nullable', 'date', new FechaNoPasada(etiqueta: 'La fecha de inicio')],
@@ -66,6 +65,8 @@ class StoreProgramaRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $validator->after(fn (Validator $validator) => $this->validarCoherenciaDeRecompensas($validator));
+
         $validator->after(function (Validator $validator) {
             if (! $validator->errors()->has('termina_en')
                 && ($error = Programa::errorDeDuracion($this->input('inicia_en'), $this->input('termina_en'))) !== null) {
@@ -92,6 +93,7 @@ class StoreProgramaRequest extends FormRequest
     {
         return [
             ...$this->pocSchemaMessages(),
+            ...$this->recompensasMessages(),
             'objetivos.required' => 'Agrega al menos un objetivo: define qué sistemas pueden investigar los investigadores.',
             'objetivos.min' => 'Agrega al menos un objetivo: define qué sistemas pueden investigar los investigadores.',
             'objetivos.*.valor.required' => 'Indica el objetivo (por ejemplo un dominio, una API o una aplicación).',
