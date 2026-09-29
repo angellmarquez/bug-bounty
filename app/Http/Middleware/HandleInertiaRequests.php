@@ -61,6 +61,8 @@ class HandleInertiaRequests extends Middleware
             'userRoles' => fn () => $rolesDelUsuario()->pluck('slug')->all(),
             // Rangos de reputación y niveles de acceso: la interfaz calcula el rango de cualquier puntaje.
             'reputacionConfig' => fn () => app(Rangos::class)->paraInterfaz(),
+            // Si se pueden adjuntar fotos nuevas (ADJUNTOS_HABILITADOS): si no, se oculta el selector.
+            'fotosHabilitadas' => AdjuntoService::habilitados(),
             // Qué es esta cuenta hoy: roles, rango, suspensión, alcance de moderador y empresa.
             'cuenta' => fn () => $this->estadoCuenta($request->user(), $rolesDelUsuario()),
             'notificaciones' => fn () => $this->resumenNotificaciones($request->user()),

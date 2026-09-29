@@ -26,6 +26,8 @@ declare module '@inertiajs/core' {
             stats?: DashboardStats;
             userRoles?: string[];
             limitesFotos?: LimitesFotos;
+            /** false: el envío de fotos está desactivado (ADJUNTOS_HABILITADOS). */
+            fotosHabilitadas?: boolean;
             [key: string]: unknown;
         };
     }

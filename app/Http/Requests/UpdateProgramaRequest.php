@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
+use App\Concerns\PocSchemaValidationRules;
 use App\Enums\EstadoPrograma;
 use App\Enums\NivelAcceso;
 use App\Models\Programa;
@@ -15,6 +16,8 @@ use Illuminate\Validation\Validator;
 
 class UpdateProgramaRequest extends FormRequest
 {
+    use PocSchemaValidationRules;
+
     public function authorize(): bool
     {
         /** @var Programa $programa */
@@ -75,16 +78,7 @@ class UpdateProgramaRequest extends FormRequest
             'moneda' => ['nullable', 'string', 'max:10'],
             'tabla_recompensas' => ['nullable', 'array'],
             'nivel_acceso' => ['sometimes', 'required', Rule::enum(NivelAcceso::class)],
-            'poc_schema' => ['nullable', 'array'],
-            'poc_schema.*.name' => ['required_with:poc_schema', 'string', 'max:100'],
-            'poc_schema.*.label' => ['required_with:poc_schema', 'string', 'max:255'],
-            'poc_schema.*.type' => ['required_with:poc_schema', Rule::in(['text', 'textarea', 'select', 'number', 'url', 'code'])],
-            'poc_schema.*.required' => ['boolean'],
-            'poc_schema.*.placeholder' => ['nullable', 'string', 'max:255'],
-            'poc_schema.*.help' => ['nullable', 'string', 'max:500'],
-            'poc_schema.*.options' => ['nullable', 'array'],
-            'poc_schema.*.repeatable' => ['boolean'],
-            'poc_schema.*.defaultValue' => ['nullable', 'string', 'max:2000'],
+            ...$this->pocSchemaRules(),
             'inicia_en' => ['nullable', 'date', new FechaNoPasada($this->programaActual()?->inicia_en, 'La fecha de inicio')],
             'termina_en' => ['nullable', 'date', 'after_or_equal:inicia_en', new FechaNoPasada($this->programaActual()?->termina_en, 'La fecha de fin')],
             'objetivos' => ['nullable', 'array'],
@@ -160,6 +154,7 @@ class UpdateProgramaRequest extends FormRequest
     public function messages(): array
     {
         return [
+            ...$this->pocSchemaMessages(),
             'nombre.required' => 'El nombre es obligatorio.',
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
             'descripcion.required' => 'La descripción es obligatoria.',

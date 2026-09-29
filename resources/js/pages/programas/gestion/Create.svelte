@@ -533,7 +533,12 @@
                 </CardContent>
             </Card>
 
-            <div class="flex justify-end">
+            <div class="flex flex-wrap items-center justify-end gap-4">
+                {#if Object.keys(errors).length > 0}
+                    <p role="alert" class="text-sm text-destructive" data-test="aviso-errores-programa">
+                        No se creó el programa: revisa los campos marcados en rojo{Object.keys(errors).some((c) => c.startsWith('poc_schema')) ? ', también en los campos de la prueba de concepto' : ''}.
+                    </p>
+                {/if}
                 <Button type="submit" disabled={processing}>
                     {#if processing}<Spinner />{/if}
                     Crear Programa

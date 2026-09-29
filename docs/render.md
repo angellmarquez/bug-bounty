@@ -93,6 +93,11 @@ en producción, las fotos van a **Supabase Storage** (compatible con S3):
    el access key y el secret a las variables `AWS_*` de arriba.
 3. `ADJUNTOS_DISK=s3`.
 
+Para **desactivar el envío de fotos** (por ejemplo, mientras se revisa el bucket):
+`ADJUNTOS_HABILITADOS=false`. La interfaz oculta el selector, el servidor rechaza cualquier foto
+y las ya subidas se siguen viendo. Si una subida al bucket falla, el log registra el motivo que
+devolvió Supabase.
+
 Las fotos ya se suben **cifradas con PGP** y sin EXIF/GPS: aunque alguien entre al bucket solo
 ve bloques cifrados. La app nunca genera URLs públicas; las sirve ella misma tras comprobar
 permisos. Cada foto recuerda en qué disco se guardó, así que las antiguas siguen leyéndose.

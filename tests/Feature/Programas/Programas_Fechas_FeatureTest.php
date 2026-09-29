@@ -262,7 +262,8 @@ test('el "hoy" de un usuario en America no se rechaza aunque en UTC ya sea manan
 });
 
 test('un programa termina cuando su ultimo dia acabo en todas las zonas horarias', function () {
-    $programa = Programa::factory()->create(['estado' => 'activo', 'termina_en' => '2026-09-27']);
+    // Inicio fijo: el de la factory es "hoy" y, con el reloj simulado, el programa aún no habría empezado.
+    $programa = Programa::factory()->create(['estado' => 'activo', 'inicia_en' => '2026-09-01', 'termina_en' => '2026-09-27']);
 
     // 00:55 UTC del 28: en America todavia es el 27, el programa sigue abierto.
     $this->travelTo(CarbonImmutable::parse('2026-09-28 00:55:00', 'UTC'));

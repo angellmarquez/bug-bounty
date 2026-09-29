@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-    import { Form, router } from '@inertiajs/svelte';
+    import { Form, page, router } from '@inertiajs/svelte';
     import ArrowLeft from '@lucide/svelte/icons/arrow-left';
     import ArrowRight from '@lucide/svelte/icons/arrow-right';
     import Save from '@lucide/svelte/icons/save';
@@ -64,6 +64,7 @@
 
     // Las fotos se gestionan aparte del formulario del informe: se suben o quitan al momento.
     let fotosNuevas = $state<File[]>([]);
+    const fotosHabilitadas = $derived(page.props.fotosHabilitadas ?? true);
     let subiendoFotos = $state(false);
     let eliminandoFoto = $state<number | null>(null);
     let erroresFotos = $state<Record<string, string>>({});
@@ -365,19 +366,24 @@
         {/snippet}
     </Form>
 
+    <!-- Con el envío de fotos desactivado solo se muestran las ya subidas (si hay). -->
+    {#if fotosHabilitadas || fotos.length > 0}
     <div data-test="fotos-informe"><Card>
         <CardHeader>
             <CardTitle>Fotos de evidencia</CardTitle>
         </CardHeader>
         <CardContent class="space-y-4">
             <GaleriaFotos {fotos} onEliminar={eliminarFoto} eliminando={eliminandoFoto} />
-            <FotosSelector bind:archivos={fotosNuevas} yaAdjuntas={fotos.length} error={errorDeFotos(erroresFotos)} id="fotos-nuevas" />
-            <div class="flex justify-end">
-                <Button type="button" disabled={subiendoFotos || fotosNuevas.length === 0} onclick={subirFotos}>
-                    {#if subiendoFotos}<Spinner />{/if}
-                    Subir {fotosNuevas.length > 0 ? fotosNuevas.length : ''} foto{fotosNuevas.length === 1 ? '' : 's'}
-                </Button>
-            </div>
+            {#if fotosHabilitadas}
+                <FotosSelector bind:archivos={fotosNuevas} yaAdjuntas={fotos.length} error={errorDeFotos(erroresFotos)} id="fotos-nuevas" />
+                <div class="flex justify-end">
+                    <Button type="button" disabled={subiendoFotos || fotosNuevas.length === 0} onclick={subirFotos}>
+                        {#if subiendoFotos}<Spinner />{/if}
+                        Subir {fotosNuevas.length > 0 ? fotosNuevas.length : ''} foto{fotosNuevas.length === 1 ? '' : 's'}
+                    </Button>
+                </div>
+            {/if}
         </CardContent>
     </Card></div>
+    {/if}
 </div>

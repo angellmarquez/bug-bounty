@@ -272,7 +272,7 @@
             <div>
                 <DialogTitle>Apelar sanción</DialogTitle>
                 <DialogDescription>
-                    Explica por qué consideras que la sanción no corresponde. Otro moderador o el administrador revisará tu caso (nunca quien la aplicó) y podrás seguirlo en Apelaciones.
+                    Explica por qué consideras que la sanción no corresponde. Un administrador revisará tu caso (nunca quien la aplicó) y podrás seguirlo en Apelaciones.
                 </DialogDescription>
             </div>
 
@@ -291,10 +291,12 @@
                 {/if}
             </div>
 
-            <div class="space-y-2">
-                <Label for="fotos-apelacion">Fotos de evidencia (opcional)</Label>
-                <FotosSelector bind:archivos={fotosApelacion} id="fotos-apelacion" />
-            </div>
+            {#if page.props.fotosHabilitadas ?? true}
+                <div class="space-y-2">
+                    <Label for="fotos-apelacion">Fotos de evidencia (opcional)</Label>
+                    <FotosSelector bind:archivos={fotosApelacion} id="fotos-apelacion" />
+                </div>
+            {/if}
 
             <DialogFooter>
                 <Button type="button" variant="outline" onclick={cerrarApelacion}>Cancelar</Button>

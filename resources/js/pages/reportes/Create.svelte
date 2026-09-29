@@ -329,14 +329,16 @@
                     bind:errors={erroresPaso}
                 />
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Fotos de evidencia (opcional)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <FotosSelector bind:archivos={fotos} error={errorDeFotos(formErrors)} />
-                    </CardContent>
-                </Card>
+                {#if page.props.fotosHabilitadas ?? true}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Fotos de evidencia (opcional)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <FotosSelector bind:archivos={fotos} error={errorDeFotos(formErrors)} />
+                        </CardContent>
+                    </Card>
+                {/if}
 
             {:else if pasoActual === 4}
                 <Card>

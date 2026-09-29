@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Link, router } from '@inertiajs/svelte';
+    import { Link, page, router } from '@inertiajs/svelte';
     import Ban from '@lucide/svelte/icons/ban';
     import MessageSquare from '@lucide/svelte/icons/message-square';
     import ShieldAlert from '@lucide/svelte/icons/shield-alert';
@@ -152,7 +152,9 @@
                             rows={3}
                             class="w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                         ></textarea>
-                        <FotosSelector bind:archivos={fotos} id="fotos-apelacion-dashboard" />
+                        {#if page.props.fotosHabilitadas ?? true}
+                            <FotosSelector bind:archivos={fotos} id="fotos-apelacion-dashboard" />
+                        {/if}
                         {#if error}
                             <p class="text-xs text-destructive">{error}</p>
                         {/if}
