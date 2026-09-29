@@ -405,6 +405,7 @@
                                             <Input
                                                 name="tabla_recompensas[critica]"
                                                 type="number"
+                                                min="0"
                                                 class="pl-6 h-8 text-xs font-mono"
                                                 bind:value={tablaBounties.critica}
                                             />
@@ -418,6 +419,7 @@
                                             <Input
                                                 name="tabla_recompensas[alta]"
                                                 type="number"
+                                                min="0"
                                                 class="pl-6 h-8 text-xs font-mono"
                                                 bind:value={tablaBounties.alta}
                                             />
@@ -431,6 +433,7 @@
                                             <Input
                                                 name="tabla_recompensas[media]"
                                                 type="number"
+                                                min="0"
                                                 class="pl-6 h-8 text-xs font-mono"
                                                 bind:value={tablaBounties.media}
                                             />
@@ -444,12 +447,14 @@
                                             <Input
                                                 name="tabla_recompensas[baja]"
                                                 type="number"
+                                                min="0"
                                                 class="pl-6 h-8 text-xs font-mono"
                                                 bind:value={tablaBounties.baja}
                                             />
                                         </div>
                                     </div>
                                 </div>
+                                <InputError message={errors.tabla_recompensas ?? errors.moneda} />
                                 <p class="text-[11px] text-muted-foreground">
                                     Los pagos no son custodiados por la plataforma. Al validar un reporte transferirás directamente a la billetera EVM del investigador y registrarás el hash de transacción.
                                 </p>

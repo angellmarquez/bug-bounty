@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Abac\AccionesAbac;
 use App\Concerns\PocSchemaValidationRules;
+use App\Concerns\RecompensasValidationRules;
 use App\Enums\EstadoPrograma;
 use App\Enums\NivelAcceso;
 use App\Models\Programa;
@@ -16,7 +17,7 @@ use Illuminate\Validation\Validator;
 
 class UpdateProgramaRequest extends FormRequest
 {
-    use PocSchemaValidationRules;
+    use PocSchemaValidationRules, RecompensasValidationRules;
 
     public function authorize(): bool
     {
@@ -52,6 +53,7 @@ class UpdateProgramaRequest extends FormRequest
                 'solo_verificados' => $this->boolean('solo_verificados'),
             ]);
         }
+        $this->normalizarTablaRecompensas();
     }
 
     private function programaActual(): ?Programa
@@ -73,10 +75,7 @@ class UpdateProgramaRequest extends FormRequest
             'es_publico' => ['boolean'],
             'tiene_recompensas' => ['boolean'],
             'solo_verificados' => ['boolean'],
-            'recompensa_min' => ['nullable', 'numeric', 'min:0'],
-            'recompensa_max' => ['nullable', 'numeric', 'gte:recompensa_min'],
-            'moneda' => ['nullable', 'string', 'max:10'],
-            'tabla_recompensas' => ['nullable', 'array'],
+            ...$this->recompensasRules(),
             'nivel_acceso' => ['sometimes', 'required', Rule::enum(NivelAcceso::class)],
             ...$this->pocSchemaRules(),
             'inicia_en' => ['nullable', 'date', new FechaNoPasada($this->programaActual()?->inicia_en, 'La fecha de inicio')],
@@ -97,6 +96,7 @@ class UpdateProgramaRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(fn (Validator $validator) => $this->validarFechas($validator));
+        $validator->after(fn (Validator $validator) => $this->validarCoherenciaDeRecompensas($validator));
 
         $validator->after(function (Validator $validator) {
             $empresa = $this->user()?->empresas()->wherePivot('estado', 'activo')->first();
@@ -155,6 +155,7 @@ class UpdateProgramaRequest extends FormRequest
     {
         return [
             ...$this->pocSchemaMessages(),
+            ...$this->recompensasMessages(),
             'nombre.required' => 'El nombre es obligatorio.',
             'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
             'descripcion.required' => 'La descripción es obligatoria.',

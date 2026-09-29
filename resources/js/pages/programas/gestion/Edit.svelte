@@ -81,11 +81,12 @@
     let tieneRecompensas = $state(Boolean(programa.tiene_recompensas));
     let recompensaMin = $state(programa.recompensa_min?.toString() ?? '50');
     let recompensaMax = $state(programa.recompensa_max?.toString() ?? '2000');
+    // Sin tabla guardada se deja vacía: inventar montos podría salirse del rango del programa.
     let tablaBounties = $state({
-        critica: programa.tabla_recompensas?.critica?.toString() ?? '1500',
-        alta: programa.tabla_recompensas?.alta?.toString() ?? '750',
-        media: programa.tabla_recompensas?.media?.toString() ?? '300',
-        baja: programa.tabla_recompensas?.baja?.toString() ?? '100',
+        critica: programa.tabla_recompensas?.critica?.toString() ?? '',
+        alta: programa.tabla_recompensas?.alta?.toString() ?? '',
+        media: programa.tabla_recompensas?.media?.toString() ?? '',
+        baja: programa.tabla_recompensas?.baja?.toString() ?? '',
     });
 
     let objetivos = $state<{ id?: number; tipo: string; valor: string; descripcion: string }[]>(
@@ -426,6 +427,7 @@
                                             <Input
                                                 name="tabla_recompensas[critica]"
                                                 type="number"
+                                                min="0"
                                                 class="pl-6 h-8 text-xs font-mono"
                                                 bind:value={tablaBounties.critica}
                                             />
@@ -439,6 +441,7 @@
                                             <Input
                                                 name="tabla_recompensas[alta]"
                                                 type="number"
+                                                min="0"
                                                 class="pl-6 h-8 text-xs font-mono"
                                                 bind:value={tablaBounties.alta}
                                             />
@@ -452,6 +455,7 @@
                                             <Input
                                                 name="tabla_recompensas[media]"
                                                 type="number"
+                                                min="0"
                                                 class="pl-6 h-8 text-xs font-mono"
                                                 bind:value={tablaBounties.media}
                                             />
@@ -465,12 +469,14 @@
                                             <Input
                                                 name="tabla_recompensas[baja]"
                                                 type="number"
+                                                min="0"
                                                 class="pl-6 h-8 text-xs font-mono"
                                                 bind:value={tablaBounties.baja}
                                             />
                                         </div>
                                     </div>
                                 </div>
+                                <InputError message={errors.tabla_recompensas ?? errors.moneda} />
                                 <p class="text-[11px] text-muted-foreground">
                                     Los pagos no son custodiados por la plataforma. Al validar un reporte transferirás directamente a la billetera EVM del investigador y registrarás el hash de transacción.
                                 </p>
