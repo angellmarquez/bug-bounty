@@ -224,12 +224,12 @@ test('guardar y enviar deja el informe visible para el moderador y la empresa', 
     $this->actingAs($autor)->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'Solo borrador',
-        'descripcion' => 'No se envia',
+        'descripcion' => 'No se envia: Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
     ])->assertRedirect();
     $this->actingAs($autor)->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'Enviado al guardar',
-        'descripcion' => 'Se envia',
+        'descripcion' => 'Se envia: Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
         'poc' => ['evidencia' => 'Pasos para reproducir el hallazgo.'],
         'enviar' => true,
     ])->assertRedirect();
@@ -262,7 +262,7 @@ function informeEnviadoConContenido(Programa $programa, User $autor): Reporte
     test()->actingAs($autor)->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'XSS en el buscador',
-        'descripcion' => 'El parametro q se refleja sin escapar.',
+        'descripcion' => 'El parametro q se refleja sin escapar en la pagina de resultados del buscador.',
         'categoria' => 'xss',
         'vector_cvss' => 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N',
         'puntuacion_cvss' => 6.1,
@@ -297,7 +297,7 @@ test('la pagina del informe muestra el contenido descifrado a quien puede verlo'
         ->get(route('reportes.show', $reporte))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->where('reporte.descripcion', 'El parametro q se refleja sin escapar.')
+            ->where('reporte.descripcion', 'El parametro q se refleja sin escapar en la pagina de resultados del buscador.')
             ->where('reporte.poc.pasos', 'Abrir /buscar?q=<script>alert(1)</script>')
             ->where('reporte.programa.poc_schema.0.label', 'Pasos para reproducir')
             ->where('reporte.categoria', 'xss')
@@ -344,7 +344,7 @@ test('el revisor ve el alcance del programa y el historial del investigador en e
             ->where('historialInvestigador', ['reputation_score' => 30, 'informes' => 3, 'aprobados' => 1, 'descartados' => 1])
             ->where('reporte.programa.bugs_buscados', 'Inyecciones y XSS')
             ->where('reporte.programa.objetivos.0.valor', 'app.acme.test')
-            ->where('reporte.descripcion', 'El parametro q se refleja sin escapar.'));
+            ->where('reporte.descripcion', 'El parametro q se refleja sin escapar en la pagina de resultados del buscador.'));
 
     // El autor ve su informe, pero no el historial ni el alcance pensados para revisar.
     $this->actingAs($autor)->get(route('reportes.show', $reporte))

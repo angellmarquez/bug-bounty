@@ -65,7 +65,7 @@ test('bloquea el envio si falta un campo obligatorio del schema del programa, pe
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'IDOR en pagos',
-        'descripcion' => 'El endpoint no valida el dueño del recurso.',
+        'descripcion' => 'El endpoint no valida el dueño del recurso: cualquier usuario lee pagos ajenos.',
         'poc' => ['endpoint' => 'https://api.banco.test/pagos/123'],
     ])->assertSessionHasNoErrors();
 
@@ -126,7 +126,7 @@ test('un programa sin schema propio igual exige evidencia: no se puede omitir el
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'Sin evidencia',
-        'descripcion' => 'Descripcion',
+        'descripcion' => 'Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
         'poc' => null,
         'enviar' => true,
     ])->assertSessionHasErrors('poc');
@@ -141,7 +141,7 @@ test('en un programa sin campos de PoC, una evidencia vacia o de puros espacios 
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'Evidencia vacia',
-        'descripcion' => 'Descripcion',
+        'descripcion' => 'Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
         'poc' => $poc,
         'enviar' => true,
     ])->assertSessionHasErrors('poc');

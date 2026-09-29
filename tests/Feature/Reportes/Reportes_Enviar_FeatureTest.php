@@ -38,6 +38,36 @@ test('enviado event is created', function () {
     ]);
 });
 
+test('al enviar se exigen los minimos del formulario: titulo de 5 y descripcion de 50 caracteres', function () {
+    $this->actingAs(investigador());
+    $programa = Programa::factory()->create(['estado' => 'activo', 'es_publico' => true, 'poc_schema' => null]);
+
+    $this->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'XSS',
+        'descripcion' => 'Muy corta',
+        'poc' => json_encode(['evidencia' => 'Pasos para reproducir el fallo']),
+        'enviar' => true,
+    ])->assertSessionHasErrors(['titulo', 'descripcion']);
+
+    // Como borrador sí se guarda: se puede completar después.
+    $this->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'XSS',
+        'descripcion' => 'Muy corta',
+    ])->assertSessionHasNoErrors();
+});
+
+test('un borrador con la descripcion corta no se puede enviar despues', function () {
+    $user = investigador();
+    $this->actingAs($user);
+    $reporte = reporteDe($user, null, ['estado' => 'borrador', 'descripcion' => 'Muy corta', 'poc' => json_encode(['evidencia' => 'Pasos'])]);
+
+    $this->post(route('reportes.enviar', $reporte))->assertSessionHasErrors('descripcion');
+
+    expect($reporte->fresh()->estado->value)->toBe('borrador');
+});
+
 test('cannot enviar borrador sin poc: todo programa la exige', function () {
     $user = investigador();
     $this->actingAs($user);

@@ -39,7 +39,7 @@ test('un investigador recien registrado ve el programa, reporta y sigue su infor
     $this->post(route('reportes.store'), [
         'programa_id' => $programa->id,
         'titulo' => 'XSS en el buscador',
-        'descripcion' => 'El parametro q no se escapa.',
+        'descripcion' => 'El parametro q del buscador no se escapa y permite inyectar HTML en la pagina.',
         'poc' => ['pasos' => 'Abrir /buscar?q=<script>'],
     ])->assertRedirect();
 
@@ -82,7 +82,7 @@ test('la empresa puede indicar que bugs busca al crear el programa', function ()
     $this->post(route('programas.store'), [
         'nombre' => 'Programa con bugs',
         'objetivos' => [['tipo' => 'web', 'valor' => 'app.acme.test']],
-        'descripcion' => 'Descripcion',
+        'descripcion' => 'Descripción detallada del hallazgo con los pasos necesarios para reproducirlo.',
         'bugs_buscados' => 'XSS almacenado',
     ])->assertRedirect();
 

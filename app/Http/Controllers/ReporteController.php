@@ -670,6 +670,22 @@ class ReporteController extends Controller
                 ->with('error', 'No se puede enviar: falta completar la prueba de concepto.');
         }
 
+        // Los mismos mínimos que al crear y enviar: un borrador pudo guardarse más corto.
+        $validadorTextos = Validator::make(
+            ['titulo' => trim((string) $reporte->titulo), 'descripcion' => trim((string) $contenido['descripcion'])],
+            ['titulo' => ['required', 'min:'.Reporte::TITULO_MINIMO], 'descripcion' => ['required', 'min:'.Reporte::DESCRIPCION_MINIMA]],
+            [
+                'titulo.min' => 'El título debe tener al menos '.Reporte::TITULO_MINIMO.' caracteres.',
+                'descripcion.min' => 'La descripción debe tener al menos '.Reporte::DESCRIPCION_MINIMA.' caracteres detallando el hallazgo.',
+            ],
+        );
+
+        if ($validadorTextos->fails()) {
+            return redirect()->route('reportes.show', $reporte)
+                ->withErrors($validadorTextos)
+                ->with('error', 'No se puede enviar: '.$validadorTextos->errors()->first().' Edítalo antes de enviarlo.');
+        }
+
         $this->marcarEnviado($reporte, request()->user());
 
         return redirect()->route('reportes.show', $reporte)
