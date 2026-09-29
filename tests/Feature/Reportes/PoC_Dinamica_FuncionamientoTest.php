@@ -133,3 +133,23 @@ test('un programa sin schema propio igual exige evidencia: no se puede omitir el
 
     $this->assertDatabaseMissing('reportes', ['titulo' => 'Sin evidencia']);
 });
+
+test('en un programa sin campos de PoC, una evidencia vacia o de puros espacios tampoco vale', function (mixed $poc) {
+    $programa = Programa::factory()->create(['estado' => 'activo', 'es_publico' => true, 'poc_schema' => null]);
+    $this->actingAs(investigador());
+
+    $this->post(route('reportes.store'), [
+        'programa_id' => $programa->id,
+        'titulo' => 'Evidencia vacia',
+        'descripcion' => 'Descripcion',
+        'poc' => $poc,
+        'enviar' => true,
+    ])->assertSessionHasErrors('poc');
+
+    $this->assertDatabaseMissing('reportes', ['titulo' => 'Evidencia vacia']);
+})->with([
+    'campo vacio' => [json_encode(['evidencia' => ''])],
+    'solo espacios' => [json_encode(['evidencia' => "   \n  "])],
+    'objeto vacio' => [json_encode([])],
+    'lista de pasos vacios' => [json_encode(['pasos' => ['', '  ']])],
+]);
